@@ -35,7 +35,7 @@ Di luar scope v1: agentic mode (OpenAI-compatible custom URL), animasi, tint/blu
 | U1 | Split frame atas-bawah (2 panel per scene) opsional per scene, default 1 panel. |
 | U2 | Tool v1: image layer (geser/resize/rotate/flip/opacity/urutan layer), text, panah, emoji, duplikat scene. Tint/blur/masking ditunda. |
 | U3 | Posisi scene dalam page: 1 scene = tengah, 2 scene = simetris di tengah, 3 scene = penuh. Berlaku di editor dan PDF. |
-| U4 | Repo di `~/Projects/storyboard-maker`, data di `~/Storyboard` (override env `STORYBOARD_HOME`). |
+| U4 | Repo di `~/Documents/Repos/NodeJS/storyboard-maker`, data di `~/Storyboard` (override env `STORYBOARD_HOME`). |
 | U5 | Font: Coming Soon untuk label/catatan/subtitle (sama dengan PDF Canva sampel), judul "STORYBOARD" juga Coming Soon. Text layer: Coming Soon, Bangers, Inter. Semua di-bundle via @fontsource (offline). |
 | U6 | Layout editor (§6): kiri tab Storyline/Asset, tengah canvas scene besar + strip page, kanan properti. |
 | U7 | GIF tampil sebagai frame pertama (statis) di editor dan PDF. |
