@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   addLayer,
   addSceneAfter,
@@ -30,15 +30,17 @@ function isTyping(e: KeyboardEvent) {
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
 
-function useSize(ref: React.RefObject<HTMLElement | null>) {
+/** Callback-ref based so it works when the element mounts after the first render. */
+function useSize(): [(el: HTMLElement | null) => void, { w: number; h: number }] {
+  const [el, setEl] = useState<HTMLElement | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   useEffect(() => {
-    if (!ref.current) return;
+    if (!el) return;
     const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }));
-    ro.observe(ref.current);
+    ro.observe(el);
     return () => ro.disconnect();
-  }, [ref]);
-  return size;
+  }, [el]);
+  return [setEl, size];
 }
 
 export function Editor({ slug }: { slug: string }) {
@@ -46,8 +48,7 @@ export function Editor({ slug }: { slug: string }) {
   const [tab, setTab] = useState<'storyline' | 'assets'>('storyline');
   const [assets, setAssets] = useState<AssetLists>({ project: [], global: [] });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const stageBox = useRef<HTMLDivElement>(null);
-  const box = useSize(stageBox);
+  const [stageBox, box] = useSize();
 
   useEffect(() => {
     s.load(slug).catch((e) => setLoadError((e as Error).message));
@@ -217,7 +218,7 @@ export function Editor({ slug }: { slug: string }) {
           <div className="scene-head">
             <span className="scene-title">Scene {number}</span>
             <span className="muted mono">
-              Page {pageIndex + 1}/{project.pages.length} · {project.pages[pageIndex].scenes.length}/3 scene
+              dari {flat.length} · Page {pageIndex + 1}/{project.pages.length} ({project.pages[pageIndex].scenes.length} scene)
             </span>
             <div className="grow" />
             <button onClick={() => sceneActions.move(-1)} disabled={number === 1} title="Pindah ke kiri">
