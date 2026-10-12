@@ -22,7 +22,7 @@ beforeEach(async () => {
 
 function upload(path: string, files: [string, Buffer][]) {
   const fd = new FormData();
-  for (const [name, buf] of files) fd.append('files', new File([buf], name, { type: 'application/octet-stream' }));
+  for (const [name, buf] of files) fd.append('files', new File([new Uint8Array(buf)], name, { type: 'application/octet-stream' }));
   return app.request(path, { method: 'POST', body: fd });
 }
 
@@ -62,7 +62,7 @@ test('GET /files/project/:slug/:name mengembalikan bytes & content-type image/pn
 
 test('import docx → text berisi storyline dan tersimpan di storyline.txt', async () => {
   const fd = new FormData();
-  fd.append('file', new File([docx], 'cara kerja selimut darurat.docx'));
+  fd.append('file', new File([new Uint8Array(docx)], 'cara kerja selimut darurat.docx'));
   const r = await app.request('/api/projects/selimut-darurat/storyline/import', { method: 'POST', body: fd });
   expect(r.status).toBe(200);
   const { text } = await r.json();

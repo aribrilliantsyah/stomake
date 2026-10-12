@@ -50,10 +50,10 @@ export function assetRoutes(): Hono {
     const file = join(dir, name);
     if (!existsSync(file)) return c.json({ error: 'not found' }, 404);
     const type = MIME[extname(name).toLowerCase()] ?? 'application/octet-stream';
-    return c.body(await readFile(file), 200, { 'content-type': type, 'cache-control': 'no-cache' });
+    return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': type, 'cache-control': 'no-cache' });
   };
   r.get('/files/global/:name', (c) => serveFile(c, libraryDir(), c.req.param('name')));
-  r.get('/files/project/:slug/:name', (c) => {
+  r.get('/files/project/:slug/:name', async (c) => {
     const slug = c.req.param('slug');
     if (!isValidSlug(slug)) return badRequest(c, 'invalid slug');
     return serveFile(c, projectAssetsDir(slug), c.req.param('name'));
