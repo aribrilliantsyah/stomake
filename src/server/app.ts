@@ -1,6 +1,7 @@
-import { Hono, type Context } from 'hono';
+import { Hono } from 'hono';
+import { assetRoutes } from './assetRoutes';
+import { badRequest, checkSlug } from './http';
 import { ZodError } from 'zod';
-import { isValidSlug } from './paths';
 import {
   createProjectOnDisk,
   listProjects,
@@ -10,18 +11,6 @@ import {
   saveProject,
   writeStoryline,
 } from './store';
-
-export function badRequest(c: Context, error: string) {
-  return c.json({ error }, 400);
-}
-
-/** Returns an error response, or null when :slug is valid and exists. */
-export function checkSlug(c: Context): Response | null {
-  const slug = c.req.param('slug') ?? '';
-  if (!isValidSlug(slug)) return c.json({ error: 'invalid slug' }, 400);
-  if (!projectExists(slug)) return c.json({ error: 'project not found' }, 404);
-  return null;
-}
 
 export function projectRoutes(): Hono {
   const r = new Hono();
@@ -66,6 +55,7 @@ export function projectRoutes(): Hono {
 export function createApp(): Hono {
   const app = new Hono();
   app.route('/', projectRoutes());
+  app.route('/', assetRoutes());
   app.onError((e, c) => {
     console.error(e);
     return c.json({ error: e.message }, 500);
