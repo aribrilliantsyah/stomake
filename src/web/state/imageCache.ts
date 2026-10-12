@@ -30,6 +30,8 @@ export function loadImage(url: string): Promise<HTMLImageElement | null> {
       img.src = url;
     }).then((img) => {
       resolved.set(url, img as HTMLImageElement | null);
+      // failures are not cached: a later re-upload of the same name must load
+      if (!img) queueMicrotask(() => cache.delete(url));
       return img as HTMLImageElement | null;
     });
     cache.set(url, p);

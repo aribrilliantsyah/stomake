@@ -9,6 +9,23 @@ export function StorylinePanel({ slug }: { slug: string }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
+  const pending = useRef<string | null>(null);
+  useEffect(() => {
+    const flush = () => {
+      if (pending.current === null) return;
+      const body = JSON.stringify({ text: pending.current });
+      pending.current = null;
+      navigator.sendBeacon?.(`/api/projects/${slug}/storyline`, new Blob([body], { type: 'application/json' })) ||
+        api.saveStoryline(slug, JSON.parse(body).text);
+    };
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      if (timer.current) clearTimeout(timer.current);
+      if (pending.current !== null) api.saveStoryline(slug, pending.current);
+    };
+  }, [slug]);
+
   useEffect(() => {
     api.getStoryline(slug).then(({ text }) => {
       setText(text);
@@ -19,8 +36,10 @@ export function StorylinePanel({ slug }: { slug: string }) {
   function change(v: string) {
     setText(v);
     setStatus('saving');
+    pending.current = v;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
+      pending.current = null;
       api.saveStoryline(slug, v).then(
         () => setStatus('saved'),
         () => setStatus('error'),

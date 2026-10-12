@@ -107,3 +107,26 @@ test('undo tidak mengubah updatedAt hasil save', async () => {
   undo();
   expect(useEditor.getState().project!.updatedAt).toBe('2026-10-12T00:00:01Z');
 });
+
+test('flush menunggu save yang sedang berjalan lalu menyimpan edit terbaru', async () => {
+  let release!: () => void;
+  saveProject.mockImplementationOnce(() => new Promise((res) => (release = () => res({ updatedAt: '2026-10-12T00:00:01Z' }))));
+  const { apply, flush } = useEditor.getState();
+  apply((p) => updateScene(p, sid, { subtitle: 'satu' }));
+  await vi.advanceTimersByTimeAsync(1500); // save #1 in flight
+  apply((p) => updateScene(p, sid, { subtitle: 'dua' }));
+  const done = flush();
+  release();
+  await vi.advanceTimersByTimeAsync(0);
+  await done;
+  expect(saveProject.mock.calls.at(-1)![1].pages[0].scenes[0].subtitle).toBe('dua');
+  expect(useEditor.getState().saveStatus).toBe('saved');
+});
+
+test('load project lain menyimpan dulu perubahan yang tertunda', async () => {
+  useEditor.getState().apply((p) => updateScene(p, sid, { subtitle: 'belum tersimpan' }));
+  await useEditor.getState().load('b');
+  expect(saveProject).toHaveBeenCalledTimes(1);
+  expect(saveProject.mock.calls[0][0]).toBe('a');
+  expect(saveProject.mock.calls[0][1].pages[0].scenes[0].subtitle).toBe('belum tersimpan');
+});

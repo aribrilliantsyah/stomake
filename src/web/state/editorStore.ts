@@ -34,7 +34,7 @@ interface EditorState {
 let lastKey: string | null = null;
 let lastAt = 0;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
-let saving = false;
+let saving: Promise<void> | null = null;
 let pendingAfterSave = false;
 
 function clearTimer() {
@@ -56,9 +56,10 @@ export const useEditor = create<EditorState>((set, get) => {
     if (!slug || !project) return;
     if (saving) {
       pendingAfterSave = true;
-      return;
+      return saving;
     }
-    saving = true;
+    let done!: () => void;
+    saving = new Promise<void>((r) => (done = r));
     set({ saveStatus: 'saving' });
     const sent = project;
     try {
@@ -77,11 +78,12 @@ export const useEditor = create<EditorState>((set, get) => {
       clearTimer();
       saveTimer = setTimeout(doSave, RETRY_MS);
     } finally {
-      saving = false;
+      saving = null;
+      done();
     }
     if (pendingAfterSave || get().saveStatus === 'dirty') {
       pendingAfterSave = false;
-      schedule();
+      if (get().saveStatus !== 'error') schedule();
     }
   }
 
@@ -109,12 +111,13 @@ export const useEditor = create<EditorState>((set, get) => {
     reset() {
       clearTimer();
       lastKey = null;
-      saving = false;
+      saving = null;
       pendingAfterSave = false;
       set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, activePanelId: null, selectedLayerId: null });
     },
 
     async load(slug) {
+      if (get().slug) await get().flush().catch(() => undefined);
       get().reset();
       const project = await api.getProject(slug);
       set({ slug, project, ...fixSelection(project, { currentSceneId: null, activePanelId: null, selectedLayerId: null }) });
@@ -162,10 +165,18 @@ export const useEditor = create<EditorState>((set, get) => {
       set({ selectedLayerId: id });
     },
 
+    /** Resolves once everything currently in memory is on disk (or a save failed). */
     async flush() {
-      if (get().saveStatus === 'dirty' || get().saveStatus === 'error') {
+      for (let i = 0; i < 20; i++) {
+        if (saving) {
+          await saving;
+          continue;
+        }
+        const st = get().saveStatus;
+        if (st === 'saved') return;
         clearTimer();
         await doSave();
+        if (get().saveStatus === 'error') throw new Error(get().saveError ?? 'save failed');
       }
     },
   };

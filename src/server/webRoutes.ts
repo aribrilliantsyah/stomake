@@ -44,7 +44,13 @@ const TYPES: Record<string, string> = {
 export function staticRoutes(dir: string): Hono {
   const r = new Hono();
   r.get('*', async (c) => {
-    const rel = normalize(decodeURIComponent(new URL(c.req.url).pathname)).replace(/^([/\\])+/, '');
+    let path: string;
+    try {
+      path = decodeURIComponent(new URL(c.req.url).pathname);
+    } catch {
+      return c.json({ error: 'bad url' }, 400);
+    }
+    const rel = normalize(path).replace(/^([/\\])+/, '');
     let file = join(dir, rel);
     if (!file.startsWith(dir) || !existsSync(file) || rel === '' || !extname(file)) file = join(dir, 'index.html');
     return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });

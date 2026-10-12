@@ -174,6 +174,7 @@ body.print-mode { background: #8a8a86; }
 .sheet-label, .sheet-note, .sheet-sub, .sheet-brush, .sheet-frame { position: absolute; }
 .sheet-label { line-height: 1; }
 .sheet-note { line-height: 1.2; }
+.sheet-note > div, .sheet-sub > div { white-space: nowrap; }
 .sheet-frame canvas { display: block; }
 
 @page { size: 708.75pt 567pt; margin: 0; }

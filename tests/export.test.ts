@@ -7,7 +7,7 @@ import { serve, type ServerType } from '@hono/node-server';
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
 import { closeBrowser } from '../src/server/export';
-import { addLayer, addSceneAfter, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
+import { addLayer, addSceneAfter, defaultText, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
 import type { Project } from '../src/shared/types';
 
 const dist = join(__dirname, '..', 'dist');
@@ -118,6 +118,23 @@ test('asset berspasi "dont .png" ter-render (missingAssets kosong) & subtitle pa
   expect(txt).toContain('…');
   const lines = txt.split('\n').filter((l) => l.includes('Tubuh') || l.includes('ngeluarin') || l.includes('panas'));
   expect(lines.length).toBeLessThanOrEqual(4);
+}, 120_000);
+
+test('frame resolusi tinggi, font Bangers termuat, subtitle maks 4 baris', async () => {
+  const slug = await makeProject('Kualitas', 1, (p) => {
+    const panelId = p.pages[0].scenes[0].panels[0].id;
+    p = addLayer(p, panelId, { ...defaultText({ w: 1080, h: 1920 }), text: 'WISTAR' });
+    return updateScene(p, p.pages[0].scenes[0].id, { subtitle: ('merasa dingin sekali sampai menggigil dan ' ).repeat(15) });
+  });
+  const body = await (await call(`/api/projects/${slug}/export`, { method: 'POST' })).json();
+  const imgs = execFileSync('pdfimages', ['-list', body.path]).toString().split('\n').slice(2).filter(Boolean);
+  const widths = imgs.map((l) => Number(l.trim().split(/\s+/)[3]));
+  expect(Math.max(...widths)).toBeGreaterThanOrEqual(576); // 4x of 144pt frame
+  expect(body.fonts).toEqual(expect.arrayContaining(['Bangers', 'Coming Soon', 'Inter']));
+  const bbox = execFileSync('pdftotext', ['-bbox', body.path, '-']).toString();
+  const ys = new Set([...bbox.matchAll(/yMin="([\d.]+)"[^>]*>(?:merasa|dingin|sekali|sampai|menggigil|dan)/g)].map((m) => Math.round(Number(m[1]))));
+  expect(ys.size).toBeLessThanOrEqual(4);
+  expect(Math.max(...ys)).toBeLessThan(470);
 }, 120_000);
 
 test('teardown tmp', () => {

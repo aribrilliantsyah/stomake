@@ -36,3 +36,9 @@ test('url yang sama hanya dimuat sekali', async () => {
 test('error load → null (missing)', async () => {
   expect(await loadImage('/files/global/missing.png')).toBeNull();
 });
+
+test('gagal load tidak di-cache permanen (re-upload bisa dimuat ulang)', async () => {
+  expect(await loadImage('/files/global/missing-again.png')).toBeNull();
+  await loadImage('/files/global/missing-again.png');
+  expect(created).toBe(2);
+});

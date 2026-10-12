@@ -70,7 +70,10 @@ export function Editor({ slug }: { slug: string }) {
       }
     };
     window.addEventListener('beforeunload', before);
-    return () => window.removeEventListener('beforeunload', before);
+    return () => {
+      window.removeEventListener('beforeunload', before);
+      useEditor.getState().flush().catch(() => undefined);
+    };
   }, []);
 
   const project = s.project;

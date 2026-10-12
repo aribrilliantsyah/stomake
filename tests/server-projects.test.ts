@@ -79,6 +79,8 @@ test('storyline PUT/GET roundtrip; default ""', async () => {
   expect(await (await app.request('/api/projects/a/storyline')).json()).toEqual({ text: '' });
   await app.request('/api/projects/a/storyline', json({ text: 'Nahh jadi…' }, 'PUT'));
   expect(await (await app.request('/api/projects/a/storyline')).json()).toEqual({ text: 'Nahh jadi…' });
+  await app.request('/api/projects/a/storyline', json({ text: 'beacon' }, 'POST'));
+  expect(await (await app.request('/api/projects/a/storyline')).json()).toEqual({ text: 'beacon' });
 });
 
 test('slugify & isSafeName', () => {
@@ -91,4 +93,19 @@ test('slugify & isSafeName', () => {
   expect(isSafeName('a/b')).toBe(false);
   expect(isSafeName('a\\b')).toBe(false);
   expect(isSafeName('')).toBe(false);
+});
+
+test('tulis tanpa content-type JSON ditolak (CSRF)', async () => {
+  const r = await app.request('/api/projects', { method: 'POST', body: JSON.stringify({ name: 'x' }), headers: { 'content-type': 'text/plain' } });
+  expect(r.status).toBe(415);
+});
+
+test('Origin asing ditolak, localhost diterima', async () => {
+  const bad = await app.request('/api/projects', { method: 'POST', body: JSON.stringify({ name: 'x' }), headers: { 'content-type': 'application/json', origin: 'https://evil.example' } });
+  expect(bad.status).toBe(403);
+  const fd = new FormData();
+  fd.append('files', new File([new Uint8Array([1])], 'a.png'));
+  expect((await app.request('/api/assets/global', { method: 'POST', body: fd, headers: { origin: 'https://evil.example' } })).status).toBe(403);
+  const ok = await app.request('/api/projects', { method: 'POST', body: JSON.stringify({ name: 'x' }), headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' } });
+  expect(ok.status).toBe(200);
 });

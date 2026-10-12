@@ -1,4 +1,6 @@
+import Konva from 'konva';
 import { useEffect, useState } from 'react';
+import { loadFonts, loadedFonts } from '../fonts';
 import type { Project } from '../../shared/types';
 import { api } from '../api';
 import { assetUrl, loadImage, missingRefs, pendingImages } from '../state/imageCache';
@@ -27,6 +29,7 @@ export function PrintRoute({ slug, page }: { slug: string; page: number | null }
 
   useEffect(() => {
     document.body.classList.add('print-mode');
+    Konva.pixelRatio = 4; // frame bitmaps at 4x for a sharp PDF
     window.__PRINT_READY__ = false;
     api.getProject(slug).then(setProject, (e) => {
       setError(e.message);
@@ -42,7 +45,7 @@ export function PrintRoute({ slug, page }: { slug: string; page: number | null }
       const refs = allRefs(project);
       const results = await Promise.all(refs.map((r) => loadImage(assetUrl(r as never, slug))));
       refs.forEach((r, i) => !results[i] && missingRefs.add(r));
-      await document.fonts.ready;
+      await loadFonts();
       // let Konva redraw with loaded images
       for (let i = 0; i < 10 && pendingImages() > 0; i++) await new Promise((r) => setTimeout(r, 50));
       await nextFrame();
@@ -50,6 +53,7 @@ export function PrintRoute({ slug, page }: { slug: string; page: number | null }
       await new Promise((r) => setTimeout(r, 150));
       if (!alive) return;
       window.__MISSING_ASSETS__ = [...missingRefs].sort();
+      window.__FONTS__ = loadedFonts();
       window.__PRINT_READY__ = true;
     })();
     return () => {
