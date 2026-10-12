@@ -95,13 +95,13 @@ Satuan pt, page **708.75 × 567** (landscape).
 | Lebar kolom / frame | frame 144 × 256 (9:16) |
 | Jarak antar kolom (pitch) | 228 |
 | Posisi x kolom (3 scene) | 35, 263, 491 |
-| Posisi x (2 scene) | 149, 377 (simetris, U3) |
-| Posisi x (1 scene) | 263 |
+| Posisi x (2 scene) | 168.375, 396.375 (frame di tengah page, U3) |
+| Posisi x (1 scene) | 282.375 (frame tepat di tengah page) |
 | "Scene N" | y 94, 12pt |
-| Catatan efek | y 108, 7pt, max 2 baris, lebar 200; kosong → tampil `-` |
+| Catatan efek | y 109, 7pt (mengecil s/d 5pt), max 2 baris, lebar 165; kosong → tampil `-` |
 | Frame | y 128, border brush hitam |
-| Subtitle | y 390, 11pt, lebar 200, max 4 baris; lebih panjang → font turun sampai 8pt lalu terpotong `…` |
-| Garis brush | y 470, lebar 180 |
+| Subtitle | y 390, 11pt, lebar 165, max 4 baris; lebih panjang → font turun sampai 8pt lalu terpotong `…` |
+| Garis brush | y 470, lebar 150 |
 | Split | frame dibagi 2 panel 144×128 dengan garis pemisah hitam |
 
 Konstanta ini di satu file (`shared/layout.ts`) supaya mudah dikalibrasi.

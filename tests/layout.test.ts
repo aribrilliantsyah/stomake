@@ -3,8 +3,11 @@ import { columnXs, FRAME, PAGE, panelRect, panelSpace } from '../src/shared/layo
 
 test('posisi kolom', () => {
   expect(columnXs(3)).toEqual([35, 263, 491]);
-  expect(columnXs(2)).toEqual([149, 377]);
-  expect(columnXs(1)).toEqual([263]);
+  // 1-2 scenes: frames centered on the page (frame center = page center)
+  expect(columnXs(1)).toEqual([282.375]);
+  expect(columnXs(2)).toEqual([168.375, 396.375]);
+  const [a, b] = columnXs(2);
+  expect((a + b + 144) / 2).toBeCloseTo(708.75 / 2, 5);
 });
 
 test('frame 9:16 dan page', () => {

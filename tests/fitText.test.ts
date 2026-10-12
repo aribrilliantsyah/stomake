@@ -12,7 +12,7 @@ test('wrap ke beberapa baris di 11pt bila muat 4 baris', () => {
   const r = fitText('Tapi tikus yang dipake juga bukan sembarangan tikus dan bukan tikus got', opts);
   expect(r.size).toBe(11);
   expect(r.lines.length).toBe(3);
-  for (const l of r.lines) expect(measure(l, r.size)).toBeLessThanOrEqual(200);
+  for (const l of r.lines) expect(measure(l, r.size)).toBeLessThanOrEqual(SUB.width);
 });
 
 test('teks panjang mengecil tapi tidak < 8pt', () => {
@@ -29,7 +29,7 @@ test('teks sangat panjang → maxLines baris, baris terakhir diakhiri "…"', ()
   expect(r.size).toBe(8);
   expect(r.lines).toHaveLength(4);
   expect(r.lines[3].endsWith('…')).toBe(true);
-  for (const l of r.lines) expect(measure(l, 8)).toBeLessThanOrEqual(200);
+  for (const l of r.lines) expect(measure(l, 8)).toBeLessThanOrEqual(SUB.width);
 });
 
 test('string kosong → lines [] size 11', () => {
@@ -41,5 +41,5 @@ test('kata tunggal lebih panjang dari lebar tetap ditampilkan (terpotong …)', 
   const r = fitText('x'.repeat(500), opts);
   expect(r.lines).toHaveLength(4);
   expect(r.lines[3].endsWith('…')).toBe(true);
-  for (const l of r.lines) expect(measure(l, r.size)).toBeLessThanOrEqual(200);
+  for (const l of r.lines) expect(measure(l, r.size)).toBeLessThanOrEqual(SUB.width);
 });

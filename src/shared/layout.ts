@@ -6,17 +6,20 @@ export const COL_PITCH = 228;
 export const COL_X3 = 35;
 export const LABEL_Y = 94;
 export const LABEL_SIZE = 12;
-export const NOTE = { y: 109, size: 7, width: 200, maxLines: 2 } as const;
-export const SUB = { y: 390, size: 11, minSize: 8, width: 200, maxLines: 4, lineHeight: 1.25 } as const;
-export const BRUSH = { y: 470, width: 180 } as const;
+export const NOTE = { y: 109, size: 7, width: 165, maxLines: 2 } as const;
+export const SUB = { y: 390, size: 11, minSize: 8, width: 165, maxLines: 4, lineHeight: 1.25 } as const;
+export const BRUSH = { y: 470, width: 150 } as const;
 
 export const PANEL_SPACE = { w: 1080, h: 1920 } as const;
 
+/**
+ * Left x of each scene column. 3 scenes use the measured Canva positions;
+ * 1-2 scenes are centered on the page ("mulai dari tengah").
+ */
 export function columnXs(n: number): number[] {
   const count = Math.max(1, Math.min(3, n));
-  // center column sits at COL_X3 + COL_PITCH; groups are centered on it
-  const center = COL_X3 + COL_PITCH;
-  const first = center - ((count - 1) * COL_PITCH) / 2;
+  if (count === 3) return [COL_X3, COL_X3 + COL_PITCH, COL_X3 + 2 * COL_PITCH];
+  const first = PAGE.w / 2 - ((count - 1) * COL_PITCH + FRAME.w) / 2;
   return Array.from({ length: count }, (_, i) => first + i * COL_PITCH);
 }
 
