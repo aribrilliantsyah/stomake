@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "concurrently -k -n server,web \"tsx watch src/server/main.ts\" \"vite\"",
     "build": "vite build",
-    "start": "tsx src/server/main.ts",
+    "start": "pnpm build && NODE_ENV=production tsx src/server/main.ts",
     "test": "vitest run",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit"

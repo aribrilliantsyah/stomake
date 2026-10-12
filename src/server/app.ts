@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { assetRoutes } from './assetRoutes';
+import { exportRoutes, staticRoutes } from './webRoutes';
 import { badRequest, checkSlug } from './http';
 import { ZodError } from 'zod';
 import {
@@ -52,10 +53,19 @@ export function projectRoutes(): Hono {
   return r;
 }
 
-export function createApp(): Hono {
+export interface AppOptions {
+  /** URL Chromium opens to render /print/:slug. */
+  webUrl?: string;
+  /** Serve built web app from this folder (production). */
+  staticDir?: string;
+}
+
+export function createApp(opts: AppOptions = {}): Hono {
   const app = new Hono();
   app.route('/', projectRoutes());
   app.route('/', assetRoutes());
+  app.route('/', exportRoutes(() => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173'));
+  if (opts.staticDir) app.route('/', staticRoutes(opts.staticDir));
   app.onError((e, c) => {
     console.error(e);
     return c.json({ error: e.message }, 500);
