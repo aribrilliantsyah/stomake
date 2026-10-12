@@ -1,5 +1,5 @@
 import { newId } from './ids';
-import type { AssetInfo, ImageLayer, Layer, Page, Panel, Project, Scene } from './types';
+import type { ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
 
 export const DEFAULT_PAGE_BG = { kind: 'color', color: '#D4BFB3' } as const;
 export const DEFAULT_PANEL_BG = { kind: 'color', color: '#FFFFFF' } as const;
@@ -178,4 +178,59 @@ export function findScene(p: Project, sceneId: string): Scene | null {
 
 export function pageIndexOfScene(p: Project, sceneId: string): number {
   return locate(p, sceneId)?.pi ?? -1;
+}
+
+
+// ---- layers ----
+
+type Space = { w: number; h: number };
+
+export function layerFromDrop(info: AssetInfo, dropX: number, dropY: number, space: Space): ImageLayer {
+  const width = Math.round(space.w * 0.6);
+  const height = Math.round((width * info.height) / Math.max(1, info.width));
+  return { id: newId(), type: 'image', ref: info.ref, x: dropX, y: dropY, width, height, rotation: 0, opacity: 1, flipX: false, flipY: false };
+}
+
+export function defaultText(space: Space): TextLayer {
+  return { id: newId(), type: 'text', text: 'TEKS', font: 'Bangers', fontSize: 120, fill: '#000000', stroke: '#FFFFFF', strokeWidth: 8, x: space.w / 2, y: space.h / 2, rotation: 0, opacity: 1 };
+}
+
+export function defaultArrow(space: Space): ArrowLayer {
+  return { id: newId(), type: 'arrow', points: [0, 0, 0, -300], strokeWidth: 18, color: '#000000', x: space.w / 2, y: space.h / 2, rotation: 0, opacity: 1 };
+}
+
+export function defaultEmoji(char: string, space: Space): EmojiLayer {
+  return { id: newId(), type: 'emoji', char, size: 200, x: space.w / 2, y: space.h / 2, rotation: 0, opacity: 1 };
+}
+
+export function addLayer(p: Project, panelId: string, layer: Layer): Project {
+  return updatePanel(p, panelId, (pn) => ({ ...pn, layers: [...pn.layers, layer] }));
+}
+
+export function updateLayer(p: Project, panelId: string, layerId: string, patch: Partial<Layer>): Project {
+  return updatePanel(p, panelId, (pn) => ({
+    ...pn,
+    layers: pn.layers.map((l) => (l.id === layerId ? ({ ...l, ...patch } as Layer) : l)),
+  }));
+}
+
+export function removeLayer(p: Project, panelId: string, layerId: string): Project {
+  return updatePanel(p, panelId, (pn) => ({ ...pn, layers: pn.layers.filter((l) => l.id !== layerId) }));
+}
+
+export function reorderLayer(p: Project, panelId: string, layerId: string, dir: 'up' | 'down' | 'top' | 'bottom'): Project {
+  const found = findPanel(p, panelId);
+  if (!found) return p;
+  const layers = found.panel.layers.slice();
+  const i = layers.findIndex((l) => l.id === layerId);
+  if (i < 0) return p;
+  const j = dir === 'up' ? i + 1 : dir === 'down' ? i - 1 : dir === 'top' ? layers.length - 1 : 0;
+  if (j < 0 || j >= layers.length || j === i) return p;
+  const [l] = layers.splice(i, 1);
+  layers.splice(j, 0, l);
+  return updatePanel(p, panelId, (pn) => ({ ...pn, layers }));
+}
+
+export function setPageBackground(p: Project, pageIndex: number, bg: Background | null): Project {
+  return { ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? { ...pg, background: bg } : pg)) };
 }

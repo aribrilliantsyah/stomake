@@ -42,7 +42,18 @@ export interface FitTextOptions {
 function wrap(text: string, size: number, width: number, measure: FitTextOptions['measure']): string[] {
   const lines: string[] = [];
   for (const para of text.split(/\r?\n/)) {
-    const words = para.split(/\s+/).filter(Boolean);
+    const words: string[] = [];
+    for (const w of para.split(/\s+/).filter(Boolean)) {
+      // hard-break words wider than the column
+      let rest = w;
+      while (measure(rest, size) > width && rest.length > 1) {
+        let n = rest.length - 1;
+        while (n > 1 && measure(rest.slice(0, n), size) > width) n--;
+        words.push(rest.slice(0, n));
+        rest = rest.slice(n);
+      }
+      words.push(rest);
+    }
     let line = '';
     for (const w of words) {
       const cand = line ? `${line} ${w}` : w;
