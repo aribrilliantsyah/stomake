@@ -84,6 +84,9 @@ table.list tr.empty td { color: var(--muted); cursor: default; }
   position: absolute; z-index: 20; background: var(--panel);
   border: 1px solid var(--line-strong); padding: 4px; display: grid; gap: 2px;
 }
+.shape-menu { grid-template-columns: repeat(2, 130px); top: 28px; left: 0; }
+.shape-menu button { display: flex; gap: 6px; align-items: center; text-align: left; border-color: transparent; }
+.shape-icon { width: 18px; text-align: center; font-size: 15px; }
 .emoji-menu { grid-template-columns: repeat(6, 32px); top: 28px; left: 0; }
 .emoji-menu button { font-size: 18px; padding: 2px; border-color: transparent; }
 .toast {

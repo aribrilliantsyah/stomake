@@ -77,9 +77,9 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerId,
         <Transformer
           ref={tr}
           rotateEnabled
-          keepRatio={selected?.type !== 'arrow'}
+          keepRatio={selected?.type !== 'arrow' && selected?.type !== 'shape'}
           enabledAnchors={
-            selected?.type === 'image' || selected?.type === 'arrow'
+            selected?.type === 'image' || selected?.type === 'arrow' || selected?.type === 'shape'
               ? ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right']
               : ['top-left', 'top-right', 'bottom-left', 'bottom-right']
           }

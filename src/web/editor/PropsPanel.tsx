@@ -151,6 +151,29 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
           <input type="color" value={layer.color} onChange={(e) => set({ color: e.target.value }, 'c')} />
         </div>
       )}
+      {layer.type === 'shape' && (
+        <>
+          <div className="grid2">
+            <Num label="Lebar" value={layer.width} onChange={(width) => set({ width: Math.max(0, width) }, 'w')} />
+            <Num label="Tinggi" value={layer.height} onChange={(height) => set({ height: Math.max(0, height) }, 'h')} />
+          </div>
+          <div className="row">
+            <span className="lbl">Isi</span>
+            <input type="checkbox" checked={!!layer.fill} onChange={(e) => set({ fill: e.target.checked ? '#FFFFFF' : null })} />
+            {layer.fill && <input type="color" value={layer.fill} onChange={(e) => set({ fill: e.target.value }, 'fill')} />}
+            <span className="lbl">Garis</span>
+            <input type="checkbox" checked={!!layer.stroke} onChange={(e) => set({ stroke: e.target.checked ? '#000000' : null })} />
+            {layer.stroke && <input type="color" value={layer.stroke} onChange={(e) => set({ stroke: e.target.value }, 'stroke')} />}
+          </div>
+          <div className="row">
+            <Num label="Tebal garis" value={layer.strokeWidth} onChange={(strokeWidth) => set({ strokeWidth: Math.max(0, strokeWidth) }, 'sw')} />
+            <label className="check">
+              <input type="checkbox" checked={layer.dash} onChange={(e) => set({ dash: e.target.checked })} />
+              Putus-putus
+            </label>
+          </div>
+        </>
+      )}
       {layer.type === 'emoji' && (
         <div className="grid2">
           <label className="field num-field">

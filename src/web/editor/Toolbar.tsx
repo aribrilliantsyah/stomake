@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { addLayer, defaultArrow, defaultEmoji, defaultText } from '../../shared/model';
+import { addLayer, defaultEmoji, defaultShape, defaultText } from '../../shared/model';
+import { ShapeMenu } from './ShapeMenu';
 import { panelSpace } from '../../shared/layout';
 import type { Layer } from '../../shared/types';
 import { api } from '../api';
@@ -18,6 +19,7 @@ const STATUS: Record<string, string> = {
 export function Toolbar({ slug }: { slug: string }) {
   const s = useEditor();
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [shapeOpen, setShapeOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
 
@@ -68,9 +70,20 @@ export function Toolbar({ slug }: { slug: string }) {
       <button onClick={() => insert(defaultText(space))} title="Tambah teks">
         T Teks
       </button>
-      <button onClick={() => insert(defaultArrow(space))} title="Tambah panah">
-        ↑ Panah
-      </button>
+      <div className="menu-wrap">
+        <button onClick={() => setShapeOpen((v) => !v)} title="Tambah shape">
+          ◇ Shape
+        </button>
+        {shapeOpen && (
+          <ShapeMenu
+            onClose={() => setShapeOpen(false)}
+            onPick={(k) => {
+              insert(defaultShape(k, space));
+              setShapeOpen(false);
+            }}
+          />
+        )}
+      </div>
       <div className="menu-wrap">
         <button onClick={() => setEmojiOpen((v) => !v)} title="Tambah emoji">
           😀 Emoji

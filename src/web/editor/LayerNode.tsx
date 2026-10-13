@@ -2,7 +2,9 @@ import type Konva from 'konva';
 import { useEffect, useRef } from 'react';
 import { Arrow, Group, Image as KImage, Rect, Text } from 'react-konva';
 import type { Layer } from '../../shared/types';
+import { resizeShape } from '../../shared/model';
 import { useAssetImage } from '../state/imageCache';
+import { ShapeBody } from './ShapeBody';
 
 export const FONT_STACK: Record<string, string> = {
   'Coming Soon': '"Coming Soon", cursive',
@@ -91,6 +93,9 @@ export function LayerNode({ layer, slug, interactive, onSelect, onChange, regist
         />
       );
       break;
+    case 'shape':
+      body = <ShapeBody layer={layer} />;
+      break;
     case 'emoji':
       body = (
         <Text
@@ -133,6 +138,9 @@ export function LayerNode({ layer, slug, interactive, onSelect, onChange, regist
             break;
           case 'emoji':
             onChange?.(layer.id, { ...base, size: Math.max(8, Math.round(layer.size * sy)) });
+            break;
+          case 'shape':
+            onChange?.(layer.id, { ...base, ...resizeShape(layer, sx, sy) });
             break;
           case 'arrow': {
             const [x1, y1, x2, y2] = layer.points;

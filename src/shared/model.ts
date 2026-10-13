@@ -1,5 +1,5 @@
 import { newId } from './ids';
-import type { Cover, ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
+import type { Cover, ShapeKind, ShapeLayer, ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
 
 export const DEFAULT_PAGE_BG = { kind: 'color', color: '#D4BFB3' } as const;
 export const DEFAULT_PANEL_BG = { kind: 'color', color: '#FFFFFF' } as const;
@@ -285,4 +285,40 @@ export function removeCover(p: Project): Project {
 
 export function updateCover(p: Project, patch: Partial<Pick<Cover, 'title'>>): Project {
   return p.cover ? { ...p, cover: { ...p.cover, ...patch } } : p;
+}
+
+// ---- shapes ----
+
+const LINE_KINDS: readonly ShapeKind[] = ['line', 'arrow', 'doubleArrow'];
+
+export function isLineShape(kind: ShapeKind): boolean {
+  return LINE_KINDS.includes(kind);
+}
+
+export function defaultShape(kind: ShapeKind, space: { w: number; h: number }): ShapeLayer {
+  const line = isLineShape(kind);
+  return {
+    id: newId(),
+    type: 'shape',
+    shape: kind,
+    x: space.w / 2,
+    y: space.h / 2,
+    rotation: 0,
+    opacity: 1,
+    width: line ? 500 : 400,
+    height: line ? 0 : 400,
+    fill: kind === 'bubble' ? '#FFFFFF' : null,
+    stroke: kind === 'target' ? '#E53935' : '#000000',
+    strokeWidth: 12,
+    dash: false,
+  };
+}
+
+/** New box after a Transformer scale; never negative or NaN; zero stays zero. */
+export function resizeShape(l: ShapeLayer, sx: number, sy: number): Pick<ShapeLayer, 'width' | 'height'> {
+  const f = (v: number, s: number) => {
+    const n = Math.round(v * s);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  return { width: f(l.width, sx), height: f(l.height, sy) };
 }
