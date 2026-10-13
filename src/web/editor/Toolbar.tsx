@@ -77,7 +77,7 @@ export function Toolbar({ slug }: { slug: string }) {
       <button ref={shape.ref} className={shape.open ? 'on' : ''} onClick={shape.toggle} disabled={s.agentActive} title="Tambah shape">
         <Shapes size={14} aria-hidden /> Shape
       </button>
-      <Popover anchor={shape.el} open={shape.open} onClose={shape.close} width={280} height={260}>
+      <Popover anchor={shape.el} open={shape.open} onClose={shape.close} width={280} height={300}>
         <ShapeMenu
           onPick={(k) => {
             insert(defaultShape(k, space));

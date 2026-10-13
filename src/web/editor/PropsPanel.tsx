@@ -6,6 +6,7 @@ import { FontPicker } from './FontPicker';
 import { api, type AssetLists } from '../api';
 import { toast } from '../state/uiStore';
 import { useState } from 'react';
+import { SHAPES } from './ShapeMenu';
 import { groupLayers, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers } from '../../shared/multi';
 import { ColorField } from '../ui/ColorField';
 import { useEditor } from '../state/editorStore';
@@ -251,7 +252,7 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
 }
 
 const layerLabel = (l: Layer) =>
-  l.type === 'image' ? l.ref.slice(l.ref.indexOf(':') + 1) : l.type === 'text' ? `T  ${l.text}` : l.type === 'arrow' ? '↑ panah' : l.type === 'shape' ? `◇ ${l.shape}` : `${l.char} emoji`;
+  l.type === 'image' ? l.ref.slice(l.ref.indexOf(':') + 1) : l.type === 'text' ? `T  ${l.text}` : l.type === 'arrow' ? '↑ panah' : l.type === 'shape' ? `◇ ${SHAPES.find((x) => x.kind === l.shape)?.label ?? l.shape}` : `${l.char} emoji`;
 
 type Row = { kind: 'layer'; layer: Layer; inGroup: boolean } | { kind: 'group'; groupId: string; members: Layer[] };
 

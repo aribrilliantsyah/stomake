@@ -93,9 +93,10 @@ export interface EmojiLayer extends LayerBase {
   size: number;
 }
 
-export type ShapeKind = 'rect' | 'roundRect' | 'ellipse' | 'line' | 'arrow' | 'doubleArrow' | 'target' | 'cross' | 'star' | 'bubble';
+/** rotateCw / rotateCcw = circular "spins" arrow (e.g. fan blades) */
+export type ShapeKind = 'rect' | 'roundRect' | 'ellipse' | 'line' | 'arrow' | 'doubleArrow' | 'target' | 'cross' | 'star' | 'bubble' | 'rotateCw' | 'rotateCcw';
 
-export const SHAPE_KINDS: readonly ShapeKind[] = ['rect', 'roundRect', 'ellipse', 'line', 'arrow', 'doubleArrow', 'target', 'cross', 'star', 'bubble'];
+export const SHAPE_KINDS: readonly ShapeKind[] = ['rect', 'roundRect', 'ellipse', 'line', 'arrow', 'doubleArrow', 'target', 'cross', 'star', 'bubble', 'rotateCw', 'rotateCcw'];
 
 export interface ShapeLayer extends LayerBase {
   type: 'shape';

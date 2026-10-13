@@ -291,6 +291,10 @@ export function updateCover(p: Project, patch: Partial<Pick<Cover, 'title'>>): P
 
 const LINE_KINDS: readonly ShapeKind[] = ['line', 'arrow', 'doubleArrow'];
 
+export function isRotate(kind: ShapeKind): boolean {
+  return kind === 'rotateCw' || kind === 'rotateCcw';
+}
+
 export function isLineShape(kind: ShapeKind): boolean {
   return LINE_KINDS.includes(kind);
 }
@@ -308,8 +312,8 @@ export function defaultShape(kind: ShapeKind, space: { w: number; h: number }): 
     width: line ? 500 : 400,
     height: line ? 0 : 400,
     fill: kind === 'bubble' ? '#FFFFFF' : null,
-    stroke: kind === 'target' ? '#E53935' : '#000000',
-    strokeWidth: 12,
+    stroke: kind === 'target' || isRotate(kind) ? '#E53935' : '#000000',
+    strokeWidth: isRotate(kind) ? 14 : 12,
     dash: false,
   };
 }

@@ -16,7 +16,7 @@ test('defaultShape target merah, bubble isi putih, garis/panah 500x0', () => {
 
 test('semua jenis shape punya default dan id unik', () => {
   const ids = SHAPE_KINDS.map((k) => defaultShape(k, full).id);
-  expect(new Set(ids).size).toBe(10);
+  expect(new Set(ids).size).toBe(12);
 });
 
 test('resizeShape line (h=0) tetap 0, tidak NaN', () => {
@@ -46,4 +46,18 @@ test('lineHitBox: garis punya kotak tinggi > 0 supaya Transformer bisa resize/ro
   expect(box.height).toBeGreaterThan(0);
   expect(box.width).toBe(500);
   expect(box.y).toBe(-box.height / 2);
+});
+
+test('panah putar (cw/ccw): kotak 400x400, tanpa isi, garis merah 14 supaya kontras di atas ilustrasi', async () => {
+  const { rotatePath } = await import('../src/shared/rotateArrow');
+  for (const k of ['rotateCw', 'rotateCcw'] as const) {
+    expect(defaultShape(k, full)).toMatchObject({ shape: k, width: 400, height: 400, fill: null, stroke: '#E53935', strokeWidth: 14 });
+  }
+  // arc + head geometry: path stays inside the box, ccw is the mirror of cw
+  const cw = rotatePath(400, 400, 14, 'cw');
+  const ccw = rotatePath(400, 400, 14, 'ccw');
+  const nums = (s: string) => s.match(/-?\d+(\.\d+)?/g)!.map(Number);
+  for (const n of nums(cw.arc).concat(nums(cw.head))) expect(Math.abs(n)).toBeLessThanOrEqual(200);
+  expect(nums(ccw.head)[0]).toBeCloseTo(-nums(cw.head)[0], 5);
+  expect(cw.arc).not.toBe(ccw.arc);
 });

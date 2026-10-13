@@ -1,4 +1,4 @@
-import { Circle, MessageSquare, Minus, MoveHorizontal, MoveRight, Square, SquareRoundCorner, Star, Target, X, type LucideIcon } from 'lucide-react';
+import { Circle, RotateCcw, RotateCw, MessageSquare, Minus, MoveHorizontal, MoveRight, Square, SquareRoundCorner, Star, Target, X, type LucideIcon } from 'lucide-react';
 import type { ShapeKind } from '../../shared/types';
 
 export const SHAPES: { kind: ShapeKind; icon: LucideIcon; label: string }[] = [
@@ -12,6 +12,8 @@ export const SHAPES: { kind: ShapeKind; icon: LucideIcon; label: string }[] = [
   { kind: 'cross', icon: X, label: 'Silang' },
   { kind: 'star', icon: Star, label: 'Bintang' },
   { kind: 'bubble', icon: MessageSquare, label: 'Balon kata' },
+  { kind: 'rotateCw', icon: RotateCw, label: 'Putar kanan' },
+  { kind: 'rotateCcw', icon: RotateCcw, label: 'Putar kiri' },
 ];
 
 export function ShapeMenu({ onPick }: { onPick: (k: ShapeKind) => void }) {

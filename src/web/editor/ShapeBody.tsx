@@ -1,6 +1,7 @@
 import { Arrow, Circle, Ellipse, Group, Line, Path, Rect, Star } from 'react-konva';
 import { isLineShape, lineHitBox } from '../../shared/model';
 import type { ShapeLayer } from '../../shared/types';
+import { rotatePath } from '../../shared/rotateArrow';
 
 /** Speech bubble path: rounded box with a tail at the bottom-left, centered on 0,0. */
 function bubblePath(w: number, h: number): string {
@@ -101,5 +102,18 @@ function ShapeInner({ layer }: { layer: ShapeLayer }) {
     }
     case 'bubble':
       return <Path data={bubblePath(w, h)} {...common} />;
+    case 'rotateCw':
+    case 'rotateCcw': {
+      const color = layer.stroke ?? '#000000';
+      const p = rotatePath(w, h, sw, layer.shape === 'rotateCw' ? 'cw' : 'ccw');
+      return (
+        <Group>
+          <Rect x={-w / 2} y={-h / 2} width={w} height={h} fill="transparent" />
+          {layer.fill && <Ellipse radiusX={w / 2} radiusY={h / 2} fill={layer.fill} />}
+          <Path data={p.arc} stroke={color} strokeWidth={sw} dash={common.dash} lineCap="round" />
+          <Path data={p.head} fill={color} stroke={color} strokeWidth={Math.max(1, sw * 0.25)} lineJoin="round" />
+        </Group>
+      );
+    }
   }
 }
