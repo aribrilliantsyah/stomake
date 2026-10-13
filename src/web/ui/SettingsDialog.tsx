@@ -23,7 +23,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   const toast = useUi((u) => u.toast);
   return (
     <button
-      className="icon-btn"
+      className="ib ghost"
       title={label}
       aria-label={label}
       onClick={async () => {
@@ -123,7 +123,7 @@ export function SettingsButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button className="icon-btn" onClick={() => setOpen(true)} title="Pengaturan" aria-label="Pengaturan">
+      <button className="ib ghost" onClick={() => setOpen(true)} title="Pengaturan" aria-label="Pengaturan">
         <Settings size={15} aria-hidden />
       </button>
       {open && <SettingsDialog onClose={() => setOpen(false)} />}

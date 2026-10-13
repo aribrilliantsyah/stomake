@@ -21,7 +21,7 @@ export function ProjectMenu({ p, actions }: { p: ProjectSummary; actions: Projec
     <>
       <button
         ref={a.ref}
-        className={`icon-btn${a.open ? ' on' : ''}`}
+        className={`ib ghost${a.open ? ' on' : ''}`}
         title="Aksi"
         aria-label={`Aksi untuk ${p.name}`}
         onClick={(e) => {

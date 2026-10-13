@@ -73,7 +73,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
         upload(Array.from(e.dataTransfer.files));
       }}
     >
-      <div className="seg">
+      <div className="seg full">
         <button className={scope === 'project' ? 'on' : ''} onClick={() => setScope('project')}>
           <Folder size={14} aria-hidden /> Project <span className="mono muted">{assets.project.length}</span>
         </button>
@@ -117,7 +117,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
             </div>
             <div className="asset-name">{a.name}</div>
             <button
-              className={`asset-more${menu?.ref === a.ref ? ' open' : ''}`}
+              className={`ib sm asset-more${menu?.ref === a.ref ? ' open' : ''}`}
               onClick={(e) => setMenu(menu?.ref === a.ref ? null : { ref: a.ref, el: e.currentTarget })}
               title="Jadikan background"
               aria-label="Menu asset"

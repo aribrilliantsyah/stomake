@@ -21,7 +21,7 @@ export function Toasts() {
               {t.action.label}
             </button>
           )}
-          <button onClick={() => dismiss(t.id)} title="Tutup" aria-label="Tutup">
+          <button className="ib sm ghost" onClick={() => dismiss(t.id)} title="Tutup" aria-label="Tutup">
             <X size={13} aria-hidden />
           </button>
         </div>

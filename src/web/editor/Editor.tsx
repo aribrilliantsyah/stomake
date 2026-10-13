@@ -89,7 +89,7 @@ function PanelHead({ name, children }: { name: PanelName; children?: React.React
     <div className="panel-head">
       {children}
       <div className="grow" />
-      <button className="fold" onClick={() => toggle(name)} title="Lipat panel" aria-label="Lipat panel">
+      <button className="ib sm ghost fold" onClick={() => toggle(name)} title="Lipat panel" aria-label="Lipat panel">
         <PanelLeftClose size={14} aria-hidden />
       </button>
     </div>
@@ -364,24 +364,24 @@ export function Editor({ slug }: { slug: string }) {
             <div className="grow" />
             {!onCover && (
               <>
-                <button onClick={() => sceneActions.move(-1)} disabled={locked || indexInPage === 0} title="Geser ke kiri" aria-label="Geser ke kiri">
+                <button className="ib" onClick={() => sceneActions.move(-1)} disabled={locked || indexInPage === 0} title="Geser ke kiri" aria-label="Geser ke kiri">
                   <ChevronLeft size={14} aria-hidden />
                 </button>
-                <button onClick={() => sceneActions.move(1)} disabled={locked || indexInPage === page!.scenes.length - 1} title="Geser ke kanan" aria-label="Geser ke kanan">
+                <button className="ib" onClick={() => sceneActions.move(1)} disabled={locked || indexInPage === page!.scenes.length - 1} title="Geser ke kanan" aria-label="Geser ke kanan">
                   <ChevronRight size={14} aria-hidden />
                 </button>
                 <button onClick={sceneActions.add} disabled={locked || full} title={full ? 'Page sudah 3 scene — tambah page baru' : 'Tambah scene di page ini'}>
                   <Plus size={14} aria-hidden /> Scene
                 </button>
-                <button onClick={sceneActions.duplicate} disabled={locked || full} title="Duplikat scene" aria-label="Duplikat scene">
+                <button className="ib" onClick={sceneActions.duplicate} disabled={locked || full} title="Duplikat scene" aria-label="Duplikat scene">
                   <Copy size={14} aria-hidden />
                 </button>
-                <button onClick={sceneActions.remove} className="danger" disabled={locked || !canRemoveScene(project, scene.id)} title={canRemoveScene(project, scene.id) ? 'Hapus scene' : 'Scene terakhir di page tidak bisa dihapus — hapus page-nya'} aria-label="Hapus scene">
+                <button onClick={sceneActions.remove} className="ib danger" disabled={locked || !canRemoveScene(project, scene.id)} title={canRemoveScene(project, scene.id) ? 'Hapus scene' : 'Scene terakhir di page tidak bisa dihapus — hapus page-nya'} aria-label="Hapus scene">
                   <Trash2 size={14} aria-hidden />
                 </button>
               </>
             )}
-            <button className={ui.zoom ? 'on' : ''} onClick={() => ui.setZoom(!ui.zoom)} title={ui.zoom ? 'Lihat page (Z / Esc)' : 'Zoom scene (Z)'} aria-label={ui.zoom ? 'Lihat page' : 'Zoom scene'}>
+            <button className={`ib${ui.zoom ? ' on' : ''}`} onClick={() => ui.setZoom(!ui.zoom)} title={ui.zoom ? 'Lihat page (Z / Esc)' : 'Zoom scene (Z)'} aria-label={ui.zoom ? 'Lihat page' : 'Zoom scene'}>
               {ui.zoom ? <Minimize2 size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />}
             </button>
           </div>

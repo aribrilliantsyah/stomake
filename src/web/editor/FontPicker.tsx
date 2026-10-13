@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BUILTIN_FONTS, fontStack } from '../../shared/fonts';
@@ -84,7 +85,7 @@ export function FontPicker({ value, onChange }: { value: string; onChange: (name
         <span className="font-sample" style={{ fontFamily: fontStack(value) }}>
           {value}
         </span>
-        <span className="caret">▾</span>
+        <ChevronDown className="caret" size={14} aria-hidden />
       </button>
       {open &&
         pos &&

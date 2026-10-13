@@ -13,7 +13,7 @@ export function ZoomBar({ fitPercent, info }: { fitPercent: number; info?: React
       <button className={pageZoom === 'fit' ? 'on' : ''} onClick={() => setPageZoom('fit')} title="Pas ke layar (Ctrl+0)">
         <Scan size={14} aria-hidden /> Pas
       </button>
-      <button onClick={() => setPageZoom(nextZoom(pct, -1))} disabled={pct <= ZOOM_MIN} title="Perkecil (Ctrl+-)" aria-label="Perkecil">
+      <button className="ib" onClick={() => setPageZoom(nextZoom(pct, -1))} disabled={pct <= ZOOM_MIN} title="Perkecil (Ctrl+-)" aria-label="Perkecil">
         <ZoomOut size={14} aria-hidden />
       </button>
       <input
@@ -26,7 +26,7 @@ export function ZoomBar({ fitPercent, info }: { fitPercent: number; info?: React
         title="Zoom"
         aria-label="Zoom"
       />
-      <button onClick={() => setPageZoom(nextZoom(pct, 1))} disabled={pct >= ZOOM_MAX} title="Perbesar (Ctrl+=)" aria-label="Perbesar">
+      <button className="ib" onClick={() => setPageZoom(nextZoom(pct, 1))} disabled={pct >= ZOOM_MAX} title="Perbesar (Ctrl+=)" aria-label="Perbesar">
         <ZoomIn size={14} aria-hidden />
       </button>
       <button className="zoom-pct mono" onClick={() => setPageZoom(100)} title="Ukuran asli (100%)">

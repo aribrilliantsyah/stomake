@@ -246,7 +246,7 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
           Split atas-bawah (awal → akhir)
         </label>
         {scene.split && (
-          <div className="seg">
+          <div className="seg full">
             {scene.panels.map((pn, i) => (
               <button key={pn.id} className={pn.id === panel.id ? 'on' : ''} onClick={() => s.setActivePanel(pn.id)}>
                 {i === 0 ? 'Panel atas' : 'Panel bawah'}
@@ -270,10 +270,10 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
             <li key={l.id} className={l.id === s.selectedLayerId ? 'on' : ''} onClick={() => s.selectLayer(l.id)}>
               <span className="ellipsis">{layerLabel(l)}</span>
               <span className="layer-btns">
-                <button title="Naik" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'up')); }}>
+                <button className="ib sm ghost" title="Naik" aria-label="Naik" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'up')); }}>
                   <ChevronUp size={13} aria-hidden />
                 </button>
-                <button title="Turun" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'down')); }}>
+                <button className="ib sm ghost" title="Turun" aria-label="Turun" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'down')); }}>
                   <ChevronDown size={13} aria-hidden />
                 </button>
               </span>

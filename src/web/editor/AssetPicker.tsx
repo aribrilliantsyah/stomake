@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { AssetInfo, AssetRef } from '../../shared/types';
 import type { AssetLists } from '../api';
@@ -43,7 +44,7 @@ export function AssetPicker({ value, assets, onChange }: { value: AssetRef; asse
       <button ref={a.ref} className="asset-picker-trigger" onClick={a.toggle} title={current ? `${current.name} · ${current.width}×${current.height}` : nameOf(value)}>
         <span className="thumb mini">{current ? <img src={current.url} alt="" draggable={false} /> : <span className="missing">?</span>}</span>
         <span className="ellipsis">{current ? current.name : `${nameOf(value)} (hilang)`}</span>
-        <span className="caret">▾</span>
+        <ChevronDown className="caret" size={14} aria-hidden />
       </button>
       <Popover
         anchor={a.el}

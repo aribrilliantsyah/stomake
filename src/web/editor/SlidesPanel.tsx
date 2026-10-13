@@ -82,7 +82,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
             <div className="slide-meta">
               <span>Cover</span>
               <button
-                className="slide-more"
+                className="ib sm ghost slide-more"
                 title="Hapus cover"
                 disabled={locked}
                 aria-label="Hapus cover"
@@ -137,7 +137,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
               <span className="mono">P{pi + 1}</span>
               <span className="muted mono">{sceneRange(project, pi)}</span>
               <button
-                className="slide-more"
+                className="ib sm ghost slide-more"
                 title="Menu page"
                 disabled={locked}
                 aria-label="Menu page"
