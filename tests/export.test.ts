@@ -166,22 +166,34 @@ test('font tersedia → missingFonts [], font tidak ada → dilaporkan', async (
   expect(body.missingFonts).toEqual(['Font Tidak Ada']);
 }, 120_000);
 
-test('thumbnail: PNG dibuat sekali lalu di-cache; diperbarui setelah project berubah', async () => {
+test('thumbnail: tidak memblokir — 202 saat belum ada, lalu PNG; basi dilayani langsung sambil dirender ulang', async () => {
   const slug = await makeProject('Thumb', 2);
-  const r1 = await call(`/api/projects/${slug}/thumb.png`);
-  expect(r1.status).toBe(200);
+  const first = await call(`/api/projects/${slug}/thumb.png`);
+  expect(first.status).toBe(202);
+  const waitPng = async () => {
+    for (let i = 0; i < 120; i++) {
+      const r = await call(`/api/projects/${slug}/thumb.png`);
+      if (r.status === 200) return r;
+      await new Promise((res) => setTimeout(res, 250));
+    }
+    throw new Error('thumb never ready');
+  };
+  const r1 = await waitPng();
   expect(r1.headers.get('content-type')).toBe('image/png');
   const b1 = Buffer.from(await r1.arrayBuffer());
   expect(b1.subarray(1, 4).toString()).toBe('PNG');
   expect(b1.readUInt32BE(16)).toBe(480); // width px
   const thumb = join(home, 'projects', slug, 'thumb.png');
   const m1 = statSync(thumb).mtimeMs;
-  await call(`/api/projects/${slug}/thumb.png`);
-  expect(statSync(thumb).mtimeMs).toBe(m1);
+
   const p = await (await call(`/api/projects/${slug}`)).json();
   await new Promise((res) => setTimeout(res, 20));
   await call(`/api/projects/${slug}`, json('PUT', updateScene(p, p.pages[0].scenes[0].id, { subtitle: 'baru' })));
-  await call(`/api/projects/${slug}/thumb.png`);
+  const t0 = Date.now();
+  const stale = await call(`/api/projects/${slug}/thumb.png`);
+  expect(stale.status).toBe(200); // stale thumb served immediately
+  expect(Date.now() - t0).toBeLessThan(1000);
+  for (let i = 0; i < 120 && statSync(thumb).mtimeMs <= m1; i++) await new Promise((res) => setTimeout(res, 250));
   expect(statSync(thumb).mtimeMs).toBeGreaterThan(m1);
 }, 120_000);
 

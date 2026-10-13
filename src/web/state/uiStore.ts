@@ -9,6 +9,8 @@ export interface Toast {
   kind: ToastKind;
   text: string;
   link?: { href: string; label: string };
+  /** inline button, e.g. "Urungkan"; toasts with an action stay 8 s */
+  action?: { label: string; run(): void };
 }
 
 export const PANELS_KEY = 'sb.panels';
@@ -54,8 +56,10 @@ interface UiState {
   pageZoom: PageZoom;
   setPageZoom(z: PageZoom): void;
   toasts: Toast[];
-  toast(kind: ToastKind, text: string, link?: Toast['link']): string;
+  toast(kind: ToastKind, text: string, link?: Toast['link'], action?: Toast['action']): string;
   dismissToast(id: string): void;
+  /** run a toast's action at most once, then dismiss it */
+  runToastAction(id: string): void;
 }
 
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -84,9 +88,15 @@ export const useUi = create<UiState>((set, get) => ({
   },
 
   toasts: [],
-  toast(kind, text, link) {
+  runToastAction(id) {
+    const t = get().toasts.find((x) => x.id === id);
+    if (!t?.action) return;
+    get().dismissToast(id);
+    t.action.run();
+  },
+  toast(kind, text, link, action) {
     const id = `t${++seq}`;
-    let toasts = [...get().toasts, { id, kind, text, link }];
+    let toasts = [...get().toasts, { id, kind, text, link, action }];
     while (toasts.length > MAX_TOASTS) {
       // evict the oldest non-error toast first; errors only go when everything is an error
       const idx = toasts.findIndex((t) => t.kind !== 'err');
@@ -96,7 +106,7 @@ export const useUi = create<UiState>((set, get) => ({
       toasts = toasts.filter((t) => t.id !== old.id);
     }
     set({ toasts });
-    const ms = TOAST_MS[kind];
+    const ms = action ? Math.max(TOAST_MS[kind] ?? 0, 8000) : TOAST_MS[kind];
     if (ms !== null) timers.set(id, setTimeout(() => get().dismissToast(id), ms));
     return id;
   },

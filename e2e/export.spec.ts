@@ -3,8 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function newProject(page: Page, prefix: string) {
   await page.goto('/');
-  await page.getByPlaceholder(/Nama project baru/).fill(`${prefix} ${Date.now()}`);
-  await page.getByRole('button', { name: 'New Project' }).click();
+  await page.getByRole('button', { name: '+ Project Baru' }).first().click();
+  await page.getByRole('dialog').getByRole('textbox').fill(`${prefix} ${Date.now()}`);
+  await page.getByRole('dialog').getByRole('button', { name: 'Buat' }).click();
   await expect(page).toHaveURL(/\/p\//);
   await expect(page.locator('.stage-box .sheet canvas')).toHaveCount(1);
 }

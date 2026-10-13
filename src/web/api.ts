@@ -1,4 +1,4 @@
-import type { AssetInfo, Project, ProjectSummary } from '../shared/types';
+import type { AssetInfo, Project, ProjectPage, ProjectQuery } from '../shared/types';
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
@@ -21,7 +21,18 @@ export interface AssetLists {
 }
 
 export const api = {
-  listProjects: () => req<ProjectSummary[]>('/api/projects'),
+  queryProjects: (q: ProjectQuery) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '' && v !== 0) p.set(k, String(v));
+    return req<ProjectPage>(`/api/projects?${p}`);
+  },
+  renameProject: (slug: string, name: string) => req<{ slug: string; name: string }>(`/api/projects/${slug}/rename`, jsonInit('POST', { name })),
+  duplicateProject: (slug: string) => req<{ slug: string }>(`/api/projects/${slug}/duplicate`, { method: 'POST' }),
+  archiveProject: (slug: string, archived: boolean) => req<{ ok: true }>(`/api/projects/${slug}/archive`, jsonInit('POST', { archived })),
+  deleteProject: (slug: string) => req<{ trashId: string }>(`/api/projects/${slug}`, { method: 'DELETE' }),
+  restoreTrash: (id: string) => req<{ slug: string }>(`/api/trash/${id}/restore`, { method: 'POST' }),
+  bulk: (action: 'archive' | 'unarchive' | 'delete', slugs: string[]) =>
+    req<{ ok: string[]; failed: string[]; trashIds?: string[] }>('/api/projects/bulk', jsonInit('POST', { action, slugs })),
   createProject: (name: string) => req<{ slug: string }>('/api/projects', jsonInit('POST', { name })),
   getProject: (slug: string) => req<Project>(`/api/projects/${slug}`),
   saveProject: (slug: string, p: Project) => req<{ updatedAt: string }>(`/api/projects/${slug}`, jsonInit('PUT', p)),

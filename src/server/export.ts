@@ -72,24 +72,44 @@ export async function exportPdf(slug: string, baseUrl: string): Promise<{ path: 
 export const THUMB_WIDTH = 480;
 const thumbJobs = new Map<string, Promise<string>>();
 
+/** At most THUMB_CONCURRENCY thumbnails render at once so a full grid doesn't starve exports/saves. */
+export const THUMB_CONCURRENCY = 2;
+let thumbActive = 0;
+const thumbQueue: (() => void)[] = [];
+async function limitThumbs<T>(fn: () => Promise<T>): Promise<T> {
+  if (thumbActive >= THUMB_CONCURRENCY) await new Promise<void>((res) => thumbQueue.push(res));
+  thumbActive++;
+  try {
+    return await fn();
+  } finally {
+    thumbActive--;
+    thumbQueue.shift()?.();
+  }
+}
+
 export function thumbPath(slug: string): string {
   return join(projectDir(slug), 'thumb.png');
 }
 
 /**
- * Cached first-page thumbnail (cover if present). Regenerated when project.json is newer.
- * Concurrent requests for the same slug share one render.
+ * Non-blocking thumbnail lookup. Returns the cached file (possibly stale) or null when none exists yet;
+ * a missing or stale thumb starts a background render (cover if present). Concurrent calls share one render.
  */
-export async function ensureThumb(slug: string, baseUrl: string, firstPage: number): Promise<string> {
+export function thumbStatus(slug: string, baseUrl: string, firstPage: number): { file: string | null; rendering: boolean } {
   const out = thumbPath(slug);
   const proj = join(projectDir(slug), 'project.json');
-  if (existsSync(out) && statSync(out).mtimeMs >= statSync(proj).mtimeMs) return out;
-  let job = thumbJobs.get(slug);
-  if (!job) {
-    job = renderThumb(slug, baseUrl, firstPage, out).finally(() => thumbJobs.delete(slug));
+  const exists = existsSync(out);
+  const fresh = exists && statSync(out).mtimeMs >= statSync(proj).mtimeMs;
+  if (!fresh && !thumbJobs.has(slug)) {
+    const job = limitThumbs(() => renderThumb(slug, baseUrl, firstPage, out))
+      .catch((err) => {
+        console.warn(`thumbnail ${slug}: ${(err as Error).message}`);
+        return out;
+      })
+      .finally(() => thumbJobs.delete(slug));
     thumbJobs.set(slug, job);
   }
-  return job;
+  return { file: exists ? out : null, rendering: thumbJobs.has(slug) };
 }
 
 async function renderThumb(slug: string, baseUrl: string, firstPage: number, out: string): Promise<string> {

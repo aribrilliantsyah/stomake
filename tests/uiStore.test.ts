@@ -91,3 +91,15 @@ test('toast error tidak tergusur oleh toast sukses baru', async () => {
   expect(texts).toContain('gagal simpan');
   expect(texts).toHaveLength(4);
 });
+
+test('toast dengan aksi (Urungkan): aksi dipanggil sekali lalu toast hilang', async () => {
+  const ui = await load();
+  let n = 0;
+  const id = ui.getState().toast('ok', 'Project dihapus', undefined, { label: 'Urungkan', run: () => { n++; } });
+  const t = ui.getState().toasts.find((x) => x.id === id)!;
+  expect(t.action?.label).toBe('Urungkan');
+  ui.getState().runToastAction(id);
+  ui.getState().runToastAction(id);
+  expect(n).toBe(1);
+  expect(ui.getState().toasts.find((x) => x.id === id)).toBeUndefined();
+});

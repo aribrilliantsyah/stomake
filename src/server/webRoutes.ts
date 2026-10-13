@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { Hono } from 'hono';
-import { ensureThumb, exportPath, exportPdf } from './export';
+import { exportPath, exportPdf, thumbStatus } from './export';
 import { readProject } from './store';
 import { checkSlug } from './http';
 
@@ -34,8 +34,10 @@ export function exportRoutes(webUrl: () => string): Hono {
     const slug = c.req.param('slug');
     try {
       const p = await readProject(slug);
-      const file = await ensureThumb(slug, webUrl(), p.cover ? -1 : 0);
-      return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': 'image/png', 'cache-control': 'no-cache' });
+      const t = thumbStatus(slug, webUrl(), p.cover ? -1 : 0);
+      // 202 = not rendered yet; the client retries. Never hold the connection while Chromium renders.
+      if (!t.file) return c.body(null, 202, { 'retry-after': '1', 'cache-control': 'no-store' });
+      return c.body(new Uint8Array(await readFile(t.file)), 200, { 'content-type': 'image/png', 'cache-control': 'no-cache' });
     } catch (e) {
       return c.json({ error: (e as Error).message }, 500);
     }

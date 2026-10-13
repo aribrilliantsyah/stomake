@@ -118,3 +118,19 @@ Cover selalu halaman PDF pertama bila ada.
 | R3 | Opacity (transparansi) 0–100% untuk semua layer (teks, gambar, shape, emoji) lewat slider + angka di panel Properti. |
 | R4 | Frame scene diperbesar: 198×352pt (dulu 144×256), 3 kolom tetap muat, margin kiri-kanan simetris 27.375pt, jarak antar frame 30pt. Layout vertikal: label y70, catatan y84, frame y102–454, subtitle y462 (maks 4 baris), garis brush y530. Lebar catatan/subtitle = lebar frame. Cover ikut frame baru. |
 | R5 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y bekerja juga saat fokus di kolom catatan, subtitle, dan properti (undo aplikasi). Kolom storyline dan kolom cari tetap memakai undo bawaan browser. |
+
+## 9. Halaman Home (Revisi 4, 2026-10-13)
+
+- Header: judul, kotak cari (`/` untuk fokus, Esc mengosongkan), tombol **+ Project Baru** (shortcut `N`) membuka dialog nama.
+- Filter: status **Aktif / Arsip / Semua** (default Aktif), Diubah (kapan saja / 7 / 30 hari), Urutkan (terakhir diubah, nama A–Z, tanggal dibuat, jumlah scene), jumlah hasil, toggle **Grid / List** (diingat di localStorage).
+- Semua state (q, status, sort, since, page, view) ada di URL; nilai default tidak ditulis. Tombol Back browser berfungsi.
+- Grid: 24 per halaman; kartu = thumbnail halaman pertama (cover jika ada), nama, `N scene · M page`, waktu relatif, badge ARSIP/RUSAK, menu ⋯.
+- List: 50 per halaman; kolom checkbox, thumbnail, Project, Folder, Scene, Page, Dibuat, Diubah, Status, ⋯. Judul kolom Project/Scene/Dibuat/Diubah mengurutkan.
+- Menu ⋯: Buka, Ganti nama… (slug/folder tetap), Duplikat (`<slug>-salinan`, nama "(salinan)", asset + storyline ikut, export tidak, status aktif), Arsipkan/Pulihkan, Hapus….
+- Pilihan banyak → bar aksi: Arsipkan, Pulihkan, Hapus (N).
+- Hapus = pindah folder ke `~/Storyboard/trash/<slug>__<ms>` setelah dialog konfirmasi; toast "… dihapus · Urungkan" (8 dtk) memulihkan. Bila slug sudah dipakai lagi, pulih dengan slug baru (`-2`). Tidak ada hapus permanen dari aplikasi.
+- Arsip/Pulihkan juga punya Urungkan.
+- project.json rusak tetap tampil dengan badge RUSAK (hanya bisa dihapus).
+- Thumbnail: `GET /api/projects/:slug/thumb.png` — PNG 480 px dirender Chromium di belakang layar dan di-cache sebagai `thumb.png`. Respons tidak pernah menunggu render: 202 bila belum ada (klien mencoba lagi), thumbnail lama dikirim langsung sambil dirender ulang setelah project berubah. Maksimal 2 render bersamaan.
+
+API: `GET /api/projects?q&status&sort&since&page&size` → `{items,total,page,size}` (size 1–100, default 24); `POST /api/projects/:slug/{archive,rename,duplicate}`; `DELETE /api/projects/:slug` → `{trashId}`; `POST /api/trash/:id/restore` → `{slug}`; `POST /api/projects/bulk {action: archive|unarchive|delete, slugs}`.
