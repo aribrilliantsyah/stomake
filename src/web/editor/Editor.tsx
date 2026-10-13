@@ -25,6 +25,7 @@ import { Toasts } from '../ui/Toasts';
 import { navigate } from '../router';
 import { EditorSkeleton } from '../ui/Loading';
 import { trackLoading } from '../state/progress';
+import { connectLive } from '../state/live';
 import { AssetPanel, ASSET_MIME } from './AssetPanel';
 import { installClipboard } from './clipboard';
 import { ZoomBar } from './ZoomBar';
@@ -108,6 +109,8 @@ export function Editor({ slug }: { slug: string }) {
   useEffect(() => {
     trackLoading(s.load(slug)).catch((e) => setLoadError((e as Error).message));
     refreshAssets();
+    const stopLive = connectLive(slug);
+    return stopLive;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 

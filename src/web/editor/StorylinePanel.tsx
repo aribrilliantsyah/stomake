@@ -2,6 +2,7 @@ import { FileUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toast } from '../state/uiStore';
+import { useEditor } from '../state/editorStore';
 
 export function StorylinePanel({ slug }: { slug: string }) {
   const [text, setText] = useState('');
@@ -34,7 +35,18 @@ export function StorylinePanel({ slug }: { slug: string }) {
     });
   }, [slug]);
 
+  const remote = useEditor((s) => s.remoteStoryline);
+  const agentActive = useEditor((s) => s.agentActive);
+  useEffect(() => {
+    if (!remote) return;
+    if (timer.current) clearTimeout(timer.current);
+    pending.current = null;
+    setText(remote.text);
+    setStatus('saved');
+  }, [remote]);
+
   function change(v: string) {
+    if (agentActive) return;
     setText(v);
     setStatus('saving');
     pending.current = v;
@@ -87,6 +99,7 @@ export function StorylinePanel({ slug }: { slug: string }) {
         className="storyline-text"
         value={text}
         disabled={!loaded}
+        readOnly={agentActive}
         placeholder="Tempel storyline di sini, atau Import .docx. Blok teks lalu copy ke subtitle / catatan scene."
         onChange={(e) => change(e.target.value)}
         spellCheck={false}

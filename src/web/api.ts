@@ -36,6 +36,7 @@ export const api = {
   createProject: (name: string) => req<{ slug: string }>('/api/projects', jsonInit('POST', { name })),
   getProject: (slug: string) => req<Project>(`/api/projects/${slug}`),
   saveProject: (slug: string, p: Project) => req<{ updatedAt: string }>(`/api/projects/${slug}`, jsonInit('PUT', p)),
+  agentAck: (slug: string, clientId: string) => req<{ ok: true }>(`/api/projects/${slug}/agent-ack`, jsonInit('POST', { clientId })),
   getStoryline: (slug: string) => req<{ text: string }>(`/api/projects/${slug}/storyline`),
   saveStoryline: (slug: string, text: string) => req<{ ok: true }>(`/api/projects/${slug}/storyline`, jsonInit('PUT', { text })),
   importDocx: (slug: string, file: File) => {

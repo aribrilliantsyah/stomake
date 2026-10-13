@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import { findScene, flatScenes } from '../../shared/model';
 import type { Layer, Project } from '../../shared/types';
 import { api } from '../api';
+import { toast } from './uiStore';
+
+/** Events from GET /api/projects/:slug/events (mirrors src/server/live.ts LiveEvent). */
+export type LiveEvent =
+  | { type: 'hello'; clientId: string; agent: { active: boolean; since: string | null } }
+  | { type: 'agent'; active: boolean; since: string | null }
+  | { type: 'project'; project: Project }
+  | { type: 'storyline'; text: string };
 
 export const HISTORY_LIMIT = 100;
 export const COALESCE_MS = 500;
@@ -37,6 +45,19 @@ interface EditorState {
   setActivePanel(id: string): void;
   selectLayer(id: string | null): void;
   flush(): Promise<void>;
+  /** an AI agent is editing this project: the editor is read-only */
+  agentActive: boolean;
+  agentSince: string | null;
+  /** SSE client id (for agent-ack) */
+  clientId: string | null;
+  setClientId(id: string | null): void;
+  /** Lock/unlock for an agent. Locking flushes unsaved edits first, then acks the server. */
+  setAgent(active: boolean, since: string | null): Promise<void>;
+  /** A project version written by the agent: one undo step, already on disk. */
+  remoteProject(p: Project): void;
+  /** latest storyline pushed by the agent (StorylinePanel listens) */
+  remoteStoryline: { text: string; seq: number } | null;
+  onLive(e: LiveEvent): void;
 }
 
 let lastKey: string | null = null;
@@ -151,6 +172,60 @@ export const useEditor = create<EditorState>((set, get) => {
     past: [],
     future: [],
     clipboard: null,
+    agentActive: false,
+    agentSince: null,
+    clientId: null,
+    remoteStoryline: null,
+    setClientId(id) {
+      set({ clientId: id });
+    },
+
+    async setAgent(active, since) {
+      if (active) {
+        const was = get().agentActive;
+        set({ agentActive: true, agentSince: since ?? get().agentSince ?? new Date().toISOString(), selectedLayerId: null });
+        if (was) return;
+        clearTimer();
+        await get().flush().catch(() => undefined);
+        const { slug, clientId } = get();
+        if (slug && clientId) await api.agentAck(slug, clientId).catch(() => undefined);
+        return;
+      }
+      if (!get().agentActive) return;
+      set({ agentActive: false, agentSince: null });
+      toast('info', 'AI selesai mengedit');
+    },
+
+    remoteProject(p) {
+      const { project, past } = get();
+      lastKey = null;
+      set({
+        project: p,
+        past: project ? [...past, project].slice(-HISTORY_LIMIT) : past,
+        future: [],
+        saveStatus: 'saved',
+        saveError: null,
+        ...fixSelection(p, get(), project),
+      });
+    },
+
+    onLive(e) {
+      switch (e.type) {
+        case 'hello':
+          set({ clientId: e.clientId });
+          if (e.agent.active !== get().agentActive) void get().setAgent(e.agent.active, e.agent.since);
+          break;
+        case 'agent':
+          void get().setAgent(e.active, e.since);
+          break;
+        case 'project':
+          get().remoteProject(e.project);
+          break;
+        case 'storyline':
+          set({ remoteStoryline: { text: e.text, seq: (get().remoteStoryline?.seq ?? 0) + 1 } });
+          break;
+      }
+    },
     setClipboard(c) {
       set({ clipboard: c });
     },
@@ -160,7 +235,7 @@ export const useEditor = create<EditorState>((set, get) => {
       lastKey = null;
       saving = null;
       pendingAfterSave = false;
-      set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null });
+      set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null, agentActive: false, agentSince: null, clientId: null, remoteStoryline: null });
     },
 
     async load(slug) {
@@ -172,7 +247,7 @@ export const useEditor = create<EditorState>((set, get) => {
 
     apply(fn, opts) {
       const { project, past } = get();
-      if (!project) return;
+      if (!project || get().agentActive) return;
       const next = fn(project);
       if (next === project) return;
       const now = Date.now();
@@ -186,14 +261,14 @@ export const useEditor = create<EditorState>((set, get) => {
 
     undo() {
       const { project, past, future } = get();
-      if (!project || past.length === 0) return;
+      if (!project || past.length === 0 || get().agentActive) return;
       lastKey = null;
       commit(past[past.length - 1], past.slice(0, -1), [project, ...future]);
     },
 
     redo() {
       const { project, past, future } = get();
-      if (!project || future.length === 0) return;
+      if (!project || future.length === 0 || get().agentActive) return;
       lastKey = null;
       commit(future[0], [...past, project].slice(-HISTORY_LIMIT), future.slice(1));
     },
