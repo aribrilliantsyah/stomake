@@ -11,7 +11,7 @@ const production = process.env.NODE_ENV === 'production' || process.argv.include
 const staticDir = production && existsSync(join(dist, 'index.html')) ? dist : undefined;
 const webUrl = process.env.STORYBOARD_WEB_URL ?? (staticDir ? `http://127.0.0.1:${port}` : 'http://localhost:5173');
 
-const app = createApp({ webUrl, staticDir });
+const app = createApp({ webUrl, staticDir, port });
 
 const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port }, () => {
   console.log(`storyboard-maker  http://127.0.0.1:${port}${staticDir ? '' : '  (api; web di http://localhost:5173)'}`);

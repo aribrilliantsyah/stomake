@@ -148,3 +148,11 @@ export interface ProjectPage {
   page: number;
   size: number;
 }
+
+export interface Settings {
+  mcp: { enabled: boolean };
+}
+
+export interface SettingsView {
+  mcp: { enabled: boolean; url: string; lastCallAt: string | null };
+}

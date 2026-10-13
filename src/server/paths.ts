@@ -8,6 +8,10 @@ export function dataRoot(): string {
   return process.env.STORYBOARD_HOME ?? join(homedir(), 'Storyboard');
 }
 
+export function settingsFile(): string {
+  return join(dataRoot(), 'settings.json');
+}
+
 export function projectsDir(): string {
   return join(dataRoot(), 'projects');
 }

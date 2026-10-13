@@ -19,7 +19,8 @@ import {
   writeStoryline,
 } from './store';
 import { isValidSlug, isValidTrashId } from './paths';
-import type { ProjectSort, ProjectStatus } from '../shared/types';
+import type { ProjectSort, ProjectStatus, SettingsView } from '../shared/types';
+import { lastMcpCallAt, readSettings, settingsSchema, writeSettings } from './settings';
 
 const SORTS: ProjectSort[] = ['updated', 'name', 'created', 'scenes'];
 const STATUSES: ProjectStatus[] = ['active', 'archived', 'all'];
@@ -152,11 +153,29 @@ export interface AppOptions {
   webUrl?: string;
   /** Serve built web app from this folder (production). */
   staticDir?: string;
+  /** Port the server listens on (for the MCP url shown in settings). */
+  port?: number;
+}
+
+function settingsRoutes(port: number): Hono {
+  const r = new Hono();
+  const view = async (): Promise<SettingsView> => ({
+    mcp: { enabled: (await readSettings()).mcp.enabled, url: `http://127.0.0.1:${port}/mcp`, lastCallAt: lastMcpCallAt() },
+  });
+  r.get('/api/settings', async (c) => c.json(await view()));
+  r.put('/api/settings', async (c) => {
+    const parsed = settingsSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return badRequest(c, 'settings tidak valid');
+    await writeSettings(parsed.data);
+    return c.json(await view());
+  });
+  return r;
 }
 
 export function createApp(opts: AppOptions = {}): Hono {
   const app = new Hono();
   app.use('*', guardWrites);
+  app.route('/', settingsRoutes(opts.port ?? 5178));
   app.route('/', projectRoutes());
   app.route('/', assetRoutes());
   app.route('/', exportRoutes(() => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173'));
