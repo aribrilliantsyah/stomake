@@ -12,6 +12,15 @@ export function projectsDir(): string {
   return join(dataRoot(), 'projects');
 }
 
+export function trashDir(): string {
+  return join(dataRoot(), 'trash');
+}
+
+/** trash entry names: `<slug>__<timestamp>` */
+export function isValidTrashId(id: string): boolean {
+  return /^[a-z0-9]+(-[a-z0-9]+)*__\d{13,}$/.test(id);
+}
+
 export function libraryDir(): string {
   return join(dataRoot(), 'library');
 }

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
@@ -164,6 +164,25 @@ test('font tersedia → missingFonts [], font tidak ada → dilaporkan', async (
   });
   const body = await (await call(`/api/projects/${slug}/export`, { method: 'POST' })).json();
   expect(body.missingFonts).toEqual(['Font Tidak Ada']);
+}, 120_000);
+
+test('thumbnail: PNG dibuat sekali lalu di-cache; diperbarui setelah project berubah', async () => {
+  const slug = await makeProject('Thumb', 2);
+  const r1 = await call(`/api/projects/${slug}/thumb.png`);
+  expect(r1.status).toBe(200);
+  expect(r1.headers.get('content-type')).toBe('image/png');
+  const b1 = Buffer.from(await r1.arrayBuffer());
+  expect(b1.subarray(1, 4).toString()).toBe('PNG');
+  expect(b1.readUInt32BE(16)).toBe(480); // width px
+  const thumb = join(home, 'projects', slug, 'thumb.png');
+  const m1 = statSync(thumb).mtimeMs;
+  await call(`/api/projects/${slug}/thumb.png`);
+  expect(statSync(thumb).mtimeMs).toBe(m1);
+  const p = await (await call(`/api/projects/${slug}`)).json();
+  await new Promise((res) => setTimeout(res, 20));
+  await call(`/api/projects/${slug}`, json('PUT', updateScene(p, p.pages[0].scenes[0].id, { subtitle: 'baru' })));
+  await call(`/api/projects/${slug}/thumb.png`);
+  expect(statSync(thumb).mtimeMs).toBeGreaterThan(m1);
 }, 120_000);
 
 test('teardown tmp', () => {

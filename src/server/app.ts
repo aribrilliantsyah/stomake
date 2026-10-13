@@ -5,13 +5,24 @@ import { badRequest, checkSlug } from './http';
 import { ZodError } from 'zod';
 import {
   createProjectOnDisk,
-  listProjects,
+  duplicateProject,
   projectExists,
+  queryProjects,
   readProject,
   readStoryline,
+  renameProject,
+  restoreFromTrash,
   saveProject,
+  setArchived,
+  trashExists,
+  trashProject,
   writeStoryline,
 } from './store';
+import { isValidSlug, isValidTrashId } from './paths';
+import type { ProjectSort, ProjectStatus } from '../shared/types';
+
+const SORTS: ProjectSort[] = ['updated', 'name', 'created', 'scenes'];
+const STATUSES: ProjectStatus[] = ['active', 'archived', 'all'];
 
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
@@ -31,7 +42,73 @@ export const guardWrites: MiddlewareHandler = async (c, next) => {
 export function projectRoutes(): Hono {
   const r = new Hono();
 
-  r.get('/api/projects', async (c) => c.json(await listProjects()));
+  r.get('/api/projects', async (c) => {
+    const q = c.req.query();
+    const num = (v?: string) => (v === undefined || v === '' ? undefined : Number(v));
+    return c.json(
+      await queryProjects({
+        q: q.q,
+        status: STATUSES.includes(q.status as ProjectStatus) ? (q.status as ProjectStatus) : 'active',
+        sort: SORTS.includes(q.sort as ProjectSort) ? (q.sort as ProjectSort) : 'updated',
+        since: num(q.since),
+        page: num(q.page),
+        size: num(q.size),
+      }),
+    );
+  });
+
+  r.post('/api/projects/bulk', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { action?: unknown; slugs?: unknown };
+    const action = body.action;
+    if (!['archive', 'unarchive', 'delete'].includes(action as string) || !Array.isArray(body.slugs)) return badRequest(c, 'action/slugs');
+    const ok: string[] = [];
+    const failed: string[] = [];
+    const trashIds: string[] = [];
+    for (const s of body.slugs.slice(0, 500)) {
+      if (typeof s !== 'string' || !isValidSlug(s) || !projectExists(s)) {
+        failed.push(String(s));
+        continue;
+      }
+      try {
+        if (action === 'delete') trashIds.push(await trashProject(s));
+        else await setArchived(s, action === 'archive');
+        ok.push(s);
+      } catch {
+        failed.push(s);
+      }
+    }
+    return c.json(action === 'delete' ? { ok, failed, trashIds } : { ok, failed });
+  });
+
+  r.post('/api/projects/:slug/archive', async (c) => {
+    const err = checkSlug(c);
+    if (err) return err;
+    const body = (await c.req.json().catch(() => ({}))) as { archived?: unknown };
+    if (typeof body.archived !== 'boolean') return badRequest(c, 'archived required');
+    await setArchived(c.req.param('slug'), body.archived);
+    return c.json({ ok: true });
+  });
+
+  r.post('/api/projects/:slug/rename', async (c) => {
+    const err = checkSlug(c);
+    if (err) return err;
+    const body = (await c.req.json().catch(() => ({}))) as { name?: unknown };
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name || name.length > 120) return badRequest(c, 'name required');
+    await renameProject(c.req.param('slug'), name);
+    return c.json({ slug: c.req.param('slug'), name });
+  });
+
+  r.post('/api/projects/:slug/duplicate', async (c) => checkSlug(c) ?? c.json({ slug: await duplicateProject(c.req.param('slug')) }));
+
+  r.delete('/api/projects/:slug', async (c) => checkSlug(c) ?? c.json({ trashId: await trashProject(c.req.param('slug')) }));
+
+  r.post('/api/trash/:id/restore', async (c) => {
+    const id = c.req.param('id');
+    if (!isValidTrashId(id)) return badRequest(c, 'invalid trash id');
+    if (!trashExists(id)) return c.json({ error: 'not found' }, 404);
+    return c.json({ slug: await restoreFromTrash(id) });
+  });
 
   r.post('/api/projects', async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { name?: unknown };

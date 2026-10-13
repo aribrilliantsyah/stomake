@@ -69,7 +69,7 @@ test('GET daftar urut updatedAt terbaru', async () => {
   await create('Lama');
   await new Promise((r) => setTimeout(r, 10));
   await create('Baru');
-  const list = await (await app.request('/api/projects')).json();
+  const list = (await (await app.request('/api/projects')).json()).items;
   expect(list.map((x: { slug: string }) => x.slug)).toEqual(['baru', 'lama']);
   expect(list[0]).toHaveProperty('name', 'Baru');
 });

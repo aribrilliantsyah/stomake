@@ -87,6 +87,7 @@ export const projectSchema = z.object({
   updatedAt: z.string(),
   pageBackground: background,
   cover: cover.nullable(),
+  archived: z.boolean().optional(),
   pages: z.array(page).min(1),
 });
 

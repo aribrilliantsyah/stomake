@@ -42,7 +42,8 @@ export function PrintRoute({ slug, page }: { slug: string; page: number | null }
 
   useEffect(() => {
     document.body.classList.add('print-mode');
-    Konva.pixelRatio = 4; // frame bitmaps at 4x for a sharp PDF
+    // frame bitmaps at 4x for a sharp PDF; thumbnails use the page's device scale
+    Konva.pixelRatio = new URLSearchParams(location.search).has('thumb') ? window.devicePixelRatio : 4;
     window.__PRINT_READY__ = false;
     api.getProject(slug).then(setProject, (e) => {
       setError(e.message);

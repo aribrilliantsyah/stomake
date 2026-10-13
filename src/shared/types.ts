@@ -12,6 +12,8 @@ export interface Project {
   pageBackground: Background;
   /** optional "VISUAL ASLI" style first page; not counted as a scene */
   cover: Cover | null;
+  /** hidden from the default (active) project list */
+  archived?: boolean;
   pages: Page[];
 }
 
@@ -117,5 +119,32 @@ export interface AssetInfo {
 export interface ProjectSummary {
   slug: string;
   name: string;
+  createdAt: string;
   updatedAt: string;
+  scenes: number;
+  pages: number;
+  archived: boolean;
+  hasCover: boolean;
+  /** project.json could not be read */
+  broken?: boolean;
+}
+
+export type ProjectSort = 'updated' | 'name' | 'created' | 'scenes';
+export type ProjectStatus = 'active' | 'archived' | 'all';
+
+export interface ProjectQuery {
+  q?: string;
+  status?: ProjectStatus;
+  sort?: ProjectSort;
+  /** only projects updated in the last N days */
+  since?: number;
+  page?: number;
+  size?: number;
+}
+
+export interface ProjectPage {
+  items: ProjectSummary[];
+  total: number;
+  page: number;
+  size: number;
 }

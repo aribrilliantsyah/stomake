@@ -1,4 +1,5 @@
-import { mkdir } from 'node:fs/promises';
+import { existsSync, statSync } from 'node:fs';
+import { mkdir, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium, type Browser } from 'playwright';
 import { PAGE } from '../shared/layout';
@@ -63,6 +64,48 @@ export async function exportPdf(slug: string, baseUrl: string): Promise<{ path: 
     await page.emulateMedia({ media: 'print' });
     await page.pdf({ path, width: `${PAGE.w / 72}in`, height: `${PAGE.h / 72}in`, printBackground: true, preferCSSPageSize: true });
     return { path, missingAssets, fonts, missingFonts };
+  } finally {
+    await ctx.close();
+  }
+}
+
+export const THUMB_WIDTH = 480;
+const thumbJobs = new Map<string, Promise<string>>();
+
+export function thumbPath(slug: string): string {
+  return join(projectDir(slug), 'thumb.png');
+}
+
+/**
+ * Cached first-page thumbnail (cover if present). Regenerated when project.json is newer.
+ * Concurrent requests for the same slug share one render.
+ */
+export async function ensureThumb(slug: string, baseUrl: string, firstPage: number): Promise<string> {
+  const out = thumbPath(slug);
+  const proj = join(projectDir(slug), 'project.json');
+  if (existsSync(out) && statSync(out).mtimeMs >= statSync(proj).mtimeMs) return out;
+  let job = thumbJobs.get(slug);
+  if (!job) {
+    job = renderThumb(slug, baseUrl, firstPage, out).finally(() => thumbJobs.delete(slug));
+    thumbJobs.set(slug, job);
+  }
+  return job;
+}
+
+async function renderThumb(slug: string, baseUrl: string, firstPage: number, out: string): Promise<string> {
+  const b = await getBrowser();
+  const pageW = (PAGE.w * 96) / 72;
+  const scale = THUMB_WIDTH / pageW;
+  const ctx = await b.newContext({ viewport: { width: Math.ceil(pageW), height: Math.ceil((PAGE.h * 96) / 72) }, deviceScaleFactor: scale });
+  const page = await ctx.newPage();
+  try {
+    await page.goto(`${baseUrl}/print/${slug}?page=${firstPage}&thumb=1`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await page.waitForFunction(() => window.__PRINT_READY__ === true || !!window.__PRINT_ERROR__, null, { timeout: 60_000 });
+    const sheet = page.locator('.sheet').first();
+    const tmp = `${out}.tmp.png`;
+    await sheet.screenshot({ path: tmp, animations: 'disabled' });
+    await rename(tmp, out);
+    return out;
   } finally {
     await ctx.close();
   }
