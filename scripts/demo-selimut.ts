@@ -1,7 +1,7 @@
 // Recreate selimut darurat scenes 1-6 via the API with the real assets, then export.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { addLayer, withPageSizes, defaultArrow, defaultText, flatScenes, layerFromDrop, setSplit, updatePanel, updateScene } from '../src/shared/model';
+import { addCover, defaultShape, addLayer, withPageSizes, defaultArrow, defaultText, flatScenes, layerFromDrop, setSplit, updatePanel, updateScene } from '../src/shared/model';
 import type { AssetInfo, Project } from '../src/shared/types';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:5199';
@@ -21,7 +21,7 @@ sf.append('file', new File([readFileSync(join(SRC, 'cara kerja selimut darurat.d
 await fetch(`${BASE}/api/projects/${slug}/storyline/import`, { method: 'POST', body: sf });
 
 let p: Project = await (await fetch(`${BASE}/api/projects/${slug}`)).json();
-p = withPageSizes(p, [3, 3, 1]);
+p = withPageSizes(addCover(p), [1, 3, 3]);
 const S = () => flatScenes(p).map((f) => f.scene);
 const full = { w: 1080, h: 1920 };
 const bg = { kind: 'asset', ref: A('bg gunung.jpg').ref, fit: 'cover' } as const;
@@ -54,6 +54,14 @@ lines.forEach(([note, sub, img], i) => {
   p = addLayer(p, t.id, { ...defaultText(full), text: 'SELIMUT DARURAT', y: 300, fontSize: 130 });
   const g = S()[3].panels[0];
   p = addLayer(p, g.id, layerFromDrop({ ...A('dont .png'), ref: 'global:dont .png' }, 820, 400, { w: 600, h: 1920 }));
+}
+// cover: original visual
+p = { ...p, cover: { ...p.cover!, panel: { ...p.cover!.panel, background: bg, layers: [layerFromDrop(A('todoroki kedinginan.png'), 540, 1100, full)] } } };
+// scene 2: target shape + bangers text (font picker)
+{
+  const pn = S()[1].panels[0];
+  p = addLayer(p, pn.id, { ...defaultShape('target', full), x: 540, y: 900, width: 700, height: 700 });
+  p = addLayer(p, pn.id, { ...defaultText(full), text: 'BRRR', font: 'Luckiest Guy', y: 260 });
 }
 // scene 7 split: frozen -> normal
 p = setSplit(p, S()[6].id, true);

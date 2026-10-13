@@ -2,14 +2,17 @@
 
 Aplikasi web lokal untuk membuat storyboard video 9:16 dari storyline lalu export PDF bergaya template Canva (untuk dikirim ke video editor).
 
-- Project → page → 1–3 scene per page; nomor scene berlanjut antar page, page dengan 1–2 scene diletakkan di tengah.
+- Editor gaya PowerPoint: panel Slides (Cover opsional + page), page aktif tampil seperti PDF dan frame-nya bisa diedit langsung.
+- Page berisi 1–3 scene; "+ Page" dan "+ Scene" diatur sendiri (tidak ada pemindahan otomatis). Nomor scene berlanjut antar page.
+- Cover "VISUAL ASLI" opsional: satu frame di tengah, tidak dihitung sebagai scene.
 - Per scene: catatan efek (atas), frame 9:16, subtitle/narasi (bawah). Opsional split atas-bawah (kondisi awal → akhir).
 - Storyline viewer di samping (paste / import `.docx`) untuk copy-paste ke scene.
 - Asset per project + global, drag & drop ke canvas; background per scene/panel dan per page (warna atau asset).
-- Layer: gambar (geser, resize, rotate, flip, opacity, urutan), teks, panah, emoji. Duplikat scene.
+- Layer: gambar (geser, resize, rotate, flip, opacity, urutan), teks (15 font bawaan + font laptop via Chrome), 10 shape (kotak, elips, garis, panah, panah 2 arah, target, silang, bintang, balon kata), emoji. Duplikat scene/page.
+- Ctrl+C / Ctrl+X / Ctrl+V layer antar scene; paste gambar (screenshot) langsung jadi asset project.
 - Autosave, undo/redo (Ctrl+Z / Ctrl+Shift+Z).
 
-Dokumen: [docs/SPEC.md](docs/SPEC.md), [docs/PLAN.md](docs/PLAN.md).
+Dokumen: [docs/SPEC.md](docs/SPEC.md), [docs/SPEC-V2.md](docs/SPEC-V2.md), [docs/PLAN.md](docs/PLAN.md), [docs/PLAN-V2.md](docs/PLAN-V2.md).
 
 ## Pakai
 
@@ -43,7 +46,10 @@ Data disimpan di `~/Storyboard` (ubah dengan env `STORYBOARD_HOME`):
 | Ctrl+D | Duplikat layer |
 | `]` / `[` | Layer naik / turun (Shift = paling depan / belakang) |
 | Panah | Geser layer 5px (Shift = 50px) |
-| Esc | Batal pilih |
+| Esc | Batal pilih / keluar zoom |
+| Ctrl+C / Ctrl+X / Ctrl+V | Copy / potong / tempel layer (atau gambar dari clipboard) |
+| Z / double-click frame | Zoom satu scene |
+| Ctrl+1 / Ctrl+2 / Ctrl+3 | Lipat panel Slides / Storyline-Asset / Properti |
 
 ## Development
 

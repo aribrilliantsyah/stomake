@@ -7,7 +7,7 @@ import { serve, type ServerType } from '@hono/node-server';
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
 import { closeBrowser } from '../src/server/export';
-import { addLayer, defaultText, withPageSizes, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
+import { addCover, addLayer, defaultEmoji, defaultText, withPageSizes, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
 import type { Project } from '../src/shared/types';
 
 const dist = join(__dirname, '..', 'dist');
@@ -134,6 +134,35 @@ test('frame resolusi tinggi, font Bangers termuat, subtitle maks 4 baris', async
   const ys = new Set([...bbox.matchAll(/yMin="([\d.]+)"[^>]*>(?:merasa|dingin|sekali|sampai|menggigil|dan)/g)].map((m) => Math.round(Number(m[1]))));
   expect(ys.size).toBeLessThanOrEqual(4);
   expect(Math.max(...ys)).toBeLessThan(470);
+}, 120_000);
+
+test('cover → PDF halaman 1 berisi judul tanpa "Scene"; Scene 1 di halaman 2; page 1 scene di tengah', async () => {
+  const slug = await makeProject('Cover', 1, (p) => {
+    p = addCover(p);
+    p = { ...p, cover: { ...p.cover!, panel: { ...p.cover!.panel, layers: [{ ...defaultEmoji('🔥', { w: 1080, h: 1920 }) }] } } };
+    return withPageSizes(p, [1, 2]);
+  });
+  const body = await (await call(`/api/projects/${slug}/export`, { method: 'POST' })).json();
+  expect(pdfInfo(body.path)).toMatch(/Pages:\s+3/);
+  const p1 = pdfText(body.path, 1);
+  expect(p1).toContain('VISUAL ASLI');
+  expect(p1).not.toContain('Scene');
+  expect(p1).not.toContain('STORYBOARD');
+  expect(pdfText(body.path, 2)).toContain('Scene 1');
+  expect(pdfText(body.path, 3)).toContain('Scene 3');
+  const bbox = execFileSync('pdftotext', ['-f', '2', '-l', '2', '-bbox', body.path, '-']).toString();
+  const x = Number(bbox.match(/xMin="([\d.]+)"[^>]*>Scene</)![1]);
+  expect(Math.abs(x - 282.375)).toBeLessThan(3);
+}, 120_000);
+
+test('font tersedia → missingFonts [], font tidak ada → dilaporkan', async () => {
+  const slug = await makeProject('Font', 1, (p) => {
+    const panelId = p.pages[0].scenes[0].panels[0].id;
+    p = addLayer(p, panelId, { ...defaultText({ w: 1080, h: 1920 }), font: 'Poppins' });
+    return addLayer(p, panelId, { ...defaultText({ w: 1080, h: 1920 }), font: 'Font Tidak Ada', y: 300 });
+  });
+  const body = await (await call(`/api/projects/${slug}/export`, { method: 'POST' })).json();
+  expect(body.missingFonts).toEqual(['Font Tidak Ada']);
 }, 120_000);
 
 test('teardown tmp', () => {

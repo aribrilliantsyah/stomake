@@ -46,7 +46,7 @@ export function exportPath(slug: string): string {
 }
 
 /** Prints /print/:slug from baseUrl with Chromium into exports/storyboard.pdf. */
-export async function exportPdf(slug: string, baseUrl: string): Promise<{ path: string; missingAssets: string[]; fonts: string[] }> {
+export async function exportPdf(slug: string, baseUrl: string): Promise<{ path: string; missingAssets: string[]; fonts: string[]; missingFonts: string[] }> {
   const b = await getBrowser();
   const ctx = await b.newContext({ viewport: { width: 1000, height: 800 }, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
@@ -57,11 +57,12 @@ export async function exportPdf(slug: string, baseUrl: string): Promise<{ path: 
     if (err) throw new Error(err);
     const missingAssets = (await page.evaluate(() => window.__MISSING_ASSETS__ ?? [])) as string[];
     const fonts = (await page.evaluate(() => window.__FONTS__ ?? [])) as string[];
+    const missingFonts = (await page.evaluate(() => window.__MISSING_FONTS__ ?? [])) as string[];
     const path = exportPath(slug);
     await mkdir(join(projectDir(slug), 'exports'), { recursive: true });
     await page.emulateMedia({ media: 'print' });
     await page.pdf({ path, width: `${PAGE.w / 72}in`, height: `${PAGE.h / 72}in`, printBackground: true, preferCSSPageSize: true });
-    return { path, missingAssets, fonts };
+    return { path, missingAssets, fonts, missingFonts };
   } finally {
     await ctx.close();
   }
