@@ -155,3 +155,9 @@ export const agentLock = {
 };
 
 export const LOCKED_MESSAGE = 'AI sedang mengedit project ini';
+
+/** Test hook: drop every lock (timers cleared, no events). */
+export function resetLive(): void {
+  for (const lk of locks.values()) if (lk.idle) clearTimeout(lk.idle);
+  locks.clear();
+}

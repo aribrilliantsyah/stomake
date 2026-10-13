@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
-import { agentLock, publish, setLiveTimings, subscribe, withWriteLock, type LiveEvent } from '../src/server/live';
+import { agentLock, publish, resetLive, setLiveTimings, subscribe, withWriteLock, type LiveEvent } from '../src/server/live';
 
 let app: ReturnType<typeof createApp>;
 const json = (method: string, body: unknown) => ({ method, body: JSON.stringify(body), headers: { 'content-type': 'application/json' } });
@@ -15,7 +15,10 @@ beforeEach(() => {
   app = createApp();
   setLiveTimings({ ack: 200, idle: 300 });
 });
-afterEach(() => setLiveTimings({ ack: 3000, idle: 10000 }));
+afterEach(() => {
+  resetLive();
+  setLiveTimings({ ack: 3000, idle: 10000 });
+});
 
 test('withWriteLock: slug sama berurutan, slug beda paralel', async () => {
   const log: string[] = [];
