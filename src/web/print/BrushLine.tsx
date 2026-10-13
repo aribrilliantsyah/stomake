@@ -11,8 +11,8 @@ export function BrushLine({ width, thickness = 3.2 }: { width: number; thickness
 }
 
 /** Rough hand-drawn rectangle border around a frame (in pt). */
-export function BrushFrame({ w, h }: { w: number; h: number }) {
-  const o = 1.6;
+export function BrushFrame({ w, h, scale = 1 }: { w: number; h: number; scale?: number }) {
+  const o = 1.6 * scale;
   return (
     <svg
       width={`${w + o * 4}pt`}
@@ -24,11 +24,11 @@ export function BrushFrame({ w, h }: { w: number; h: number }) {
         d={`M ${-o} ${-o * 0.6} L ${w + o * 0.8} ${-o} L ${w + o * 0.5} ${h + o} L ${-o * 0.7} ${h + o * 0.7} Z`}
         fill="none"
         stroke="#111"
-        strokeWidth={2.4}
+        strokeWidth={2.4 * scale}
         strokeLinejoin="round"
       />
-      <path d={`M ${-o * 0.4} ${-o * 1.1} L ${w * 0.6} ${-o * 0.4}`} stroke="#111" strokeWidth={1.4} fill="none" />
-      <path d={`M ${w * 0.3} ${h + o * 1.2} L ${w + o * 0.2} ${h + o * 0.6}`} stroke="#111" strokeWidth={1.4} fill="none" />
+      <path d={`M ${-o * 0.4} ${-o * 1.1} L ${w * 0.6} ${-o * 0.4}`} stroke="#111" strokeWidth={1.4 * scale} fill="none" />
+      <path d={`M ${w * 0.3} ${h + o * 1.2} L ${w + o * 0.2} ${h + o * 0.6}`} stroke="#111" strokeWidth={1.4 * scale} fill="none" />
     </svg>
   );
 }

@@ -23,7 +23,7 @@ export function Toolbar({ slug }: { slug: string }) {
   const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
 
-  const scene = s.project?.pages.flatMap((p) => p.scenes).find((x) => x.id === s.currentSceneId);
+  const scene = s.selectedCover && s.project?.cover ? { split: false, panels: [s.project.cover.panel] } : s.project?.pages.flatMap((p) => p.scenes).find((x) => x.id === s.currentSceneId);
   const panel = scene?.panels.find((p) => p.id === s.activePanelId) ?? scene?.panels[0];
   const space = panelSpace(!!scene?.split);
 
@@ -35,8 +35,7 @@ export function Toolbar({ slug }: { slug: string }) {
   }
 
   function pageOfCurrent() {
-    const pages = s.project?.pages ?? [];
-    return Math.max(0, pages.findIndex((p) => p.scenes.some((x) => x.id === s.currentSceneId)));
+    return s.currentPageIndex();
   }
 
   async function doExport() {

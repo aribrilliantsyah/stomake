@@ -43,8 +43,9 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
   function setPageBg(a: AssetInfo) {
     const p = s.project;
     if (!p) return;
-    const pi = p.pages.findIndex((pg) => pg.scenes.some((x) => x.id === s.currentSceneId));
-    s.apply((q) => setPageBackground(q, pi, { kind: 'asset', ref: a.ref, fit: 'cover' }));
+    const pi = s.currentPageIndex();
+    const bg = { kind: 'asset', ref: a.ref, fit: 'cover' } as const;
+    s.apply((q) => (pi < 0 ? { ...q, pageBackground: bg } : setPageBackground(q, pi, bg)));
     setMenu(null);
   }
 

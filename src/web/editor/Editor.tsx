@@ -3,31 +3,33 @@ import {
   addLayer,
   addSceneInPage,
   canRemoveScene,
-  pageOf,
   duplicateScene,
   findPanel,
-  findScene,
   flatScenes,
   layerFromDrop,
   moveScene,
-  pageIndexOfScene,
+  pageOf,
   removeLayer,
   removeScene,
   reorderLayer,
   updateLayer,
 } from '../../shared/model';
-import { panelSpace } from '../../shared/layout';
-import type { AssetInfo, Layer } from '../../shared/types';
+import { FRAME, PAGE, panelSpace } from '../../shared/layout';
+import type { AssetInfo, Layer, Scene } from '../../shared/types';
 import { api, type AssetLists } from '../api';
+import { CoverSheet, coverScene, PageSheet, PT_TO_PX, type SheetInteraction } from '../print/PageSheet';
 import { useEditor } from '../state/editorStore';
+import { useUi, type PanelName } from '../state/uiStore';
+import { Toasts } from '../ui/Toasts';
 import { AssetPanel, ASSET_MIME } from './AssetPanel';
-import { PageStrip } from './PageStrip';
+import { installClipboard } from './clipboard';
 import { PropsPanel } from './PropsPanel';
 import { SceneCanvas } from './SceneCanvas';
+import { SlidesPanel } from './SlidesPanel';
 import { StorylinePanel } from './StorylinePanel';
 import { Toolbar } from './Toolbar';
 
-function isTyping(e: KeyboardEvent) {
+export function isTyping(e: Event) {
   const t = e.target as HTMLElement | null;
   return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 }
@@ -45,8 +47,51 @@ function useSize(): [(el: HTMLElement | null) => void, { w: number; h: number }]
   return [setEl, size];
 }
 
+/** Map a drop on a scene canvas to a new image layer in the right panel. */
+function dropToLayer(scene: Scene, e: React.DragEvent, rect: DOMRect): { panelId: string; layer: Layer } | null {
+  const raw = e.dataTransfer.getData(ASSET_MIME);
+  if (!raw) return null;
+  e.preventDefault();
+  const info = JSON.parse(raw) as AssetInfo;
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  if (px < 0 || py < 0 || px > rect.width || py > rect.height) return null;
+  const scale = rect.width / 1080;
+  const idx = scene.split && py > rect.height / 2 ? 1 : 0;
+  const space = panelSpace(scene.split);
+  const x = Math.round(px / scale);
+  const y = Math.round((py - (idx * rect.height) / 2) / scale);
+  return { panelId: scene.panels[idx].id, layer: layerFromDrop(info, x, Math.min(space.h, y), space) };
+}
+
+const PANEL_KEYS: Record<string, PanelName> = { '1': 'slides', '2': 'library', '3': 'props' };
+
+function Collapsed({ name, label }: { name: PanelName; label: string }) {
+  const toggle = useUi((u) => u.togglePanel);
+  return (
+    <button className="collapsed" onClick={() => toggle(name)} title={`Buka ${label}`}>
+      <span>»</span>
+      <span className="collapsed-label">{label}</span>
+    </button>
+  );
+}
+
+function PanelHead({ name, children }: { name: PanelName; children?: React.ReactNode }) {
+  const toggle = useUi((u) => u.togglePanel);
+  return (
+    <div className="panel-head">
+      {children}
+      <div className="grow" />
+      <button className="fold" onClick={() => toggle(name)} title="Lipat panel">
+        «
+      </button>
+    </div>
+  );
+}
+
 export function Editor({ slug }: { slug: string }) {
   const s = useEditor();
+  const ui = useUi();
   const [tab, setTab] = useState<'storyline' | 'assets'>('storyline');
   const [assets, setAssets] = useState<AssetLists>({ project: [], global: [] });
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -62,7 +107,9 @@ export function Editor({ slug }: { slug: string }) {
     api.listAssets(slug).then(setAssets).catch(() => undefined);
   }
 
-  // flush pending save on tab close
+  useEffect(() => installClipboard(slug, refreshAssets), [slug]);
+
+  // flush pending save on tab close / unmount
   useEffect(() => {
     const before = (e: BeforeUnloadEvent) => {
       const st = useEditor.getState().saveStatus;
@@ -78,15 +125,17 @@ export function Editor({ slug }: { slug: string }) {
     };
   }, []);
 
-  const project = s.project;
-  const scene = project && s.currentSceneId ? findScene(project, s.currentSceneId) : null;
-
   // keyboard shortcuts
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && PANEL_KEYS[e.key]) {
+        e.preventDefault();
+        useUi.getState().togglePanel(PANEL_KEYS[e.key]);
+        return;
+      }
       if (isTyping(e)) return;
       const st = useEditor.getState();
-      const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) st.redo();
@@ -96,6 +145,14 @@ export function Editor({ slug }: { slug: string }) {
       if (mod && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         st.redo();
+        return;
+      }
+      if (e.key === 'Escape' && useUi.getState().zoom && !st.selectedLayerId) {
+        useUi.getState().setZoom(false);
+        return;
+      }
+      if (!mod && e.key.toLowerCase() === 'z') {
+        useUi.getState().setZoom(!useUi.getState().zoom);
         return;
       }
       const panelId = st.activePanelId;
@@ -133,24 +190,49 @@ export function Editor({ slug }: { slug: string }) {
     return () => window.removeEventListener('keydown', on);
   }, []);
 
+  const project = s.project;
   if (loadError) return <div className="error pad">Gagal membuka project: {loadError}</div>;
-  if (!project || !scene) return <div className="pad muted">Memuat…</div>;
+  if (!project || !s.currentSceneId) return <div className="pad muted">Memuat…</div>;
 
+  const onCover = s.selectedCover && !!project.cover;
+  const scene: Scene = onCover ? coverScene(project.cover!) : flatScenes(project).find((f) => f.scene.id === s.currentSceneId)!.scene;
+  const pageIndex = s.currentPageIndex();
+  const page = onCover ? null : project.pages[pageIndex];
   const flat = flatScenes(project);
-  const number = flat.find((f) => f.scene.id === scene.id)!.number;
-  const pageIndex = pageIndexOfScene(project, scene.id);
+  const number = onCover ? 0 : flat.find((f) => f.scene.id === scene.id)!.number;
+  const indexInPage = page ? page.scenes.findIndex((x) => x.id === scene.id) : 0;
 
-  // canvas size: fit 9:16 into the center box
-  const maxH = Math.max(200, box.h - 16);
-  const canvasW = Math.max(120, Math.min(box.w - 16, (maxH * 9) / 16));
-  const canvasH = (canvasW * 16) / 9;
+  const it: SheetInteraction = {
+    activeSceneId: scene.id,
+    activePanelId: s.activePanelId,
+    selectedLayerId: s.selectedLayerId,
+    onSelectScene: (id) => {
+      if (!onCover) s.selectScene(id);
+    },
+    onSelectLayer: (panelId, id) => {
+      if (panelId !== useEditor.getState().activePanelId) s.setActivePanel(panelId);
+      s.selectLayer(id);
+    },
+    onChangeLayer: (panelId, layerId, patch) => s.apply((p) => updateLayer(p, panelId, layerId, patch)),
+    onDropAsset: (sceneId, e, rect) => {
+      const target = sceneId === project.cover?.id ? coverScene(project.cover) : flat.find((f) => f.scene.id === sceneId)?.scene;
+      if (!target) return;
+      const r = dropToLayer(target, e, rect);
+      if (!r) return;
+      if (target.id !== scene.id && !onCover) s.selectScene(target.id);
+      s.apply((p) => addLayer(p, r.panelId, r.layer));
+      s.setActivePanel(r.panelId);
+      s.selectLayer(r.layer.id);
+    },
+    onOpenScene: () => ui.setZoom(true),
+  };
 
   const sceneActions = {
     add: () => {
+      if (!page) return;
       let next = '';
       s.apply((p) => {
-        const pg = pageOf(p, scene.id);
-        const r = pg && addSceneInPage(p, pg.id, scene.id);
+        const r = addSceneInPage(p, page.id, scene.id);
         if (!r) return p;
         next = r.sceneId;
         return r.project;
@@ -164,114 +246,156 @@ export function Editor({ slug }: { slug: string }) {
         next = r.sceneId;
         return r.project;
       });
-      if (next) s.selectScene(next);
+      if (next && next !== scene.id) s.selectScene(next);
     },
     remove: () => {
-      const idx = flat.findIndex((f) => f.scene.id === scene.id);
-      const neighbour = flat[idx + 1]?.scene.id ?? flat[idx - 1]?.scene.id;
-      if (flat.length > 1 && (scene.panels.some((p) => p.layers.length) || scene.subtitle || scene.note)) {
+      if (scene.panels.some((p) => p.layers.length) || scene.subtitle || scene.note) {
         if (!confirm(`Hapus Scene ${number}?`)) return;
       }
       s.apply((p) => removeScene(p, scene.id));
-      if (neighbour) s.selectScene(neighbour);
     },
     move: (dir: -1 | 1) => s.apply((p) => moveScene(p, scene.id, dir)),
   };
 
-  function onDrop(e: React.DragEvent) {
-    const raw = e.dataTransfer.getData(ASSET_MIME);
-    if (!raw || !scene) return;
-    e.preventDefault();
-    const info = JSON.parse(raw) as AssetInfo;
-    const rect = (e.currentTarget as HTMLElement).querySelector('.konvajs-content')!.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    if (px < 0 || py < 0 || px > rect.width || py > rect.height) return;
-    const scale = rect.width / 1080;
-    const idx = scene.split && py > rect.height / 2 ? 1 : 0;
-    const panel = scene.panels[idx];
-    const space = panelSpace(scene.split);
-    const x = Math.round(px / scale);
-    const y = Math.round((py - (idx * rect.height) / 2) / scale);
-    const layer = layerFromDrop(info, x, Math.min(space.h, y), space);
-    s.apply((p) => addLayer(p, panel.id, layer));
-    s.setActivePanel(panel.id);
-    s.selectLayer(layer.id);
-  }
+  // fit page (or zoomed scene) into the center box
+  const pageScale = Math.max(0.3, Math.min((box.w - 24) / (PAGE.w * PT_TO_PX), (box.h - 24) / (PAGE.h * PT_TO_PX)));
+  const zoomW = Math.max(120, Math.min(box.w - 24, ((box.h - 24) * 9) / 16));
+  const full = page !== null && page.scenes.length >= 3;
+
+  const cols = [
+    ui.panels.slides ? '168px' : '28px',
+    ui.panels.library ? '280px' : '28px',
+    'minmax(0, 1fr)',
+    ui.panels.props ? '300px' : '28px',
+  ].join(' ');
 
   return (
     <div className="editor">
       <Toolbar slug={slug} />
-      <div className="editor-body">
+      <div className="editor-body" style={{ gridTemplateColumns: cols }}>
+        <aside className="side slides-col">
+          {ui.panels.slides ? (
+            <>
+              <PanelHead name="slides">
+                <span className="panel-title">Slides</span>
+              </PanelHead>
+              <SlidesPanel slug={slug} />
+            </>
+          ) : (
+            <Collapsed name="slides" label="Slides" />
+          )}
+        </aside>
+
         <aside className="side left">
-          <div className="tabs">
-            <button className={tab === 'storyline' ? 'on' : ''} onClick={() => setTab('storyline')}>
-              Storyline
-            </button>
-            <button className={tab === 'assets' ? 'on' : ''} onClick={() => setTab('assets')}>
-              Asset
-            </button>
-          </div>
-          <div className="tab-body" hidden={tab !== 'storyline'}>
-            <StorylinePanel slug={slug} />
-          </div>
-          <div className="tab-body" hidden={tab !== 'assets'}>
-            <AssetPanel slug={slug} assets={assets} onUploaded={refreshAssets} />
-          </div>
+          {ui.panels.library ? (
+            <>
+              <PanelHead name="library">
+                <div className="tabs">
+                  <button className={tab === 'storyline' ? 'on' : ''} onClick={() => setTab('storyline')}>
+                    Storyline
+                  </button>
+                  <button className={tab === 'assets' ? 'on' : ''} onClick={() => setTab('assets')}>
+                    Asset
+                  </button>
+                </div>
+              </PanelHead>
+              <div className="tab-body" hidden={tab !== 'storyline'}>
+                <StorylinePanel slug={slug} />
+              </div>
+              <div className="tab-body" hidden={tab !== 'assets'}>
+                <AssetPanel slug={slug} assets={assets} onUploaded={refreshAssets} />
+              </div>
+            </>
+          ) : (
+            <Collapsed name="library" label="Storyline / Asset" />
+          )}
         </aside>
 
         <main className="center">
-          <PageStrip project={project} currentSceneId={scene.id} onSelect={s.selectScene} />
           <div className="scene-head">
-            <span className="scene-title">Scene {number}</span>
-            <span className="muted mono">
-              dari {flat.length} · Page {pageIndex + 1}/{project.pages.length} ({project.pages[pageIndex].scenes.length} scene)
-            </span>
+            {onCover ? (
+              <span className="scene-title">Cover</span>
+            ) : (
+              <>
+                <span className="scene-title">Scene {number}</span>
+                <span className="muted mono">
+                  Page {pageIndex + 1}/{project.pages.length} · {page!.scenes.length}/3 scene
+                </span>
+              </>
+            )}
             <div className="grow" />
-            <button onClick={() => sceneActions.move(-1)} disabled={number === 1} title="Pindah ke kiri">
-              ←
-            </button>
-            <button onClick={() => sceneActions.move(1)} disabled={number === flat.length} title="Pindah ke kanan">
-              →
-            </button>
-            <button onClick={sceneActions.add}>+ Scene</button>
-            <button onClick={sceneActions.duplicate}>Duplikat</button>
-            <button onClick={sceneActions.remove} className="danger">
-              Hapus
+            {!onCover && (
+              <>
+                <button onClick={() => sceneActions.move(-1)} disabled={indexInPage === 0} title="Geser ke kiri">
+                  ←
+                </button>
+                <button onClick={() => sceneActions.move(1)} disabled={indexInPage === page!.scenes.length - 1} title="Geser ke kanan">
+                  →
+                </button>
+                <button onClick={sceneActions.add} disabled={full} title={full ? 'Page sudah 3 scene — tambah page baru' : 'Tambah scene di page ini'}>
+                  + Scene
+                </button>
+                <button onClick={sceneActions.duplicate} disabled={full}>
+                  Duplikat
+                </button>
+                <button onClick={sceneActions.remove} className="danger" disabled={!canRemoveScene(project, scene.id)} title="Scene terakhir di page tidak bisa dihapus — hapus page-nya">
+                  Hapus
+                </button>
+              </>
+            )}
+            <button className={ui.zoom ? 'on' : ''} onClick={() => ui.setZoom(!ui.zoom)} title="Zoom scene (Z)">
+              {ui.zoom ? 'Lihat page' : 'Zoom'}
             </button>
           </div>
           <div className="stage-box" ref={stageBox}>
-            <div
-              className="stage-frame"
-              style={{ width: canvasW, height: canvasH }}
-              onDragOver={(e) => {
-                if (e.dataTransfer.types.includes(ASSET_MIME)) e.preventDefault();
-              }}
-              onDrop={onDrop}
-            >
-              {box.w > 0 && (
-                <SceneCanvas
-                  scene={scene}
-                  slug={slug}
-                  width={canvasW}
-                  interactive
-                  activePanelId={s.activePanelId}
-                  selectedLayerId={s.selectedLayerId}
-                  onSelectLayer={(panelId, id) => {
-                    if (panelId !== s.activePanelId) s.setActivePanel(panelId);
-                    s.selectLayer(id);
+            {box.w > 0 &&
+              (ui.zoom ? (
+                <div
+                  className="stage-frame"
+                  style={{ width: zoomW, height: (zoomW * 16) / 9 }}
+                  onDragOver={(e) => {
+                    if (e.dataTransfer.types.includes(ASSET_MIME)) e.preventDefault();
                   }}
-                  onChangeLayer={(panelId, layerId, patch) => s.apply((p) => updateLayer(p, panelId, layerId, patch))}
-                />
-              )}
-            </div>
+                  onDrop={(e) => {
+                    const rect = (e.currentTarget as HTMLElement).querySelector('.konvajs-content')!.getBoundingClientRect();
+                    it.onDropAsset!(scene.id, e, rect);
+                  }}
+                >
+                  <SceneCanvas
+                    scene={scene}
+                    slug={slug}
+                    width={zoomW}
+                    interactive
+                    activePanelId={s.activePanelId}
+                    selectedLayerId={s.selectedLayerId}
+                    onSelectLayer={it.onSelectLayer}
+                    onChangeLayer={it.onChangeLayer}
+                  />
+                </div>
+              ) : onCover ? (
+                <CoverSheet project={project} slug={slug} scale={pageScale} interactive {...it} />
+              ) : (
+                <PageSheet project={project} slug={slug} pageIndex={pageIndex} scale={pageScale} interactive {...it} />
+              ))}
           </div>
         </main>
 
         <aside className="side right">
-          <PropsPanel scene={scene} number={number} pageIndex={pageIndex} assets={assets} />
+          {ui.panels.props ? (
+            <>
+              <PanelHead name="props">
+                <span className="panel-title">Properti</span>
+              </PanelHead>
+              <PropsPanel scene={scene} number={number} pageIndex={pageIndex} assets={assets} />
+            </>
+          ) : (
+            <Collapsed name="props" label="Properti" />
+          )}
         </aside>
       </div>
+      <Toasts />
     </div>
   );
 }
+
+export { FRAME };

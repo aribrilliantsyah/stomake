@@ -1,4 +1,4 @@
-import { removeLayer, reorderLayer, setPageBackground, setSplit, updateLayer, updatePanel, updateScene } from '../../shared/model';
+import { removeLayer, reorderLayer, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { AssetRef, Background, Layer, Scene } from '../../shared/types';
 import { FontPicker } from './FontPicker';
 import type { AssetLists } from '../api';
@@ -199,10 +199,26 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
   const project = s.project!;
   const panel = scene.panels.find((p) => p.id === s.activePanelId) ?? scene.panels[0];
   const layer = panel.layers.find((l) => l.id === s.selectedLayerId);
-  const page = project.pages[pageIndex];
+  const page = pageIndex >= 0 ? project.pages[pageIndex] : null;
+  const onCover = pageIndex < 0 && !!project.cover;
 
   return (
     <div className="props">
+      {onCover ? (
+        <section>
+          <h3>Cover</h3>
+          <label className="field col">
+            <span>Judul cover</span>
+            <input value={project.cover!.title} onChange={(e) => s.apply((p) => updateCover(p, { title: e.target.value }), { coalesceKey: 'cover-title' })} />
+          </label>
+          <BgEditor
+            label="Background frame"
+            bg={panel.background}
+            assets={assets}
+            onChange={(b) => b && s.apply((p) => updatePanel(p, panel.id, (pn) => ({ ...pn, background: b })), { coalesceKey: `bg:${panel.id}` })}
+          />
+        </section>
+      ) : (
       <section>
         <h3>Scene {number}</h3>
         <label className="field col">
@@ -243,6 +259,7 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
           onChange={(b) => b && s.apply((p) => updatePanel(p, panel.id, (pn) => ({ ...pn, background: b })), { coalesceKey: `bg:${panel.id}` })}
         />
       </section>
+      )}
 
       <section>
         <h3>Layer</h3>
@@ -266,14 +283,16 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
       </section>
 
       <section>
-        <h3>Page {pageIndex + 1}</h3>
-        <BgEditor
-          label="Background page"
-          bg={page.background}
-          allowInherit
-          assets={assets}
-          onChange={(b) => s.apply((p) => setPageBackground(p, pageIndex, b), { coalesceKey: `pbg:${page.id}` })}
-        />
+        <h3>{page ? `Page ${pageIndex + 1}` : 'Background'}</h3>
+        {page && (
+          <BgEditor
+            label="Background page"
+            bg={page.background}
+            allowInherit
+            assets={assets}
+            onChange={(b) => s.apply((p) => setPageBackground(p, pageIndex, b), { coalesceKey: `pbg:${page.id}` })}
+          />
+        )}
         <BgEditor
           label="Default semua page"
           bg={project.pageBackground}
