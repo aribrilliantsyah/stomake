@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, expect, test } from 'vitest';
@@ -108,4 +108,17 @@ test('Origin asing ditolak, localhost diterima', async () => {
   expect((await app.request('/api/assets/global', { method: 'POST', body: fd, headers: { origin: 'https://evil.example' } })).status).toBe(403);
   const ok = await app.request('/api/projects', { method: 'POST', body: JSON.stringify({ name: 'x' }), headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' } });
   expect(ok.status).toBe(200);
+});
+
+test('readProject pada file v1 di disk → v2, file belum ditulis ulang', async () => {
+  await create('Lama');
+  const file = join(home, 'projects/lama/project.json');
+  const raw = JSON.parse(readFileSync(file, 'utf8'));
+  raw.version = 1;
+  delete raw.cover;
+  writeFileSync(file, JSON.stringify(raw));
+  const p = await (await app.request('/api/projects/lama')).json();
+  expect(p.version).toBe(2);
+  expect(p.cover).toBeNull();
+  expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(1);
 });

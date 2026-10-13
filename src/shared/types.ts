@@ -5,12 +5,21 @@ export type Background =
   | { kind: 'asset'; ref: AssetRef; fit: 'cover' | 'contain' };
 
 export interface Project {
-  version: 1;
+  version: 2;
   name: string;
   createdAt: string;
   updatedAt: string;
   pageBackground: Background;
+  /** optional "VISUAL ASLI" style first page; not counted as a scene */
+  cover: Cover | null;
   pages: Page[];
+}
+
+export interface Cover {
+  id: string;
+  title: string;
+  /** panel space 1080 x 1920, never split */
+  panel: Panel;
 }
 
 export interface Page {
@@ -53,7 +62,7 @@ export interface ImageLayer extends LayerBase {
   flipY: boolean;
 }
 
-export type FontName = 'Coming Soon' | 'Bangers' | 'Inter';
+export type FontName = string;
 
 export interface TextLayer extends LayerBase {
   type: 'text';
@@ -79,7 +88,23 @@ export interface EmojiLayer extends LayerBase {
   size: number;
 }
 
-export type Layer = ImageLayer | TextLayer | ArrowLayer | EmojiLayer;
+export type ShapeKind = 'rect' | 'roundRect' | 'ellipse' | 'line' | 'arrow' | 'doubleArrow' | 'target' | 'cross' | 'star' | 'bubble';
+
+export const SHAPE_KINDS: readonly ShapeKind[] = ['rect', 'roundRect', 'ellipse', 'line', 'arrow', 'doubleArrow', 'target', 'cross', 'star', 'bubble'];
+
+export interface ShapeLayer extends LayerBase {
+  type: 'shape';
+  shape: ShapeKind;
+  /** bounding box, centered on x,y */
+  width: number;
+  height: number;
+  fill: string | null;
+  stroke: string | null;
+  strokeWidth: number;
+  dash: boolean;
+}
+
+export type Layer = ImageLayer | TextLayer | ArrowLayer | EmojiLayer | ShapeLayer;
 
 export interface AssetInfo {
   ref: AssetRef;

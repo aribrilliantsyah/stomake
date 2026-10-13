@@ -28,7 +28,7 @@ describe('model', () => {
   test('project baru: 1 page 1 scene, bg default', () => {
     const p = P();
     expect(p.name).toBe('Selimut Darurat');
-    expect(p.version).toBe(1);
+    expect(p.version).toBe(2);
     expect(p.pages).toHaveLength(1);
     expect(p.pages[0].scenes).toHaveLength(1);
     expect(p.pages[0].background).toBeNull();

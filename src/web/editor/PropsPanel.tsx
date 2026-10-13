@@ -172,7 +172,7 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
 }
 
 const layerLabel = (l: Layer) =>
-  l.type === 'image' ? l.ref.slice(l.ref.indexOf(':') + 1) : l.type === 'text' ? `T  ${l.text}` : l.type === 'arrow' ? '↑ panah' : `${l.char} emoji`;
+  l.type === 'image' ? l.ref.slice(l.ref.indexOf(':') + 1) : l.type === 'text' ? `T  ${l.text}` : l.type === 'arrow' ? '↑ panah' : l.type === 'shape' ? `◇ ${l.shape}` : `${l.char} emoji`;
 
 export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene; number: number; pageIndex: number; assets: AssetLists }) {
   const s = useEditor();

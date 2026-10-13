@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { Project } from './types';
+import { migrateProject } from './migrate';
+import { SHAPE_KINDS, type Project } from './types';
 
 const assetRef = z
   .string()
@@ -32,7 +33,7 @@ const layer = z.discriminatedUnion('type', [
     ...base,
     type: z.literal('text'),
     text: z.string(),
-    font: z.enum(['Coming Soon', 'Bangers', 'Inter']),
+    font: z.string().min(1),
     fontSize: z.number().positive(),
     fill: z.string(),
     stroke: z.string().nullable(),
@@ -46,6 +47,17 @@ const layer = z.discriminatedUnion('type', [
     color: z.string(),
   }),
   z.object({ ...base, type: z.literal('emoji'), char: z.string().min(1), size: z.number().positive() }),
+  z.object({
+    ...base,
+    type: z.literal('shape'),
+    shape: z.enum(SHAPE_KINDS as [string, ...string[]]),
+    width: z.number().min(0),
+    height: z.number().min(0),
+    fill: z.string().nullable(),
+    stroke: z.string().nullable(),
+    strokeWidth: z.number().min(0),
+    dash: z.boolean(),
+  }),
 ]);
 
 const panel = z.object({ id: z.string(), background, layers: z.array(layer) });
@@ -66,15 +78,18 @@ const page = z.object({
   scenes: z.array(scene).min(1).max(3),
 });
 
+const cover = z.object({ id: z.string(), title: z.string(), panel });
+
 export const projectSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   name: z.string().min(1),
   createdAt: z.string(),
   updatedAt: z.string(),
   pageBackground: background,
+  cover: cover.nullable(),
   pages: z.array(page).min(1),
 });
 
 export function parseProject(x: unknown): Project {
-  return projectSchema.parse(x) as Project;
+  return projectSchema.parse(migrateProject(x)) as Project;
 }

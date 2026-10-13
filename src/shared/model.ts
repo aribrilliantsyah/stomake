@@ -19,11 +19,12 @@ function emptyPage(scenes: Scene[] = [emptyScene()]): Page {
 
 export function createProject(name: string, now: string): Project {
   return {
-    version: 1,
+    version: 2,
     name,
     createdAt: now,
     updatedAt: now,
     pageBackground: { ...DEFAULT_PAGE_BG },
+    cover: null,
     pages: [emptyPage()],
   };
 }
