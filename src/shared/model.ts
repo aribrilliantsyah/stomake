@@ -322,3 +322,21 @@ export function resizeShape(l: ShapeLayer, sx: number, sy: number): Pick<ShapeLa
   };
   return { width: f(l.width, sx), height: f(l.height, sy) };
 }
+
+// ---- clipboard ----
+
+/** Paste a copy of `layer` into a panel; offset +40,+40 when pasting back into the source panel. */
+export function pasteLayer(p: Project, panelId: string, layer: Layer, sameSource: boolean): { project: Project; layerId: string } {
+  const copy = { ...structuredClone(layer), id: newId() } as Layer;
+  if (sameSource) {
+    copy.x += 40;
+    copy.y += 40;
+  }
+  return { project: addLayer(p, panelId, copy), layerId: copy.id };
+}
+
+/** `paste-YYYYMMDD-HHMMSS.png`, local time. */
+export function pasteFileName(now: Date): string {
+  const z = (n: number) => String(n).padStart(2, '0');
+  return `paste-${now.getFullYear()}${z(now.getMonth() + 1)}${z(now.getDate())}-${z(now.getHours())}${z(now.getMinutes())}${z(now.getSeconds())}.png`;
+}

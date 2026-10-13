@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { findScene, flatScenes } from '../../shared/model';
-import type { Project } from '../../shared/types';
+import type { Layer, Project } from '../../shared/types';
 import { api } from '../api';
 
 export const HISTORY_LIMIT = 100;
@@ -22,6 +22,9 @@ interface EditorState {
   saveError: string | null;
   past: Project[];
   future: Project[];
+  /** layer copied with Ctrl+C / Ctrl+X (app-internal clipboard) */
+  clipboard: { layer: Layer; panelId: string } | null;
+  setClipboard(c: { layer: Layer; panelId: string } | null): void;
   reset(): void;
   load(slug: string): Promise<void>;
   apply(fn: (p: Project) => Project, opts?: { coalesceKey?: string }): void;
@@ -147,6 +150,10 @@ export const useEditor = create<EditorState>((set, get) => {
     saveError: null,
     past: [],
     future: [],
+    clipboard: null,
+    setClipboard(c) {
+      set({ clipboard: c });
+    },
 
     reset() {
       clearTimer();
