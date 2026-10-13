@@ -35,6 +35,24 @@ export function StorylinePanel({ slug }: { slug: string }) {
     });
   }, [slug]);
 
+  // save pending text right away (the editor calls this before acking an agent lock)
+  useEffect(() => {
+    useEditor.getState().setStorylineFlusher(async () => {
+      if (pending.current === null) return;
+      const v = pending.current;
+      pending.current = null;
+      if (timer.current) clearTimeout(timer.current);
+      await api.saveStoryline(slug, v).then(
+        () => setStatus('saved'),
+        () => {
+          setStatus('error');
+          toast('warn', 'Storyline terakhir belum tersimpan sebelum AI mulai');
+        },
+      );
+    });
+    return () => useEditor.getState().setStorylineFlusher(null);
+  }, [slug]);
+
   const remote = useEditor((s) => s.remoteStoryline);
   const agentActive = useEditor((s) => s.agentActive);
   useEffect(() => {
@@ -79,7 +97,7 @@ export function StorylinePanel({ slug }: { slug: string }) {
   return (
     <div className="storyline">
       <div className="row">
-        <button onClick={() => file.current?.click()}><FileUp size={14} aria-hidden /> Import .docx</button>
+        <button onClick={() => file.current?.click()} disabled={agentActive}><FileUp size={14} aria-hidden /> Import .docx</button>
         <input
           ref={file}
           type="file"

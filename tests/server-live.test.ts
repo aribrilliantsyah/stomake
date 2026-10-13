@@ -158,3 +158,47 @@ test('list project: agentActive true saat dikunci', async () => {
   agentLock.release(slug);
   expect((await (await app.request('/api/projects')).json()).items[0].agentActive).toBe(false);
 });
+
+test('PUT dengan versi lama (updatedAt < disk) → 409, file tidak berubah', async () => {
+  const slug = await create('Versi');
+  const v1 = await (await app.request(`/api/projects/${slug}`)).json();
+  const ok = await app.request(`/api/projects/${slug}`, json('PUT', { ...v1, name: 'Baru' }));
+  expect(ok.status).toBe(200);
+  const stale = await app.request(`/api/projects/${slug}`, json('PUT', { ...v1, name: 'Basi' }));
+  expect(stale.status).toBe(409);
+  expect((await stale.json()).error).toMatch(/diubah di tempat lain/);
+  expect((await (await app.request(`/api/projects/${slug}`)).json()).name).toBe('Baru');
+});
+
+test('lock jadi aktif saat PUT editor sedang antre → PUT ditolak 423 (cek di dalam antrean tulis)', async () => {
+  const slug = await create('Antre');
+  const proj = await (await app.request(`/api/projects/${slug}`)).json();
+  // hold the write queue so the PUT waits behind it, then activate the lock
+  let release!: () => void;
+  const gate = withWriteLock(slug, () => new Promise<void>((r) => (release = r)));
+  const put = app.request(`/api/projects/${slug}`, json('PUT', proj));
+  await sleep(20);
+  await agentLock.beginOrExtend(slug);
+  release();
+  await gate;
+  expect((await put).status).toBe(423);
+});
+
+test('import .docx ditolak 423 saat AI mengunci', async () => {
+  const slug = await create('Docx');
+  await agentLock.beginOrExtend(slug);
+  const fd = new FormData();
+  fd.append('file', new File([new Uint8Array([1])], 'a.docx'));
+  const r = await app.request(`/api/projects/${slug}/storyline/import`, { method: 'POST', body: fd });
+  expect(r.status).toBe(423);
+});
+
+test('hello menyertakan updatedAt project di disk', async () => {
+  const slug = await create('Hello');
+  const p = await (await app.request(`/api/projects/${slug}`)).json();
+  const ac = new AbortController();
+  const res = await app.request(`/api/projects/${slug}/events`, { signal: ac.signal });
+  const [hello] = await readEvents(res, 1);
+  expect((hello as { updatedAt: string }).updatedAt).toBe(p.updatedAt);
+  ac.abort();
+});

@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -94,4 +94,17 @@ test('MCP dimatikan saat agent bekerja → 404, kunci tetap lepas sendiri', asyn
   expect(r.status).toBe(404);
   await new Promise((res) => setTimeout(res, 400));
   expect(agentLock.state(slug)).toBe('none');
+});
+
+test('versi server MCP dari package.json; error tak terduga tetap isError berbahasa Indonesia', async () => {
+  await enable(true);
+  const c = await client();
+  const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+  expect(c.getServerVersion()?.version).toBe(pkg.version);
+  const created = await call<{ slug: string }>(c, 'create_project', { name: 'Err' });
+  const bad = await call(c, 'add_scene', { slug: created.structuredContent.slug, pageId: 123 });
+  expect(bad.isError).toBe(true);
+  // schema errors come from the SDK's own validation (English, names the field)
+  expect(bad.content[0].text).toMatch(/pageId/);
+  await c.close();
 });

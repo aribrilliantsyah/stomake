@@ -100,10 +100,27 @@ export async function readProject(slug: string): Promise<Project> {
   return parseProject(JSON.parse(await readFile(projectFile(slug), 'utf8')));
 }
 
-/** Validates, stamps updatedAt (strictly increasing), writes atomically. */
+/** Editor write refused because an agent holds the project. */
+export class LockedError extends Error {}
+/** Editor write based on an older version than what is on disk. */
+export class ConflictError extends Error {}
+
+function assertEditorMayWrite(slug: string): void {
+  if (agentLock.blocksEditor(slug)) throw new LockedError('AI sedang mengedit project ini');
+}
+
+/**
+ * Editor save: validates, refuses while an agent holds the project and when the editor's
+ * updatedAt is older than disk (someone else wrote meanwhile), stamps updatedAt, writes atomically.
+ * Both checks run inside the per-slug write queue so they can't race an agent write.
+ */
 export async function saveProject(slug: string, body: unknown): Promise<string> {
   const project = parseProject(body);
   return withWriteLock(slug, async () => {
+    assertEditorMayWrite(slug);
+    const disk = await readProject(slug).catch(() => null);
+    if (disk && Date.parse(disk.updatedAt) > Date.parse(project.updatedAt))
+      throw new ConflictError('Project sudah diubah di tempat lain — muat ulang untuk melihat versi terbaru');
     let now = new Date().toISOString();
     if (now <= project.updatedAt) now = new Date(Date.parse(project.updatedAt) + 1).toISOString();
     project.updatedAt = now;
@@ -137,8 +154,11 @@ export async function readStoryline(slug: string): Promise<string> {
   }
 }
 
-export async function writeStoryline(slug: string, text: string): Promise<void> {
-  await withWriteLock(slug, () => writeAtomic(storylineFile(slug), text));
+export async function writeStoryline(slug: string, text: string, by: 'editor' | 'agent' = 'editor'): Promise<void> {
+  await withWriteLock(slug, async () => {
+    if (by === 'editor') assertEditorMayWrite(slug);
+    await writeAtomic(storylineFile(slug), text);
+  });
 }
 
 async function readRaw(slug: string): Promise<Project> {
@@ -150,7 +170,10 @@ async function writeProject(slug: string, p: Project): Promise<void> {
 }
 
 async function modify(slug: string, fn: (p: Project) => Project): Promise<void> {
-  await withWriteLock(slug, async () => writeProject(slug, fn(await readRaw(slug))));
+  await withWriteLock(slug, async () => {
+    assertEditorMayWrite(slug);
+    await writeProject(slug, fn(await readRaw(slug)));
+  });
 }
 
 export async function setArchived(slug: string, archived: boolean): Promise<void> {
@@ -181,7 +204,10 @@ export async function trashProject(slug: string): Promise<string> {
   await mkdir(trashDir(), { recursive: true });
   let id = `${slug}__${Date.now()}`;
   while (existsSync(join(trashDir(), id))) id = `${slug}__${Date.now() + 1}`;
-  await withWriteLock(slug, () => rename(projectDir(slug), join(trashDir(), id)));
+  await withWriteLock(slug, async () => {
+    assertEditorMayWrite(slug);
+    await rename(projectDir(slug), join(trashDir(), id));
+  });
   return id;
 }
 

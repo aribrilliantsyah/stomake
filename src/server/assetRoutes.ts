@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { Hono } from 'hono';
+import { publish } from './live';
 import mammoth from 'mammoth';
 import { AssetError, listAssets, MIME, saveAssets } from './assets';
 import { badRequest, checkSlug, type Ctx } from './http';
@@ -68,6 +69,7 @@ export function assetRoutes(): Hono {
     const { value } = await mammoth.extractRawText({ buffer: file.data });
     const text = value.replace(/\n{3,}/g, '\n\n').trim();
     await writeStoryline(c.req.param('slug'), text);
+    publish(c.req.param('slug'), { type: 'storyline', text });
     return c.json({ text });
   });
 

@@ -4,7 +4,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${r.status}`);
+    throw Object.assign(new Error((body as { error?: string }).error ?? `HTTP ${r.status}`), { status: r.status });
   }
   return r.json() as Promise<T>;
 }

@@ -59,6 +59,12 @@ function need(slug: string): void {
 async function mutate<R>(slug: string, fn: (p: Project) => { project: Project; result: R }): Promise<R> {
   need(slug);
   noteMcpCall();
+  // validate against the current version first so a bad id never locks the user's editor
+  try {
+    fn(await readProject(slug));
+  } catch (e) {
+    if (e instanceof ToolError) throw e;
+  }
   await agentLock.beginOrExtend(slug);
   let out: { project: Project; result: R };
   try {
@@ -149,10 +155,20 @@ export function layerFromSpec(spec: LayerSpec, space: { w: number; h: number }, 
   }
 }
 
+const NULLABLE = new Set(['stroke', 'fill']);
+
 function applyPatch(l: Layer, patch: LayerPatch, assets: Map<string, AssetInfo> | null): Layer {
   const { opacity, assetRef, ...rest } = patch;
   const next: Record<string, unknown> = { ...l };
-  for (const [k, v] of Object.entries(rest)) if (v !== undefined && k in l) next[k] = v;
+  const wrong = Object.keys(rest).filter((k) => rest[k as keyof typeof rest] !== undefined && !(k in l));
+  if (wrong.length) throw new ToolError(`Properti tidak berlaku untuk layer ${l.type}: ${wrong.join(', ')}`);
+  for (const [k, v] of Object.entries(rest)) {
+    if (v === undefined) continue;
+    if (v === null && !(NULLABLE.has(k) && l.type === 'shape') && !(k === 'stroke' && l.type === 'text'))
+      throw new ToolError(`${k} tidak boleh kosong untuk layer ${l.type}`);
+    if (k === 'text' && typeof v === 'string' && !v.trim()) throw new ToolError('Teks tidak boleh kosong');
+    next[k] = v;
+  }
   if (opacity !== undefined) next.opacity = toOpacity(opacity, l.opacity);
   if (assetRef !== undefined) {
     if (l.type !== 'image') throw new ToolError('assetRef hanya untuk layer image');
@@ -231,7 +247,7 @@ export const ops = {
     need(i.slug);
     noteMcpCall();
     await agentLock.beginOrExtend(i.slug);
-    await writeStoryline(i.slug, i.text);
+    await writeStoryline(i.slug, i.text, 'agent');
     publish(i.slug, { type: 'storyline', text: i.text });
     return { ok: true };
   },
@@ -312,6 +328,7 @@ export const ops = {
     const assets = await assetIndex(i.slug);
     return mutate(i.slug, (p) => {
       const t = i.target;
+      if (i.reset && (i.color || i.assetRef)) throw new ToolError('reset tidak bisa digabung dengan color/assetRef');
       if (t !== 'default' && 'pageId' in t) {
         const pi = pageIndexOrThrow(p, t.pageId);
         if (i.reset) return same(setPageBackground(p, pi, null), { ok: true as const });

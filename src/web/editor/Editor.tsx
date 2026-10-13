@@ -107,10 +107,19 @@ export function Editor({ slug }: { slug: string }) {
   const [stageBox, box] = useSize();
 
   useEffect(() => {
-    trackLoading(s.load(slug)).catch((e) => setLoadError((e as Error).message));
+    // connect after the project is loaded: the first `hello` then carries a version we can compare
+    let stopLive = () => {};
+    let alive = true;
+    trackLoading(s.load(slug))
+      .then(() => {
+        if (alive) stopLive = connectLive(slug);
+      })
+      .catch((e) => setLoadError((e as Error).message));
     refreshAssets();
-    const stopLive = connectLive(slug);
-    return stopLive;
+    return () => {
+      alive = false;
+      stopLive();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
@@ -157,6 +166,7 @@ export function Editor({ slug }: { slug: string }) {
         // read-only while an agent works: allow only navigation (Esc, Z zoom, arrows to switch scene are not edits)
         if (undoRedoAction(e) || e.key === 'Delete' || e.key === 'Backspace') e.preventDefault();
         if (e.key === 'Escape' && useUi.getState().zoom) useUi.getState().setZoom(false);
+        if ((e.key === 'z' || e.key === 'Z') && !e.ctrlKey && !e.metaKey && !e.altKey && !isTyping(e)) useUi.getState().setZoom(!useUi.getState().zoom);
         return;
       }
       const ur = undoRedoAction(e);

@@ -156,3 +156,38 @@ test('listAssets & listProjects; slug tidak ada → Project tidak ditemukan', as
   expect((await ops.listProjects({})).items.map((x) => x.slug)).toEqual([slug]);
   await expect(ops.getProject({ slug: 'tidak-ada' })).rejects.toThrow('Project tidak ditemukan: tidak-ada');
 });
+
+test('id salah tidak mengunci editor (validasi sebelum lock)', async () => {
+  const slug = await fresh();
+  await expect(ops.updateScene({ slug, sceneId: 'nope', note: 'x' })).rejects.toThrow('Scene tidak ditemukan');
+  expect(agentLock.state(slug)).toBe('none');
+});
+
+test('update_layer: field yang tidak berlaku untuk jenis layer ditolak; teks kosong ditolak', async () => {
+  const slug = await fresh();
+  const panelId = (await ops.getProject({ slug })).pages[0].scenes[0].panels[0].id;
+  const { layerId } = await ops.addLayer({ slug, panelId, layer: { type: 'text', text: 'A' } });
+  await expect(ops.updateLayer({ slug, panelId, layerId, patch: { char: '🔥' } })).rejects.toThrow('Properti tidak berlaku untuk layer text: char');
+  await expect(ops.updateLayer({ slug, panelId, layerId, patch: { text: '' } })).rejects.toThrow(ToolError);
+  await expect(ops.updateLayer({ slug, panelId, layerId, patch: { fill: null } })).rejects.toThrow(ToolError);
+});
+
+test('set_background reset + color sekaligus ditolak', async () => {
+  const slug = await fresh();
+  const pageId = (await ops.getProject({ slug })).pages[0].id;
+  await expect(ops.setBackground({ slug, target: { pageId }, reset: true, color: '#000000' })).rejects.toThrow('reset tidak bisa digabung');
+});
+
+test('finish_editing saat tool lain menunggu ack: tool itu tetap selesai di bawah kunci, lalu kunci lepas', async () => {
+  const slug = await fresh();
+  const sceneId = (await ops.getProject({ slug })).pages[0].scenes[0].id;
+  const sub = subscribe(slug, () => undefined); // never acks → waits ACK (50ms)
+  const pending = ops.updateScene({ slug, sceneId, subtitle: 'akhir' });
+  await new Promise((r) => setTimeout(r, 5));
+  await ops.finishEditing({ slug });
+  await pending;
+  await new Promise((r) => setTimeout(r, 5));
+  expect(agentLock.state(slug)).toBe('none');
+  expect(JSON.parse(raw(slug)).pages[0].scenes[0].subtitle).toBe('akhir');
+  sub.close();
+});

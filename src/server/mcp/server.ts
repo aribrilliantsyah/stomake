@@ -1,8 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ZodError } from 'zod';
 import { ops, ToolError } from './ops';
 import { schemas, type ToolName } from './schemas';
 
-const VERSION = '0.3.0';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const VERSION: string = (() => {
+  try {
+    return JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')).version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
 
 const DESCRIPTIONS: Record<ToolName, string> = {
   list_projects: 'Daftar project storyboard (maks 100). Default hanya yang aktif.',
@@ -58,7 +68,9 @@ export function buildMcpServer(): McpServer {
         return { content: [{ type: 'text', text: JSON.stringify(out) }], structuredContent: out };
       } catch (e) {
         if (e instanceof ToolError) return { isError: true, content: [{ type: 'text', text: e.message }] };
-        throw e;
+        if (e instanceof ZodError) return { isError: true, content: [{ type: 'text', text: `Input tidak valid: ${e.issues.map((x) => `${x.path.join('.')}: ${x.message}`).join('; ')}` }] };
+        console.error(`mcp ${name}:`, e);
+        return { isError: true, content: [{ type: 'text', text: `Gagal menjalankan ${name}: ${(e as Error).message}` }] };
       }
     }) as never);
   }

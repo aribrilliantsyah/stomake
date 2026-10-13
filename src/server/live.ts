@@ -1,7 +1,7 @@
 import type { Project } from '../shared/types';
 
 export type LiveEvent =
-  | { type: 'hello'; clientId: string; agent: { active: boolean; since: string | null } }
+  | { type: 'hello'; clientId: string; updatedAt?: string | null; agent: { active: boolean; since: string | null } }
   | { type: 'agent'; active: boolean; since: string | null }
   | { type: 'project'; project: Project }
   | { type: 'storyline'; text: string };

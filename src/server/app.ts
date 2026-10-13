@@ -17,6 +17,8 @@ import {
   trashExists,
   trashProject,
   writeStoryline,
+  LockedError,
+  ConflictError,
 } from './store';
 import { isValidSlug, isValidTrashId } from './paths';
 import type { ProjectSort, ProjectStatus, SettingsView } from '../shared/types';
@@ -49,7 +51,7 @@ export function projectRoutes(): Hono {
   const r = new Hono();
 
   // editor writes are refused while an agent holds the project
-  for (const path of ['/api/projects/:slug', '/api/projects/:slug/storyline', '/api/projects/:slug/archive', '/api/projects/:slug/rename'])
+  for (const path of ['/api/projects/:slug', '/api/projects/:slug/storyline', '/api/projects/:slug/storyline/import', '/api/projects/:slug/archive', '/api/projects/:slug/rename'])
     r.on(['PUT', 'POST', 'DELETE'], path, async (c, next) => {
       const slug = c.req.param('slug');
       if (slug && agentLock.blocksEditor(slug)) return locked(c);
@@ -74,12 +76,16 @@ export function projectRoutes(): Hono {
         wake?.();
       });
       const st = agentLock.state(slug);
-      await stream.writeSSE({ data: JSON.stringify({ type: 'hello', clientId: sub.clientId, agent: { active: st !== 'none', since: agentLock.since(slug) } }) });
+      const updatedAt = await readProject(slug).then((p) => p.updatedAt, () => null);
+      await stream.writeSSE({ data: JSON.stringify({ type: 'hello', clientId: sub.clientId, updatedAt, agent: { active: st !== 'none', since: agentLock.since(slug) } }) });
       while (open) {
         while (queue.length) await stream.writeSSE({ data: queue.shift()! });
         await new Promise<void>((res) => {
-          wake = res;
-          setTimeout(res, 15000);
+          const t = setTimeout(res, 15000);
+          wake = () => {
+            clearTimeout(t);
+            res();
+          };
         });
         wake = null;
         if (open && !queue.length) await stream.write(': ping\n\n');
@@ -233,6 +239,8 @@ export function createApp(opts: AppOptions = {}): Hono {
   app.route('/', exportRoutes(() => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173'));
   if (opts.staticDir) app.route('/', staticRoutes(opts.staticDir));
   app.onError((e, c) => {
+    if (e instanceof LockedError) return c.json({ error: e.message }, 423);
+    if (e instanceof ConflictError) return c.json({ error: e.message }, 409);
     console.error(e);
     return c.json({ error: e.message }, 500);
   });

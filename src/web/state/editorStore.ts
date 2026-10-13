@@ -6,7 +6,7 @@ import { toast } from './uiStore';
 
 /** Events from GET /api/projects/:slug/events (mirrors src/server/live.ts LiveEvent). */
 export type LiveEvent =
-  | { type: 'hello'; clientId: string; agent: { active: boolean; since: string | null } }
+  | { type: 'hello'; clientId: string; updatedAt?: string | null; agent: { active: boolean; since: string | null } }
   | { type: 'agent'; active: boolean; since: string | null }
   | { type: 'project'; project: Project }
   | { type: 'storyline'; text: string };
@@ -58,6 +58,10 @@ interface EditorState {
   /** latest storyline pushed by the agent (StorylinePanel listens) */
   remoteStoryline: { text: string; seq: number } | null;
   onLive(e: LiveEvent): void;
+  /** StorylinePanel registers how to save its pending text immediately (flushed before agent-ack). */
+  setStorylineFlusher(fn: (() => Promise<void>) | null): void;
+  /** Save what can be saved, never throws, never waits while an agent holds the project. */
+  settle(): Promise<void>;
 }
 
 let lastKey: string | null = null;
@@ -65,6 +69,11 @@ let lastAt = 0;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saving: Promise<void> | null = null;
 let pendingAfterSave = false;
+/** updatedAt of the version on disk this editor last saw (sent with saves for the 409 check) */
+let baseVersion: string | null = null;
+/** live events that arrived before the project finished loading */
+let early: LiveEvent[] = [];
+let storylineFlusher: (() => Promise<void>) | null = null;
 
 function clearTimer() {
   if (saveTimer) clearTimeout(saveTimer);
@@ -126,7 +135,8 @@ export const useEditor = create<EditorState>((set, get) => {
     set({ saveStatus: 'saving' });
     const sent = project;
     try {
-      const { updatedAt } = await api.saveProject(slug, sent);
+      const { updatedAt } = await api.saveProject(slug, { ...sent, updatedAt: baseVersion ?? sent.updatedAt });
+      baseVersion = updatedAt;
       const cur = get().project;
       const stamp = (p: Project) => ({ ...p, updatedAt });
       set({
@@ -139,7 +149,9 @@ export const useEditor = create<EditorState>((set, get) => {
     } catch (e) {
       set({ saveStatus: 'error', saveError: (e as Error).message });
       clearTimer();
-      saveTimer = setTimeout(doSave, RETRY_MS);
+      // while an agent holds the project, retries would only bounce (423); setAgent(false) reschedules
+      // 409 = disk moved on (another tab): retrying would loop; the message tells the user to reload
+      if (!get().agentActive && (e as { status?: number }).status !== 409) saveTimer = setTimeout(doSave, RETRY_MS);
     } finally {
       saving = null;
       done();
@@ -184,9 +196,15 @@ export const useEditor = create<EditorState>((set, get) => {
       if (active) {
         const was = get().agentActive;
         set({ agentActive: true, agentSince: since ?? get().agentSince ?? new Date().toISOString(), selectedLayerId: null });
-        if (was) return;
-        clearTimer();
-        await get().flush().catch(() => undefined);
+        if (!was) {
+          clearTimer();
+          // everything typed so far goes to disk before the agent is allowed to write
+          await get()
+            .flush()
+            .catch(() => toast('warn', 'Edit terakhir belum tersimpan sebelum AI mulai — masih bisa dikembalikan dengan Ctrl+Z setelah AI selesai'));
+          await storylineFlusher?.().catch(() => undefined);
+        }
+        // ack every lock start (also a new lock while we still think the old one is active)
         const { slug, clientId } = get();
         if (slug && clientId) await api.agentAck(slug, clientId).catch(() => undefined);
         return;
@@ -194,11 +212,25 @@ export const useEditor = create<EditorState>((set, get) => {
       if (!get().agentActive) return;
       set({ agentActive: false, agentSince: null });
       toast('info', 'AI selesai mengedit');
+      const st = get().saveStatus;
+      if (st === 'dirty' || st === 'error') schedule();
+    },
+
+    setStorylineFlusher(fn) {
+      storylineFlusher = fn;
+    },
+
+    async settle() {
+      if (get().agentActive) return;
+      await get().flush().catch(() => undefined);
     },
 
     remoteProject(p) {
       const { project, past } = get();
       lastKey = null;
+      clearTimer();
+      pendingAfterSave = false;
+      baseVersion = p.updatedAt;
       set({
         project: p,
         past: project ? [...past, project].slice(-HISTORY_LIMIT) : past,
@@ -210,11 +242,20 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     onLive(e) {
+      if (!get().project) {
+        early.push(e);
+        return;
+      }
       switch (e.type) {
-        case 'hello':
+        case 'hello': {
           set({ clientId: e.clientId });
-          if (e.agent.active !== get().agentActive) void get().setAgent(e.agent.active, e.agent.since);
+          // missed writes while disconnected? pull the disk version (undoable like an agent edit)
+          const slug = get().slug;
+          if (slug && e.updatedAt && baseVersion && Date.parse(e.updatedAt) > Date.parse(baseVersion))
+            void api.getProject(slug).then((p) => get().slug === slug && get().remoteProject(p), () => undefined);
+          if (e.agent.active || get().agentActive) void get().setAgent(e.agent.active, e.agent.since);
           break;
+        }
         case 'agent':
           void get().setAgent(e.active, e.since);
           break;
@@ -235,6 +276,8 @@ export const useEditor = create<EditorState>((set, get) => {
       lastKey = null;
       saving = null;
       pendingAfterSave = false;
+      baseVersion = null;
+      early = [];
       set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null, agentActive: false, agentSince: null, clientId: null, remoteStoryline: null });
     },
 
@@ -242,7 +285,11 @@ export const useEditor = create<EditorState>((set, get) => {
       if (get().slug) await get().flush().catch(() => undefined);
       get().reset();
       const project = await api.getProject(slug);
+      baseVersion = project.updatedAt;
       set({ slug, project, ...fixSelection(project, { currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null }) });
+      const queued = early;
+      early = [];
+      for (const e of queued) get().onLive(e);
     },
 
     apply(fn, opts) {

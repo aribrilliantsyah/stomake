@@ -115,3 +115,71 @@ test('hello: agent aktif di server → editor ikut terkunci; tidak aktif → buk
   useEditor.getState().onLive({ type: 'hello', clientId: 'c10', agent: { active: false, since: null } });
   expect(useEditor.getState().agentActive).toBe(false);
 });
+
+test('event live yang datang saat project masih dimuat tidak hilang (hello, project)', async () => {
+  useEditor.getState().reset();
+  let resolve!: (p: unknown) => void;
+  getProject.mockReset().mockReturnValue(new Promise((r) => (resolve = r)));
+  const loading = useEditor.getState().load('a');
+  useEditor.getState().onLive({ type: 'hello', clientId: 'early', updatedAt: base.updatedAt, agent: { active: true, since: 'S' } });
+  const remote = updateScene(base, sid, { subtitle: 'agent saat loading' });
+  useEditor.getState().onLive({ type: 'project', project: remote });
+  resolve(structuredClone(base));
+  await loading;
+  await vi.advanceTimersByTimeAsync(0);
+  expect(useEditor.getState().clientId).toBe('early');
+  expect(useEditor.getState().agentActive).toBe(true);
+  expect(agentAck).toHaveBeenCalledWith('a', 'early');
+  expect(sub()).toBe('agent saat loading');
+});
+
+test('hello dengan updatedAt lebih baru dari editor → project dimuat ulang dari server', async () => {
+  const newer = { ...updateScene(base, sid, { subtitle: 'dari disk' }), updatedAt: '2026-10-13T10:00:00.000Z' };
+  getProject.mockResolvedValue(structuredClone(newer));
+  useEditor.getState().onLive({ type: 'hello', clientId: 'c2', updatedAt: newer.updatedAt, agent: { active: false, since: null } });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(sub()).toBe('dari disk');
+  expect(useEditor.getState().saveStatus).toBe('saved');
+});
+
+test('lock baru saat editor masih terkunci tetap di-ack', async () => {
+  await useEditor.getState().setAgent(true, null);
+  agentAck.mockClear();
+  useEditor.getState().onLive({ type: 'agent', active: true, since: 'T2' });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(agentAck).toHaveBeenCalledWith('a', 'c1');
+});
+
+test('remoteProject membatalkan timer simpan lama (tidak ada save saat terkunci)', async () => {
+  saveProject.mockReset().mockRejectedValue(new Error('AI sedang mengedit project ini'));
+  useEditor.getState().apply((p) => updateScene(p, sid, { subtitle: 'x' }));
+  await vi.advanceTimersByTimeAsync(AUTOSAVE_MS + 10); // fails → retry timer armed
+  await useEditor.getState().setAgent(true, null);
+  saveProject.mockClear();
+  useEditor.getState().remoteProject(updateScene(useEditor.getState().project!, sid, { subtitle: 'agent' }));
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(saveProject).not.toHaveBeenCalled();
+  expect(useEditor.getState().saveStatus).toBe('saved');
+});
+
+test('flush gagal sebelum ack → toast peringatan bahwa edit belum tersimpan', async () => {
+  saveProject.mockReset().mockRejectedValue(new Error('disk penuh'));
+  useEditor.getState().apply((p) => updateScene(p, sid, { subtitle: 'hilang?' }));
+  await useEditor.getState().setAgent(true, null);
+  expect(toast).toHaveBeenCalledWith('warn', expect.stringMatching(/belum tersimpan/));
+});
+
+test('flush juga menyimpan storyline yang belum tersimpan sebelum ack', async () => {
+  const flushStoryline = vi.fn().mockResolvedValue(undefined);
+  useEditor.getState().setStorylineFlusher(flushStoryline);
+  await useEditor.getState().setAgent(true, null);
+  expect(flushStoryline).toHaveBeenCalled();
+  expect(flushStoryline.mock.invocationCallOrder[0]).toBeLessThan(agentAck.mock.invocationCallOrder[0]);
+  useEditor.getState().setStorylineFlusher(null);
+});
+
+test('leave(): saat terkunci tidak menunggu save, error save tidak menahan navigasi', async () => {
+  saveProject.mockReset().mockRejectedValue(new Error('AI sedang mengedit project ini'));
+  useEditor.getState().apply((p) => updateScene(p, sid, { subtitle: 'x' }));
+  await expect(useEditor.getState().settle()).resolves.toBeUndefined();
+});

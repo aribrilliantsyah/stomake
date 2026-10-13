@@ -46,7 +46,7 @@ export function Toolbar({ slug }: { slug: string }) {
   async function doExport() {
     setExporting(true);
     try {
-      await s.flush();
+      await s.settle();
       const r = await api.exportPdf(slug);
       const link = { href: `/api/projects/${slug}/export.pdf`, label: 'Buka PDF' };
       toast('ok', `PDF dibuat: ${r.path}`, link);
@@ -61,7 +61,7 @@ export function Toolbar({ slug }: { slug: string }) {
 
   return (
     <header className="toolbar">
-      <button onClick={async () => { await s.flush(); navigate('/'); }}><ArrowLeft size={14} aria-hidden /> Projects</button>
+      <button onClick={async () => { await s.settle(); navigate('/'); }}><ArrowLeft size={14} aria-hidden /> Projects</button>
       <span className="project-name">{s.project?.name}</span>
       <span className="sep" />
       <button onClick={s.undo} disabled={s.agentActive || !s.past.length} title="Undo (Ctrl+Z)">
@@ -111,7 +111,7 @@ export function Toolbar({ slug }: { slug: string }) {
         {s.saveStatus === 'saved' ? <Check size={13} aria-hidden /> : s.saveStatus === 'error' ? <AlertTriangle size={13} aria-hidden /> : <Loader2 size={13} className="spin" aria-hidden />}
         {STATUS[s.saveStatus]}
       </span>
-      <button onClick={async () => { await s.flush(); window.open(`/print/${slug}?page=${pageOfCurrent()}`, '_blank'); }}>
+      <button onClick={async () => { await s.settle(); window.open(`/print/${slug}?page=${pageOfCurrent()}`, '_blank'); }}>
         <Eye size={14} aria-hidden /> Preview Page
       </button>
       <button className="primary" onClick={doExport} disabled={exporting}>
