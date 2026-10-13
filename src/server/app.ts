@@ -21,6 +21,7 @@ import {
 import { isValidSlug, isValidTrashId } from './paths';
 import type { ProjectSort, ProjectStatus, SettingsView } from '../shared/types';
 import { agentLock, LOCKED_MESSAGE, subscribe } from './live';
+import { mcpRoute } from './mcp/route';
 import { streamSSE } from 'hono/streaming';
 import { lastMcpCallAt, readSettings, settingsSchema, writeSettings } from './settings';
 
@@ -223,6 +224,8 @@ function settingsRoutes(port: number): Hono {
 
 export function createApp(opts: AppOptions = {}): Hono {
   const app = new Hono();
+  // MCP has its own host/origin checks and speaks JSON-RPC with its own Accept rules
+  app.route('/', mcpRoute(opts.port ?? 5178, () => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173'));
   app.use('*', guardWrites);
   app.route('/', settingsRoutes(opts.port ?? 5178));
   app.route('/', projectRoutes());
