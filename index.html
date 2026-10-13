@@ -4,8 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Storyboard Maker</title>
+    <script>
+      (function () {
+        var p = 'system';
+        try { p = localStorage.getItem('sb.theme') || 'system'; } catch (e) {}
+        var dark = p === 'dark' || (p !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (location.pathname.indexOf('/print/') === 0) dark = false;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
     <style>
-      .boot { position: fixed; inset: 0; display: grid; place-items: center; background: #f4f4f2; font: 13px Inter, system-ui, sans-serif; color: #74746f; }
+      .boot { position: fixed; inset: 0; display: grid; place-items: center; background: #f4f4f2; font: 13px Inter, system-ui, sans-serif; color: #6b6b66; }
+      [data-theme='dark'] .boot { background: #17181a; color: #9a9a95; }
       .boot-in { display: grid; justify-items: center; gap: 10px; }
       .boot-mark { width: 26px; height: 26px; border: 2px solid #b9b9b4; border-top-color: #2f6fed; border-radius: 50%; animation: boot-spin 0.7s linear infinite; }
       @keyframes boot-spin { to { transform: rotate(360deg); } }

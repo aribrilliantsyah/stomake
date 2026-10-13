@@ -6,6 +6,7 @@ import { navigate } from '../router';
 import { useUi } from '../state/uiStore';
 import { ConfirmDialog, PromptDialog } from '../ui/Dialog';
 import { Toasts } from '../ui/Toasts';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { GridSkeleton } from '../ui/Loading';
 import { trackLoading } from '../state/progress';
 import { fullTime, homeStateFromSearch, homeStateToSearch, PAGE_SIZE, relativeTime, type HomeState, type HomeView } from './homeState';
@@ -220,6 +221,7 @@ export function ProjectList() {
             }}
           />
         </div>
+        <ThemeToggle />
         <button className="primary" onClick={() => setModal({ kind: 'new' })} title="Project baru (N)">
           <Plus size={14} aria-hidden /> Project Baru
         </button>
