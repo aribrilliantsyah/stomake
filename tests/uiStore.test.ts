@@ -62,3 +62,23 @@ test('dismissToast menghapus dan membatalkan timer', async () => {
   vi.advanceTimersByTime(5000);
   expect(ui.getState().toasts).toHaveLength(0);
 });
+
+test('zoom page: default fit, step naik/turun seperti Word, batas 25–400%', async () => {
+  const ui = await load();
+  const { ZOOM_STEPS, nextZoom } = await import('../src/web/state/uiStore');
+  expect(ZOOM_STEPS).toEqual([25, 50, 75, 100, 125, 150, 200, 300, 400]);
+  expect(ui.getState().pageZoom).toBe('fit');
+  expect(nextZoom(87, 1)).toBe(100);
+  expect(nextZoom(87, -1)).toBe(75);
+  expect(nextZoom(100, 1)).toBe(125);
+  expect(nextZoom(400, 1)).toBe(400);
+  expect(nextZoom(25, -1)).toBe(25);
+  ui.getState().setPageZoom(150);
+  expect(ui.getState().pageZoom).toBe(150);
+  ui.getState().setPageZoom(9999);
+  expect(ui.getState().pageZoom).toBe(400);
+  ui.getState().setPageZoom(1);
+  expect(ui.getState().pageZoom).toBe(25);
+  ui.getState().setPageZoom('fit');
+  expect(ui.getState().pageZoom).toBe('fit');
+});

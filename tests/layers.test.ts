@@ -9,6 +9,8 @@ import {
   removeLayer,
   reorderLayer,
   updateLayer,
+  setLayerOpacity,
+  defaultShape,
 } from '../src/shared/model';
 import type { Project } from '../src/shared/types';
 
@@ -70,4 +72,19 @@ test('updateLayer tidak mengubah layer lain', () => {
 test('removeLayer', () => {
   const { p, panelId, order } = setup();
   expect(order(removeLayer(p, panelId, 'b'))).toEqual(['a', 'c']);
+});
+
+test('setLayerOpacity: persen 0–100 → 0–1, dibatasi, berlaku untuk teks/gambar/shape', () => {
+  const { p, panelId } = setup();
+  const q = setLayerOpacity(p, panelId, 'b', 35);
+  expect(q.pages[0].scenes[0].panels[0].layers[1].opacity).toBe(0.35);
+  expect(setLayerOpacity(p, panelId, 'b', 150).pages[0].scenes[0].panels[0].layers[1].opacity).toBe(1);
+  expect(setLayerOpacity(p, panelId, 'b', -5).pages[0].scenes[0].panels[0].layers[1].opacity).toBe(0);
+  expect(setLayerOpacity(p, panelId, 'b', Number.NaN)).toBe(p);
+  let r = addLayer(p, panelId, { ...defaultText({ w: 1080, h: 1920 }), id: 't' });
+  r = addLayer(r, panelId, { ...defaultShape('star', { w: 1080, h: 1920 }), id: 's' });
+  r = setLayerOpacity(setLayerOpacity(r, panelId, 't', 50), panelId, 's', 20);
+  const ls = r.pages[0].scenes[0].panels[0].layers;
+  expect(ls.find((l) => l.id === 't')!.opacity).toBe(0.5);
+  expect(ls.find((l) => l.id === 's')!.opacity).toBe(0.2);
 });

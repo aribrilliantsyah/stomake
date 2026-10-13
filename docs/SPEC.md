@@ -87,6 +87,8 @@ interface EmojiLayer extends Base { type: 'emoji'; char: string; size: number }
 
 ## 5. Layout halaman PDF (dari pengukuran sampel Canva)
 
+> Diperbarui di SPEC-V2 §8 R4: frame 198×352pt. Nilai di tabel bawah adalah versi v1.
+
 Satuan pt, page **708.75 × 567** (landscape).
 
 | Elemen | Nilai |

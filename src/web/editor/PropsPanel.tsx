@@ -1,4 +1,4 @@
-import { removeLayer, reorderLayer, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
+import { removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { AssetRef, Background, Layer, Scene } from '../../shared/types';
 import { FontPicker } from './FontPicker';
 import type { AssetLists } from '../api';
@@ -100,7 +100,27 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
         <Num label="X" value={layer.x} onChange={(x) => set({ x }, 'x')} />
         <Num label="Y" value={layer.y} onChange={(y) => set({ y }, 'y')} />
         <Num label="Rotasi" value={layer.rotation} onChange={(rotation) => set({ rotation }, 'r')} />
-        <Num label="Opacity" value={layer.opacity} step={0.05} onChange={(v) => set({ opacity: Math.max(0, Math.min(1, v)) }, 'o')} />
+      </div>
+      <div className="field opacity-field">
+        <span>Opacity</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={Math.round(layer.opacity * 100)}
+          onChange={(e) => apply((p) => setLayerOpacity(p, panelId, layer.id, Number(e.target.value)), { coalesceKey: `o:${layer.id}` })}
+          aria-label="Opacity"
+        />
+        <input
+          type="number"
+          className="mono pct"
+          min={0}
+          max={100}
+          value={Math.round(layer.opacity * 100)}
+          onChange={(e) => apply((p) => setLayerOpacity(p, panelId, layer.id, parseFloat(e.target.value)), { coalesceKey: `o:${layer.id}` })}
+        />
+        <span className="muted">%</span>
       </div>
       {layer.type === 'image' && (
         <>

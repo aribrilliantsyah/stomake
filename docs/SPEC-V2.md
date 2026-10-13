@@ -108,3 +108,13 @@ Cover selalu halaman PDF pertama bila ada.
 - Unit: operasi page (add/remove/duplicate/move page, add scene di page penuh ditolak), cover, migrasi v1→v2, shape default, clipboard paste offset, toast timer.
 - Export: PDF dengan cover → halaman 1 berisi judul cover dan tanpa "Scene"; Scene 1 di halaman 2; page dengan 1 scene → frame di tengah.
 - E2E: + Page, + Scene sampai 3 (tombol nonaktif), copy-paste layer antar scene, lipat sidebar.
+
+## 8. Revisi 2 (2026-10-13, masukan user setelah mencoba V2)
+
+| # | Perubahan |
+|---|---|
+| R1 | Font picker: menu dirender di portal `position: fixed`, ditempatkan agar selalu di dalam viewport (geser kiri / flip ke atas); baris tinggi tetap 30px, nama terpotong `…` — tidak ada lagi menu terpotong / baris tumpang tindih. |
+| R2 | Footer zoom page gaya Word: tombol Pas, −, slider 25–400%, +, persen (klik = 100%). 100% = ukuran asli page (708.75pt). Ctrl+= / Ctrl+- / Ctrl+0 dan Ctrl+scroll. Saat zoom > layar, area page bisa di-scroll. |
+| R3 | Opacity (transparansi) 0–100% untuk semua layer (teks, gambar, shape, emoji) lewat slider + angka di panel Properti. |
+| R4 | Frame scene diperbesar: 198×352pt (dulu 144×256), 3 kolom tetap muat, margin kiri-kanan simetris 27.375pt, jarak antar frame 30pt. Layout vertikal: label y70, catatan y84, frame y102–454, subtitle y462 (maks 4 baris), garis brush y530. Lebar catatan/subtitle = lebar frame. Cover ikut frame baru. |
+| R5 | Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y bekerja juga saat fokus di kolom catatan, subtitle, dan properti (undo aplikasi). Kolom storyline dan kolom cari tetap memakai undo bawaan browser. |

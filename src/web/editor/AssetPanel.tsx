@@ -79,7 +79,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
         </button>
       </div>
       <div className="row">
-        <input placeholder="Cari asset…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input data-native-undo placeholder="Cari asset…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button onClick={() => input.current?.click()} disabled={busy}>
           {busy ? '…' : 'Upload'}
         </button>

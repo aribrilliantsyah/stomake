@@ -10,7 +10,7 @@ Aplikasi web lokal untuk membuat storyboard video 9:16 dari storyline lalu expor
 - Asset per project + global, drag & drop ke canvas; background per scene/panel dan per page (warna atau asset).
 - Layer: gambar (geser, resize, rotate, flip, opacity, urutan), teks (15 font bawaan + font laptop via Chrome), 10 shape (kotak, elips, garis, panah, panah 2 arah, target, silang, bintang, balon kata), emoji. Duplikat scene/page.
 - Ctrl+C / Ctrl+X / Ctrl+V layer antar scene; paste gambar (screenshot) langsung jadi asset project.
-- Autosave, undo/redo (Ctrl+Z / Ctrl+Shift+Z).
+- Autosave, undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y), zoom page 25–400% di footer, opacity per layer.
 
 Dokumen: [docs/SPEC.md](docs/SPEC.md), [docs/SPEC-V2.md](docs/SPEC-V2.md), [docs/PLAN.md](docs/PLAN.md), [docs/PLAN-V2.md](docs/PLAN-V2.md).
 
@@ -41,7 +41,8 @@ Data disimpan di `~/Storyboard` (ubah dengan env `STORYBOARD_HOME`):
 
 | Tombol | Aksi |
 |---|---|
-| Ctrl+Z / Ctrl+Shift+Z | Undo / Redo |
+| Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / Redo (juga saat mengetik di catatan/subtitle) |
+| Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+scroll | Zoom page in / out / pas layar |
 | Delete | Hapus layer terpilih |
 | Ctrl+D | Duplikat layer |
 | `]` / `[` | Layer naik / turun (Shift = paling depan / belakang) |

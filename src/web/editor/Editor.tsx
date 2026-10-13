@@ -19,10 +19,12 @@ import type { AssetInfo, Layer, Scene } from '../../shared/types';
 import { api, type AssetLists } from '../api';
 import { CoverSheet, coverScene, PageSheet, PT_TO_PX, type SheetInteraction } from '../print/PageSheet';
 import { useEditor } from '../state/editorStore';
-import { useUi, type PanelName } from '../state/uiStore';
+import { nextZoom, useUi, type PanelName } from '../state/uiStore';
 import { Toasts } from '../ui/Toasts';
 import { AssetPanel, ASSET_MIME } from './AssetPanel';
 import { installClipboard } from './clipboard';
+import { ZoomBar } from './ZoomBar';
+import { undoRedoAction } from './shortcuts';
 import { PropsPanel } from './PropsPanel';
 import { SceneCanvas } from './SceneCanvas';
 import { SlidesPanel } from './SlidesPanel';
@@ -89,6 +91,8 @@ function PanelHead({ name, children }: { name: PanelName; children?: React.React
   );
 }
 
+const fitPctRef = { current: 100 };
+
 export function Editor({ slug }: { slug: string }) {
   const s = useEditor();
   const ui = useUi();
@@ -129,24 +133,27 @@ export function Editor({ slug }: { slug: string }) {
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0')) {
+        e.preventDefault();
+        const u = useUi.getState();
+        if (e.key === '0') u.setPageZoom('fit');
+        else u.setPageZoom(nextZoom(u.pageZoom === 'fit' ? fitPctRef.current : u.pageZoom, e.key === '-' ? -1 : 1));
+        return;
+      }
       if (mod && PANEL_KEYS[e.key]) {
         e.preventDefault();
         useUi.getState().togglePanel(PANEL_KEYS[e.key]);
         return;
       }
-      if (isTyping(e)) return;
       const st = useEditor.getState();
-      if (mod && e.key.toLowerCase() === 'z') {
+      const ur = undoRedoAction(e);
+      if (ur) {
         e.preventDefault();
-        if (e.shiftKey) st.redo();
-        else st.undo();
+        if (ur === 'undo') st.undo();
+        else st.redo();
         return;
       }
-      if (mod && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        st.redo();
-        return;
-      }
+      if (isTyping(e)) return;
       if (e.key === 'Escape' && useUi.getState().zoom && !st.selectedLayerId) {
         useUi.getState().setZoom(false);
         return;
@@ -257,8 +264,10 @@ export function Editor({ slug }: { slug: string }) {
     move: (dir: -1 | 1) => s.apply((p) => moveScene(p, scene.id, dir)),
   };
 
-  // fit page (or zoomed scene) into the center box
-  const pageScale = Math.max(0.3, Math.min((box.w - 24) / (PAGE.w * PT_TO_PX), (box.h - 24) / (PAGE.h * PT_TO_PX)));
+  // fit page (or zoomed scene) into the center box; pageZoom % is relative to real size (scale 1)
+  const fitScale = Math.max(0.25, Math.min((box.w - 24) / (PAGE.w * PT_TO_PX), (box.h - 24) / (PAGE.h * PT_TO_PX)));
+  fitPctRef.current = Math.round(fitScale * 100);
+  const pageScale = ui.pageZoom === 'fit' ? fitScale : ui.pageZoom / 100;
   const zoomW = Math.max(120, Math.min(box.w - 24, ((box.h - 24) * 9) / 16));
   const full = page !== null && page.scenes.length >= 3;
 
@@ -347,7 +356,15 @@ export function Editor({ slug }: { slug: string }) {
               {ui.zoom ? 'Lihat page' : 'Zoom'}
             </button>
           </div>
-          <div className="stage-box" ref={stageBox}>
+          <div
+            className={`stage-box${!ui.zoom && ui.pageZoom !== 'fit' ? ' scroll' : ''}`}
+            ref={stageBox}
+            onWheel={(e) => {
+              if (!(e.ctrlKey || e.metaKey) || ui.zoom) return;
+              e.preventDefault();
+              ui.setPageZoom(nextZoom(ui.pageZoom === 'fit' ? fitPctRef.current : ui.pageZoom, e.deltaY < 0 ? 1 : -1));
+            }}
+          >
             {box.w > 0 &&
               (ui.zoom ? (
                 <div
@@ -378,6 +395,12 @@ export function Editor({ slug }: { slug: string }) {
                 <PageSheet project={project} slug={slug} pageIndex={pageIndex} scale={pageScale} interactive {...it} />
               ))}
           </div>
+          {!ui.zoom && (
+            <ZoomBar
+              fitPercent={fitPctRef.current}
+              info={onCover ? 'Cover' : `Page ${pageIndex + 1} dari ${project.pages.length} · ${flat.length} scene`}
+            />
+          )}
         </main>
 
         <aside className="side right">

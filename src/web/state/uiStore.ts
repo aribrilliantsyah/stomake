@@ -15,6 +15,18 @@ export const PANELS_KEY = 'sb.panels';
 export const TOAST_MS: Record<ToastKind, number | null> = { ok: 4000, info: 4000, warn: 8000, err: null };
 export const MAX_TOASTS = 4;
 
+/** Page zoom presets in %, like Word's zoom steps. */
+export const ZOOM_STEPS = [25, 50, 75, 100, 125, 150, 200, 300, 400] as const;
+export const ZOOM_MIN = 25;
+export const ZOOM_MAX = 400;
+export type PageZoom = number | 'fit';
+
+/** Next preset above (dir 1) or below (dir -1) the current percent. */
+export function nextZoom(current: number, dir: 1 | -1): number {
+  if (dir > 0) return ZOOM_STEPS.find((z) => z > current + 0.5) ?? ZOOM_MAX;
+  return [...ZOOM_STEPS].reverse().find((z) => z < current - 0.5) ?? ZOOM_MIN;
+}
+
 const DEFAULT_PANELS: Panels = { slides: true, library: true, props: true };
 
 function readPanels(): Panels {
@@ -38,6 +50,9 @@ interface UiState {
   togglePanel(name: PanelName): void;
   zoom: boolean;
   setZoom(on: boolean): void;
+  /** page view zoom; 'fit' = fit page to the center area */
+  pageZoom: PageZoom;
+  setPageZoom(z: PageZoom): void;
   toasts: Toast[];
   toast(kind: ToastKind, text: string, link?: Toast['link']): string;
   dismissToast(id: string): void;
@@ -61,6 +76,11 @@ export const useUi = create<UiState>((set, get) => ({
   zoom: false,
   setZoom(on) {
     set({ zoom: on });
+  },
+
+  pageZoom: 'fit',
+  setPageZoom(z) {
+    set({ pageZoom: z === 'fit' ? 'fit' : Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z))) });
   },
 
   toasts: [],

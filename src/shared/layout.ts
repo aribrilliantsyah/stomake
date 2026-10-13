@@ -1,17 +1,20 @@
-/** PDF page layout, in pt. Measured from the Canva storyboard sample (708.75 x 567). */
+/**
+ * PDF page layout, in pt. Page size and column pitch from the Canva sample (708.75 x 567);
+ * frames enlarged to 198 x 352 (9:16) so 3 still fit with 30pt gaps and symmetric margins.
+ */
 export const PAGE = { w: 708.75, h: 567 } as const;
 export const TITLE = { text: 'STORYBOARD', y: 23, size: 30 } as const;
-export const FRAME = { w: 144, h: 256, y: 128 } as const;
+export const FRAME = { w: 198, h: 352, y: 102 } as const;
 export const COL_PITCH = 228;
-export const COL_X3 = 35;
-export const LABEL_Y = 94;
+export const COL_X3 = (PAGE.w - (2 * COL_PITCH + FRAME.w)) / 2;
+export const LABEL_Y = 70;
 export const LABEL_SIZE = 12;
-export const NOTE = { y: 109, size: 7, width: 165, maxLines: 2 } as const;
-export const SUB = { y: 390, size: 11, minSize: 8, width: 165, maxLines: 4, lineHeight: 1.25 } as const;
-export const BRUSH = { y: 470, width: 150 } as const;
+export const NOTE = { y: 84, size: 7, width: FRAME.w, maxLines: 2 } as const;
+export const SUB = { y: 462, size: 11, minSize: 8, width: FRAME.w, maxLines: 4, lineHeight: 1.25 } as const;
+export const BRUSH = { y: 530, width: 170 } as const;
 
 /** Cover page: title + single centered frame, no labels. */
-export const COVER = { titleY: 23, titleSize: 30, x: 282.375, y: 128 } as const;
+export const COVER = { titleY: 23, titleSize: 30, x: (PAGE.w - FRAME.w) / 2, y: 102 } as const;
 
 export const PANEL_SPACE = { w: 1080, h: 1920 } as const;
 

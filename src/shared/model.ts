@@ -340,3 +340,10 @@ export function pasteFileName(now: Date): string {
   const z = (n: number) => String(n).padStart(2, '0');
   return `paste-${now.getFullYear()}${z(now.getMonth() + 1)}${z(now.getDate())}-${z(now.getHours())}${z(now.getMinutes())}${z(now.getSeconds())}.png`;
 }
+
+/** Set layer transparency from a 0–100 percent value (clamped); NaN is ignored. */
+export function setLayerOpacity(p: Project, panelId: string, layerId: string, percent: number): Project {
+  if (!Number.isFinite(percent)) return p;
+  const v = Math.round(Math.max(0, Math.min(100, percent))) / 100;
+  return updateLayer(p, panelId, layerId, { opacity: v });
+}

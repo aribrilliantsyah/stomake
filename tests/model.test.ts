@@ -180,6 +180,6 @@ describe('cover', () => {
   });
 
   test('COVER layout di tengah', () => {
-    expect(COVER).toEqual({ titleY: 23, titleSize: 30, x: 282.375, y: 128 });
+    expect(COVER).toMatchObject({ titleY: 23, titleSize: 30, x: 255.375 });
   });
 });

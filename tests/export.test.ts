@@ -6,6 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { serve, type ServerType } from '@hono/node-server';
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
+import { BRUSH, FRAME } from '../src/shared/layout';
 import { closeBrowser } from '../src/server/export';
 import { addCover, addLayer, defaultEmoji, defaultText, withPageSizes, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
 import type { Project } from '../src/shared/types';
@@ -128,12 +129,12 @@ test('frame resolusi tinggi, font Bangers termuat, subtitle maks 4 baris', async
   const body = await (await call(`/api/projects/${slug}/export`, { method: 'POST' })).json();
   const imgs = execFileSync('pdfimages', ['-list', body.path]).toString().split('\n').slice(2).filter(Boolean);
   const widths = imgs.map((l) => Number(l.trim().split(/\s+/)[3]));
-  expect(Math.max(...widths)).toBeGreaterThanOrEqual(576); // 4x of 144pt frame
+  expect(Math.max(...widths)).toBeGreaterThanOrEqual(FRAME.w * 4); // 4x of frame pt
   expect(body.fonts).toEqual(expect.arrayContaining(['Bangers', 'Coming Soon', 'Inter']));
   const bbox = execFileSync('pdftotext', ['-bbox', body.path, '-']).toString();
   const ys = new Set([...bbox.matchAll(/yMin="([\d.]+)"[^>]*>(?:merasa|dingin|sekali|sampai|menggigil|dan)/g)].map((m) => Math.round(Number(m[1]))));
   expect(ys.size).toBeLessThanOrEqual(4);
-  expect(Math.max(...ys)).toBeLessThan(470);
+  expect(Math.max(...ys)).toBeLessThan(BRUSH.y);
 }, 120_000);
 
 test('cover → PDF halaman 1 berisi judul tanpa "Scene"; Scene 1 di halaman 2; page 1 scene di tengah', async () => {
@@ -152,7 +153,7 @@ test('cover → PDF halaman 1 berisi judul tanpa "Scene"; Scene 1 di halaman 2; 
   expect(pdfText(body.path, 3)).toContain('Scene 3');
   const bbox = execFileSync('pdftotext', ['-f', '2', '-l', '2', '-bbox', body.path, '-']).toString();
   const x = Number(bbox.match(/xMin="([\d.]+)"[^>]*>Scene</)![1]);
-  expect(Math.abs(x - 282.375)).toBeLessThan(3);
+  expect(Math.abs(x - 255.375)).toBeLessThan(3);
 }, 120_000);
 
 test('font tersedia → missingFonts [], font tidak ada → dilaporkan', async () => {
