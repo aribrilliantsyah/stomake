@@ -125,6 +125,8 @@ export interface ProjectSummary {
   pages: number;
   archived: boolean;
   hasCover: boolean;
+  /** an AI agent currently holds the edit lock */
+  agentActive: boolean;
   /** project.json could not be read */
   broken?: boolean;
 }

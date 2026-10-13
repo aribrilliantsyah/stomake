@@ -20,6 +20,8 @@ import {
 } from './store';
 import { isValidSlug, isValidTrashId } from './paths';
 import type { ProjectSort, ProjectStatus, SettingsView } from '../shared/types';
+import { agentLock, LOCKED_MESSAGE, subscribe } from './live';
+import { streamSSE } from 'hono/streaming';
 import { lastMcpCallAt, readSettings, settingsSchema, writeSettings } from './settings';
 
 const SORTS: ProjectSort[] = ['updated', 'name', 'created', 'scenes'];
@@ -40,8 +42,55 @@ export const guardWrites: MiddlewareHandler = async (c, next) => {
   return next();
 };
 
+const locked = (c: Context) => c.json({ error: LOCKED_MESSAGE }, 423);
+
 export function projectRoutes(): Hono {
   const r = new Hono();
+
+  // editor writes are refused while an agent holds the project
+  for (const path of ['/api/projects/:slug', '/api/projects/:slug/storyline', '/api/projects/:slug/archive', '/api/projects/:slug/rename'])
+    r.on(['PUT', 'POST', 'DELETE'], path, async (c, next) => {
+      const slug = c.req.param('slug');
+      if (slug && agentLock.blocksEditor(slug)) return locked(c);
+      return next();
+    });
+
+  r.get('/api/projects/:slug/events', async (c) => {
+    const err = checkSlug(c);
+    if (err) return err;
+    const slug = c.req.param('slug');
+    return streamSSE(c, async (stream) => {
+      const queue: string[] = [];
+      let wake: (() => void) | null = null;
+      const sub = subscribe(slug, (e) => {
+        queue.push(JSON.stringify(e));
+        wake?.();
+      });
+      let open = true;
+      stream.onAbort(() => {
+        open = false;
+        sub.close();
+        wake?.();
+      });
+      const st = agentLock.state(slug);
+      await stream.writeSSE({ data: JSON.stringify({ type: 'hello', clientId: sub.clientId, agent: { active: st !== 'none', since: agentLock.since(slug) } }) });
+      while (open) {
+        while (queue.length) await stream.writeSSE({ data: queue.shift()! });
+        await new Promise<void>((res) => {
+          wake = res;
+          setTimeout(res, 15000);
+        });
+        wake = null;
+        if (open && !queue.length) await stream.write(': ping\n\n');
+      }
+    });
+  });
+
+  r.post('/api/projects/:slug/agent-ack', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { clientId?: unknown };
+    if (typeof body.clientId === 'string') agentLock.ack(c.req.param('slug'), body.clientId);
+    return c.json({ ok: true });
+  });
 
   r.get('/api/projects', async (c) => {
     const q = c.req.query();
@@ -66,7 +115,7 @@ export function projectRoutes(): Hono {
     const failed: string[] = [];
     const trashIds: string[] = [];
     for (const s of body.slugs.slice(0, 500)) {
-      if (typeof s !== 'string' || !isValidSlug(s) || !projectExists(s)) {
+      if (typeof s !== 'string' || !isValidSlug(s) || !projectExists(s) || agentLock.blocksEditor(s)) {
         failed.push(String(s));
         continue;
       }

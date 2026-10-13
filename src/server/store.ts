@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createProject } from '../shared/model';
 import { parseProject } from '../shared/schema';
 import type { Project, ProjectPage, ProjectQuery, ProjectSummary } from '../shared/types';
+import { agentLock, withWriteLock } from './live';
 import { isValidSlug, projectAssetsDir, projectDir, projectsDir, slugify, trashDir } from './paths';
 
 async function writeAtomic(file: string, data: string): Promise<void> {
@@ -31,6 +32,7 @@ async function summarize(slug: string): Promise<ProjectSummary> {
       scenes: p.pages.reduce((n, pg) => n + pg.scenes.length, 0),
       archived: !!p.archived,
       hasCover: !!p.cover,
+      agentActive: agentLock.state(slug) !== 'none',
     };
   } catch {
     let at = new Date(0).toISOString();
@@ -39,7 +41,7 @@ async function summarize(slug: string): Promise<ProjectSummary> {
     } catch {
       /* ignore */
     }
-    return { slug, name: slug, createdAt: at, updatedAt: at, pages: 0, scenes: 0, archived: false, hasCover: false, broken: true };
+    return { slug, name: slug, createdAt: at, updatedAt: at, pages: 0, scenes: 0, archived: false, hasCover: false, agentActive: false, broken: true };
   }
 }
 
@@ -101,11 +103,30 @@ export async function readProject(slug: string): Promise<Project> {
 /** Validates, stamps updatedAt (strictly increasing), writes atomically. */
 export async function saveProject(slug: string, body: unknown): Promise<string> {
   const project = parseProject(body);
-  let now = new Date().toISOString();
-  if (now <= project.updatedAt) now = new Date(Date.parse(project.updatedAt) + 1).toISOString();
-  project.updatedAt = now;
-  await writeAtomic(projectFile(slug), JSON.stringify(project, null, 2));
-  return now;
+  return withWriteLock(slug, async () => {
+    let now = new Date().toISOString();
+    if (now <= project.updatedAt) now = new Date(Date.parse(project.updatedAt) + 1).toISOString();
+    project.updatedAt = now;
+    await writeAtomic(projectFile(slug), JSON.stringify(project, null, 2));
+    return now;
+  });
+}
+
+/**
+ * Read-modify-write under the slug's write lock. `fn` returns the new project
+ * (updatedAt is stamped here) plus an arbitrary result. Throwing leaves the file untouched.
+ */
+export async function updateProjectOnDisk<R>(slug: string, fn: (p: Project) => { project: Project; result: R }): Promise<{ project: Project; result: R }> {
+  return withWriteLock(slug, async () => {
+    const cur = await readProject(slug);
+    const out = fn(cur);
+    const next = parseProject(out.project);
+    let now = new Date().toISOString();
+    if (now <= cur.updatedAt) now = new Date(Date.parse(cur.updatedAt) + 1).toISOString();
+    next.updatedAt = now;
+    await writeAtomic(projectFile(slug), JSON.stringify(next, null, 2));
+    return { project: next, result: out.result };
+  });
 }
 
 export async function readStoryline(slug: string): Promise<string> {
@@ -117,7 +138,7 @@ export async function readStoryline(slug: string): Promise<string> {
 }
 
 export async function writeStoryline(slug: string, text: string): Promise<void> {
-  await writeAtomic(storylineFile(slug), text);
+  await withWriteLock(slug, () => writeAtomic(storylineFile(slug), text));
 }
 
 async function readRaw(slug: string): Promise<Project> {
@@ -128,14 +149,16 @@ async function writeProject(slug: string, p: Project): Promise<void> {
   await writeAtomic(projectFile(slug), JSON.stringify(p, null, 2));
 }
 
+async function modify(slug: string, fn: (p: Project) => Project): Promise<void> {
+  await withWriteLock(slug, async () => writeProject(slug, fn(await readRaw(slug))));
+}
+
 export async function setArchived(slug: string, archived: boolean): Promise<void> {
-  const p = await readRaw(slug);
-  await writeProject(slug, { ...p, archived });
+  await modify(slug, (p) => ({ ...p, archived }));
 }
 
 export async function renameProject(slug: string, name: string): Promise<void> {
-  const p = await readRaw(slug);
-  await writeProject(slug, { ...p, name, updatedAt: new Date().toISOString() });
+  await modify(slug, (p) => ({ ...p, name, updatedAt: new Date().toISOString() }));
 }
 
 /** Copy a project to a new slug "<slug>-salinan": assets + storyline, not exports; active, fresh timestamps. */
@@ -158,7 +181,7 @@ export async function trashProject(slug: string): Promise<string> {
   await mkdir(trashDir(), { recursive: true });
   let id = `${slug}__${Date.now()}`;
   while (existsSync(join(trashDir(), id))) id = `${slug}__${Date.now() + 1}`;
-  await rename(projectDir(slug), join(trashDir(), id));
+  await withWriteLock(slug, () => rename(projectDir(slug), join(trashDir(), id)));
   return id;
 }
 
