@@ -130,6 +130,7 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerIds
   const sideAnchors = !multi && (one?.type === 'image' || one?.type === 'arrow' || one?.type === 'shape');
 
   return (
+    <Group>
     <Group ref={root} clipX={0} clipY={0} clipWidth={space.w} clipHeight={space.h}>
       <Rect width={space.w} height={space.h} fill="transparent" onMouseDown={startMarquee} listening={interactive} />
       <BackgroundNode bg={panel.background} w={space.w} h={space.h} slug={slug} />
@@ -146,6 +147,8 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerIds
           onChange={commit}
         />
       ))}
+    </Group>
+      {/* selection chrome lives outside the clip so handles stay grabbable on big layers */}
       {interactive &&
         outlines.map((o, i) => (
           <Rect key={i} {...o} stroke={ACCENT} strokeWidth={1} dash={[4, 3]} strokeScaleEnabled={false} listening={false} />
@@ -161,6 +164,9 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerIds
               : ['top-left', 'top-right', 'bottom-left', 'bottom-right']
           }
           anchorSize={10}
+          anchorStrokeWidth={1.5}
+          borderStrokeWidth={multi ? 2 : 1.5}
+          borderDash={multi ? [6, 4] : undefined}
           borderStroke={ACCENT}
           anchorStroke={ACCENT}
           anchorCornerRadius={0}

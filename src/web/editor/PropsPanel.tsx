@@ -1,4 +1,4 @@
-import { ChevronRight, Group, Ungroup, ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
+import { GripVertical, ChevronRight, Group, Ungroup, ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
 import { replaceRef, removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { Background, Layer, Scene } from '../../shared/types';
 import { AssetPicker } from './AssetPicker';
@@ -7,7 +7,7 @@ import { api, type AssetLists } from '../api';
 import { toast } from '../state/uiStore';
 import { useState } from 'react';
 import { SHAPES } from './ShapeMenu';
-import { groupLayers, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers } from '../../shared/multi';
+import { groupLayers, moveLayersTo, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers } from '../../shared/multi';
 import { ColorField } from '../ui/ColorField';
 import { useEditor } from '../state/editorStore';
 
@@ -274,9 +274,13 @@ function layerRows(layers: Layer[], open: Set<string>): Row[] {
   return rows;
 }
 
+type Drop = { anchor: string; side: 'front' | 'back'; intoGroup: string | null; key: string };
+
 function LayerList({ panelId, layers }: { panelId: string; layers: Layer[] }) {
   const s = useEditor();
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [drag, setDrag] = useState<string[] | null>(null);
+  const [drop, setDrop] = useState<Drop | null>(null);
   const sel = new Set(s.selectedLayerIds);
   const pick = (e: React.MouseEvent, id: string, single = false) => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) s.toggleLayer(id);
@@ -287,15 +291,84 @@ function LayerList({ panelId, layers }: { panelId: string; layers: Layer[] }) {
     s.apply((p) => reorderLayers(p, panelId, ids, dir));
   };
   const rows = layerRows(layers, open);
+  const locked = s.agentActive;
+
+  /** what gets dragged: a group row = the group; a selected row = the whole selection; else that row (and its group unless it's an opened member) */
+  const dragIds = (row: Row): string[] => {
+    if (row.kind === 'group') return row.members.map((m) => m.id);
+    if (sel.has(row.layer.id) && s.selectedLayerIds.length > 1) return s.selectedLayerIds;
+    return [row.layer.id];
+  };
+  /** list is front-most first: upper half of a row = in front of it */
+  const dropFor = (row: Row, e: React.DragEvent): Drop => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const upper = e.clientY < r.top + r.height / 2;
+    if (row.kind === 'group') {
+      // header: above = in front of the whole group; below = into the group when open, else behind it
+      const front = row.members[0].id;
+      const back = row.members[row.members.length - 1].id;
+      if (upper) return { anchor: front, side: 'front', intoGroup: null, key: `g:${row.groupId}:t` };
+      return open.has(row.groupId)
+        ? { anchor: front, side: 'front', intoGroup: row.groupId, key: `g:${row.groupId}:b` }
+        : { anchor: back, side: 'back', intoGroup: null, key: `g:${row.groupId}:b` };
+    }
+    const g = row.inGroup ? (row.layer.groupId ?? null) : null;
+    return { anchor: row.layer.id, side: upper ? 'front' : 'back', intoGroup: g, key: `${row.layer.id}:${upper ? 't' : 'b'}` };
+  };
+  const rowKey = (row: Row) => (row.kind === 'group' ? `g:${row.groupId}` : row.layer.id);
+  const dndProps = (row: Row) =>
+    locked
+      ? {}
+      : {
+          draggable: true,
+          onDragStart: (e: React.DragEvent) => {
+            const ids = dragIds(row);
+            setDrag(ids);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('application/x-storyboard-layers', ids.join(','));
+          },
+          onDragOver: (e: React.DragEvent) => {
+            if (!drag) return;
+            const d = dropFor(row, e);
+            if (drag.includes(d.anchor) && !d.intoGroup) return setDrop(null);
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (d.key !== drop?.key) setDrop(d);
+          },
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            const ids = drag;
+            const d = drop ?? (ids ? dropFor(row, e) : null);
+            setDrag(null);
+            setDrop(null);
+            if (!ids || !d) return;
+            s.apply((p) => moveLayersTo(p, panelId, ids, d.anchor, d.side, d.intoGroup));
+            s.setSelection(ids);
+          },
+          onDragEnd: () => {
+            setDrag(null);
+            setDrop(null);
+          },
+        };
+  const dropClass = (row: Row) => {
+    if (!drop) return '';
+    const k = rowKey(row);
+    if (drop.key === `${k}:t`) return ' drop-above';
+    if (drop.key === `${k}:b`) return drop.intoGroup && row.kind === 'group' ? ' drop-into' : ' drop-below';
+    return '';
+  };
+  const dragging = (row: Row) => (drag && dragIds(row).every((id) => drag.includes(id)) ? ' dragging' : '');
+
   return (
-    <ul className="layer-list">
+    <ul className={`layer-list${drag ? ' is-dragging' : ''}`} onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDrop(null)}>
       {rows.map((row) => {
         if (row.kind === 'group') {
           const ids = row.members.map((m) => m.id);
           const on = ids.every((id) => sel.has(id));
           const isOpen = open.has(row.groupId);
           return (
-            <li key={`g:${row.groupId}`} className={`group-row${on ? ' on' : ''}`} onClick={(e) => pick(e, ids[0])}>
+            <li key={`g:${row.groupId}`} className={`group-row${on ? ' on' : ''}${dropClass(row)}${dragging(row)}`} onClick={(e) => pick(e, ids[0])} {...dndProps(row)}>
+              <GripVertical size={12} aria-hidden className="grip" />
               <button
                 className="ib sm ghost"
                 aria-label={isOpen ? 'Tutup grup' : 'Buka grup'}
@@ -328,7 +401,13 @@ function LayerList({ panelId, layers }: { panelId: string; layers: Layer[] }) {
         }
         const l = row.layer;
         return (
-          <li key={l.id} className={`${sel.has(l.id) ? 'on' : ''}${row.inGroup ? ' member' : ''}`} onClick={(e) => pick(e, l.id, row.inGroup)}>
+          <li
+            key={l.id}
+            className={`${sel.has(l.id) ? 'on' : ''}${row.inGroup ? ' member' : ''}${dropClass(row)}${dragging(row)}`}
+            onClick={(e) => pick(e, l.id, row.inGroup)}
+            {...dndProps(row)}
+          >
+            <GripVertical size={12} aria-hidden className="grip" />
             <span className="ellipsis">{layerLabel(l)}</span>
             {!row.inGroup && (
               <span className="layer-btns">
@@ -362,6 +441,24 @@ function MultiProps({ panelId, layers }: { panelId: string; layers: Layer[] }) {
     <div className="layer-props">
       <div className="multi-head">
         <span className="small muted">{oneGroup ? `Grup · ${sel.length} layer` : `${sel.length} layer dipilih`}</span>
+      </div>
+      <div className="layer-actions top">
+        <button className="ib" title="Paling depan" aria-label="Paling depan" onClick={() => s.apply((p) => reorderLayers(p, panelId, ids, 'top'))}>
+          <BringToFront size={14} aria-hidden />
+        </button>
+        <button className="ib" title="Paling belakang" aria-label="Paling belakang" onClick={() => s.apply((p) => reorderLayers(p, panelId, ids, 'bottom'))}>
+          <SendToBack size={14} aria-hidden />
+        </button>
+        <span className="grow" />
+        <button
+          className="danger"
+          onClick={() => {
+            s.apply((p) => removeLayers(p, panelId, ids));
+            s.selectLayer(null);
+          }}
+        >
+          <Trash2 size={14} aria-hidden /> Hapus {sel.length} layer
+        </button>
       </div>
       <div className="grid2">
         <button
@@ -411,24 +508,6 @@ function MultiProps({ panelId, layers }: { panelId: string; layers: Layer[] }) {
         </div>
       </div>
       <p className="muted small hint-multi">Geser salah satu untuk memindahkan semuanya. Shift/Ctrl+klik untuk menambah atau mengurangi pilihan, panah untuk menggeser.</p>
-      <div className="layer-actions">
-        <button className="ib" title="Paling depan" aria-label="Paling depan" onClick={() => s.apply((p) => reorderLayers(p, panelId, ids, 'top'))}>
-          <BringToFront size={14} aria-hidden />
-        </button>
-        <button className="ib" title="Paling belakang" aria-label="Paling belakang" onClick={() => s.apply((p) => reorderLayers(p, panelId, ids, 'bottom'))}>
-          <SendToBack size={14} aria-hidden />
-        </button>
-        <span className="grow" />
-        <button
-          className="danger"
-          onClick={() => {
-            s.apply((p) => removeLayers(p, panelId, ids));
-            s.selectLayer(null);
-          }}
-        >
-          <Trash2 size={14} aria-hidden /> Hapus {sel.length} layer
-        </button>
-      </div>
     </div>
   );
 }

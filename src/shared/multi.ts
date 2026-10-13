@@ -100,8 +100,47 @@ export function reorderLayers(p: Project, panelId: string, ids: string[], dir: '
       const restBeforeFirst = layers.slice(0, first).filter((l) => !want.has(l.id)).length;
       const restBeforeLast = layers.slice(0, last).filter((l) => !want.has(l.id)).length;
       at = dir === 'up' ? Math.min(rest.length, restBeforeLast + 1) : Math.max(0, restBeforeFirst - 1);
+      // never split a group we're not part of: step over it as a whole
+      const own = new Set(sel.map((l) => l.groupId).filter(Boolean));
+      if (dir === 'up') {
+        const g = rest[at - 1]?.groupId;
+        if (g && !own.has(g)) while (at < rest.length && rest[at].groupId === g) at++;
+      } else {
+        const g = rest[at]?.groupId;
+        if (g && !own.has(g)) while (at > 0 && rest[at - 1].groupId === g) at--;
+      }
     }
     return [...rest.slice(0, at), ...sel, ...rest.slice(at)];
+  });
+}
+
+/**
+ * Drag-and-drop in the layer list: put `ids` directly in front of / behind `anchorId`.
+ * `intoGroup` = dropped among the members of that group (the moved layers join it); otherwise a
+ * partially-moved group's members leave it, a wholly-moved group stays a group.
+ */
+export function moveLayersTo(p: Project, panelId: string, ids: string[], anchorId: string, side: 'front' | 'back', intoGroup: string | null): Project {
+  const found = findPanel(p, panelId);
+  const want = idSet(ids);
+  if (!found || want.has(anchorId) || !found.panel.layers.some((l) => l.id === anchorId)) return p;
+  const all = found.panel.layers;
+  const size = new Map<string, number>();
+  for (const l of all) if (l.groupId) size.set(l.groupId, (size.get(l.groupId) ?? 0) + 1);
+  const movedPerGroup = new Map<string, number>();
+  for (const l of all) if (want.has(l.id) && l.groupId) movedPerGroup.set(l.groupId, (movedPerGroup.get(l.groupId) ?? 0) + 1);
+  return mapPanel(p, panelId, (layers) => {
+    const moving = layers
+      .filter((l) => want.has(l.id))
+      .map((l) => {
+        if (intoGroup) return { ...l, groupId: intoGroup } as Layer;
+        if (l.groupId && movedPerGroup.get(l.groupId) === size.get(l.groupId)) return l;
+        const { groupId: _g, ...rest } = l;
+        return rest as Layer;
+      });
+    const rest = layers.filter((l) => !want.has(l.id));
+    const ai = rest.findIndex((l) => l.id === anchorId);
+    const at = side === 'front' ? ai + 1 : ai;
+    return [...rest.slice(0, at), ...moving, ...rest.slice(at)];
   });
 }
 

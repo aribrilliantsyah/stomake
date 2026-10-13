@@ -116,3 +116,42 @@ test('multi-select: Shift+klik & drag bareng, Ctrl+G grup, copy-paste grup', asy
   ls = await layers(page, slug);
   expect(ls[3].groupId).toBeUndefined();
 });
+
+test('daftar Layer: drag & drop mengubah urutan, grup ikut utuh', async ({ page, request }) => {
+  const { slug } = (await (await request.post('/api/projects', { data: { name: `Dnd ${Date.now()}` }, headers: { origin: BASE } })).json()) as { slug: string };
+  await page.goto(`/p/${slug}`);
+  await expect(page.locator('.stage-box .sheet canvas')).toHaveCount(1);
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole('button', { name: 'Emoji', exact: true }).click();
+    await page.locator('.emoji-menu button').nth(i).click();
+  }
+  await saved(page);
+  const [a, b, c] = (await layers(page, slug)).map((l) => l.id);
+  const rows = page.locator('.layer-list li');
+  // list is front-most first: [c, b, a]. Drag a (bottom row) onto the upper half of c → a becomes front-most
+  const top = (await rows.nth(0).boundingBox())!;
+  await rows.nth(2).dragTo(rows.nth(0), { targetPosition: { x: 20, y: 3 } });
+  await saved(page);
+  expect((await layers(page, slug)).map((l) => l.id)).toEqual([b, c, a]);
+  expect(top.height).toBeGreaterThan(10);
+
+  // group b + c, then drag the group row below a → group goes to the back, still grouped
+  await rows.nth(1).click();
+  await rows.nth(2).click({ modifiers: ['Shift'] });
+  await page.keyboard.press('Control+g');
+  await saved(page);
+  await expect(page.locator('.layer-list li.group-row')).toHaveCount(1);
+  const groupRow = page.locator('.layer-list li.group-row');
+  const aRow = page.locator('.layer-list li:not(.group-row)').first();
+  const box = (await aRow.boundingBox())!;
+  await groupRow.dragTo(aRow, { targetPosition: { x: 20, y: box.height - 3 } });
+  await saved(page);
+  const after = await layers(page, slug);
+  expect(after.map((l) => l.id)).toEqual([b, c, a]);
+  expect(after[0].groupId).toBeTruthy();
+  expect(after[1].groupId).toBe(after[0].groupId);
+  // and back in front
+  await groupRow.dragTo(page.locator('.layer-list li:not(.group-row)').first(), { targetPosition: { x: 20, y: 3 } });
+  await saved(page);
+  expect((await layers(page, slug)).map((l) => l.id)).toEqual([a, b, c]);
+});

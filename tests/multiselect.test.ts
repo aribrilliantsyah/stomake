@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { addLayer, createProject, defaultEmoji } from '../src/shared/model';
-import { expandGroups, groupLayers, moveLayers, pasteLayers, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers, layersInRect } from '../src/shared/multi';
+import { moveLayersTo, expandGroups, groupLayers, moveLayers, pasteLayers, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers, layersInRect } from '../src/shared/multi';
 import type { Layer, Project } from '../src/shared/types';
 import { parseProject } from '../src/shared/schema';
 
@@ -93,4 +93,37 @@ test('layersInRect: kotak seleksi memilih layer yang bersinggungan', () => {
   ];
   expect(layersInRect(boxes, { x: 30, y: 30, width: 20, height: 20 }).sort()).toEqual(['a', 'c']);
   expect(layersInRect(boxes, { x: 260, y: 260, width: -100, height: -100 })).toEqual(['b']);
+});
+
+test('moveLayersTo: taruh di depan/belakang layer lain (urutan array = belakang → depan)', () => {
+  const { p, pn } = setup();
+  expect(layers(moveLayersTo(p, pn, ['L0'], 'L2', 'front', null)).map((l) => l.id)).toEqual(['L1', 'L2', 'L0', 'L3']);
+  expect(layers(moveLayersTo(p, pn, ['L3'], 'L1', 'back', null)).map((l) => l.id)).toEqual(['L0', 'L3', 'L1', 'L2']);
+  // several at once keep their relative order
+  expect(layers(moveLayersTo(p, pn, ['L0', 'L1'], 'L3', 'front', null)).map((l) => l.id)).toEqual(['L2', 'L3', 'L0', 'L1']);
+});
+
+test('moveLayersTo: drop di antara anggota grup = ikut grup itu; keluar dari grup = lepas grup', () => {
+  const { p, pn } = setup();
+  const g = groupLayers(p, pn, ['L1', 'L2']);
+  const joined = moveLayersTo(g.project, pn, ['L3'], 'L1', 'front', g.groupId);
+  expect(layers(joined).map((l) => l.id)).toEqual(['L0', 'L1', 'L3', 'L2']);
+  expect(layers(joined).find((l) => l.id === 'L3')!.groupId).toBe(g.groupId);
+  // a member dragged out next to a plain layer leaves its group (group of 1 is dissolved)
+  const out = moveLayersTo(g.project, pn, ['L2'], 'L0', 'back', null);
+  expect(layers(out).map((l) => l.id)).toEqual(['L2', 'L0', 'L1', 'L3']);
+  expect(layers(out).every((l) => !l.groupId)).toBe(true);
+  // the whole group dragged keeps its group
+  const whole = moveLayersTo(g.project, pn, ['L1', 'L2'], 'L3', 'front', null);
+  expect(layers(whole).map((l) => l.id)).toEqual(['L0', 'L3', 'L1', 'L2']);
+  expect(layers(whole).filter((l) => l.groupId === g.groupId)).toHaveLength(2);
+  // anchor inside the dragged set → no-op
+  expect(moveLayersTo(g.project, pn, ['L1', 'L2'], 'L1', 'front', null)).toBe(g.project);
+});
+
+test('reorderLayers naik/turun satu layer melompati grup utuh (grup tidak terbelah)', () => {
+  const { p, pn } = setup();
+  const g = groupLayers(p, pn, ['L1', 'L2']).project; // L0 [L1 L2] L3
+  expect(layers(reorderLayers(g, pn, ['L0'], 'up')).map((l) => l.id)).toEqual(['L1', 'L2', 'L0', 'L3']);
+  expect(layers(reorderLayers(g, pn, ['L3'], 'down')).map((l) => l.id)).toEqual(['L0', 'L3', 'L1', 'L2']);
 });
