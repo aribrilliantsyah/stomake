@@ -1,7 +1,7 @@
 // Recreate selimut darurat scenes 1-6 via the API with the real assets, then export.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { addLayer, addSceneAfter, defaultArrow, defaultText, flatScenes, layerFromDrop, setSplit, updatePanel, updateScene } from '../src/shared/model';
+import { addLayer, withPageSizes, defaultArrow, defaultText, flatScenes, layerFromDrop, setSplit, updatePanel, updateScene } from '../src/shared/model';
 import type { AssetInfo, Project } from '../src/shared/types';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:5199';
@@ -21,8 +21,7 @@ sf.append('file', new File([readFileSync(join(SRC, 'cara kerja selimut darurat.d
 await fetch(`${BASE}/api/projects/${slug}/storyline/import`, { method: 'POST', body: sf });
 
 let p: Project = await (await fetch(`${BASE}/api/projects/${slug}`)).json();
-let id = p.pages[0].scenes[0].id;
-for (let i = 1; i < 7; i++) ({ project: p, sceneId: id } = addSceneAfter(p, id));
+p = withPageSizes(p, [3, 3, 1]);
 const S = () => flatScenes(p).map((f) => f.scene);
 const full = { w: 1080, h: 1920 };
 const bg = { kind: 'asset', ref: A('bg gunung.jpg').ref, fit: 'cover' } as const;

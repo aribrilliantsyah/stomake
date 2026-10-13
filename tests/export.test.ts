@@ -7,7 +7,7 @@ import { serve, type ServerType } from '@hono/node-server';
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
 import { closeBrowser } from '../src/server/export';
-import { addLayer, addSceneAfter, defaultText, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
+import { addLayer, defaultText, withPageSizes, flatScenes, layerFromDrop, updatePanel, updateScene } from '../src/shared/model';
 import type { Project } from '../src/shared/types';
 
 const dist = join(__dirname, '..', 'dist');
@@ -44,8 +44,7 @@ const json = (method: string, body: unknown): RequestInit => ({ method, body: JS
 async function makeProject(name: string, n: number, edit: (p: Project) => Project = (p) => p) {
   const { slug } = await (await call('/api/projects', json('POST', { name }))).json();
   let p: Project = await (await call(`/api/projects/${slug}`)).json();
-  let id = p.pages[0].scenes[0].id;
-  for (let i = 1; i < n; i++) ({ project: p, sceneId: id } = addSceneAfter(p, id));
+  p = withPageSizes(p, Array.from({ length: Math.ceil(n / 3) }, (_, i) => Math.min(3, n - i * 3)));
   p = edit(p);
   const r = await call(`/api/projects/${slug}`, json('PUT', p));
   expect(r.status).toBe(200);

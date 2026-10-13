@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   addLayer,
-  addSceneAfter,
+  addSceneInPage,
+  canRemoveScene,
+  pageOf,
   duplicateScene,
   findPanel,
   findScene,
@@ -147,7 +149,9 @@ export function Editor({ slug }: { slug: string }) {
     add: () => {
       let next = '';
       s.apply((p) => {
-        const r = addSceneAfter(p, scene.id);
+        const pg = pageOf(p, scene.id);
+        const r = pg && addSceneInPage(p, pg.id, scene.id);
+        if (!r) return p;
         next = r.sceneId;
         return r.project;
       });

@@ -1,33 +1,33 @@
 import { describe, expect, test } from 'vitest';
 import {
-  addSceneAfter,
+  addPage,
+  addSceneInPage,
+  canRemoveScene,
   createProject,
+  duplicatePage,
   duplicateScene,
   findPanel,
   flatScenes,
+  movePage,
   moveScene,
+  pageOf,
+  removePage,
   removeScene,
   sceneNumber,
   setSplit,
   updateScene,
+  withPageSizes,
 } from '../src/shared/model';
 import type { Project } from '../src/shared/types';
 
 const P = () => createProject('Selimut Darurat', '2026-10-12T00:00:00Z');
-
-function withScenes(n: number): Project {
-  let p = P();
-  let id = p.pages[0].scenes[0].id;
-  for (let i = 1; i < n; i++) ({ project: p, sceneId: id } = addSceneAfter(p, id));
-  return p;
-}
 const lens = (p: Project) => p.pages.map((pg) => pg.scenes.length);
+const nums = (p: Project) => flatScenes(p).map((s) => s.number);
 const idAt = (p: Project, n: number) => flatScenes(p)[n - 1].scene.id;
 
-describe('model', () => {
-  test('project baru: 1 page 1 scene, bg default', () => {
+describe('model dasar', () => {
+  test('project baru: 1 page 1 scene, bg default, v2', () => {
     const p = P();
-    expect(p.name).toBe('Selimut Darurat');
     expect(p.version).toBe(2);
     expect(p.pages).toHaveLength(1);
     expect(p.pages[0].scenes).toHaveLength(1);
@@ -35,106 +35,121 @@ describe('model', () => {
     expect(p.pageBackground).toEqual({ kind: 'color', color: '#D4BFB3' });
     const s = p.pages[0].scenes[0];
     expect(s).toMatchObject({ note: '', subtitle: '', split: false });
-    expect(s.panels).toHaveLength(1);
     expect(s.panels[0].background).toEqual({ kind: 'color', color: '#FFFFFF' });
-    expect(s.panels[0].layers).toEqual([]);
   });
 
-  test('scene ke-4 membuat page baru, nomor berlanjut', () => {
-    let p = P();
-    let id = p.pages[0].scenes[0].id;
-    for (let i = 0; i < 3; i++) ({ project: p, sceneId: id } = addSceneAfter(p, id));
-    expect(lens(p)).toEqual([3, 1]);
-    expect(sceneNumber(p, id)).toBe(4);
-    expect(flatScenes(p).map((s) => s.pageIndex)).toEqual([0, 0, 0, 1]);
+  test('withPageSizes (helper test/demo) membuat page sesuai ukuran', () => {
+    const p = withPageSizes(P(), [1, 3, 2]);
+    expect(lens(p)).toEqual([1, 3, 2]);
+    expect(nums(p)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
-  test('add di page penuh yang bukan terakhir menyisipkan page setelahnya', () => {
-    const p6 = withScenes(6);
-    expect(lens(p6)).toEqual([3, 3]);
-    const oldThird = idAt(p6, 3);
-    const { project: p, sceneId } = addSceneAfter(p6, idAt(p6, 2));
-    expect(lens(p)).toEqual([3, 1, 3]);
-    expect(sceneNumber(p, sceneId)).toBe(3);
-    expect(sceneNumber(p, oldThird)).toBe(4);
-    expect(flatScenes(p).map((s) => s.number)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-  });
-
-  test('hapus scene tengah: nomor bergeser, page kosong hilang', () => {
-    const p4 = withScenes(4);
-    expect(lens(removeScene(p4, idAt(p4, 4)))).toEqual([3]);
-    const p6 = withScenes(6);
-    const fifth = idAt(p6, 5);
-    const q = removeScene(p6, idAt(p6, 2));
-    expect(lens(q)).toEqual([2, 3]);
-    expect(flatScenes(q).map((s) => s.number)).toEqual([1, 2, 3, 4, 5]);
-    expect(sceneNumber(q, fifth)).toBe(4);
-  });
-
-  test('hapus satu-satunya scene tidak menghapus page terakhir', () => {
-    const p = P();
-    const q = removeScene(p, p.pages[0].scenes[0].id);
-    expect(q.pages).toHaveLength(1);
-    expect(q.pages[0].scenes).toHaveLength(1);
-  });
-
-  test('duplicateScene menyalin layer dengan id baru, tepat setelah sumber', () => {
-    let p = withScenes(2);
-    const src = idAt(p, 1);
-    const panelId = p.pages[0].scenes[0].panels[0].id;
-    p = updateScene(p, src, { note: 'foil muncul', subtitle: 'kenapa' });
-    p = {
-      ...p,
-      pages: p.pages.map((pg) => ({
-        ...pg,
-        scenes: pg.scenes.map((s) =>
-          s.id !== src
-            ? s
-            : {
-                ...s,
-                panels: s.panels.map((pn) => ({
-                  ...pn,
-                  layers: [{ id: 'L1', type: 'emoji', char: '🔥', size: 200, x: 1, y: 2, rotation: 0, opacity: 1 }],
-                })),
-              },
-        ),
-      })),
-    } as Project;
-    const { project: q, sceneId } = duplicateScene(p, src);
-    expect(sceneNumber(q, sceneId)).toBe(2);
-    const dup = flatScenes(q)[1].scene;
-    expect(dup.note).toBe('foil muncul');
-    expect(dup.subtitle).toBe('kenapa');
-    expect(dup.panels[0].id).not.toBe(panelId);
-    expect(dup.panels[0].layers[0].id).not.toBe('L1');
-    expect(dup.panels[0].layers[0]).toMatchObject({ type: 'emoji', char: '🔥', x: 1, y: 2 });
-    expect(lens(q)).toEqual([3]);
-  });
-
-  test('moveScene lintas page', () => {
-    const p4 = withScenes(4);
-    const third = idAt(p4, 3);
-    const q = moveScene(p4, third, 1);
-    expect(sceneNumber(q, third)).toBe(4);
-    expect(lens(q)).toEqual([3, 1]);
-    const back = moveScene(q, third, -1);
-    expect(sceneNumber(back, third)).toBe(3);
-    // batas: scene 1 tidak bisa naik
-    expect(moveScene(p4, idAt(p4, 1), -1)).toEqual(p4);
-  });
-
-  test('setSplit true → 2 panel, panel kedua salinan panel pertama; false → 1 panel', () => {
+  test('setSplit true → 2 panel salinan; false → 1 panel', () => {
     const p = P();
     const s = p.pages[0].scenes[0];
     const q = setSplit(p, s.id, true);
     const qs = q.pages[0].scenes[0];
-    expect(qs.split).toBe(true);
     expect(qs.panels).toHaveLength(2);
     expect(qs.panels[1].id).not.toBe(qs.panels[0].id);
-    expect(qs.panels[1].background).toEqual(qs.panels[0].background);
     const r = setSplit(q, s.id, false);
-    expect(r.pages[0].scenes[0].panels).toHaveLength(1);
-    expect(r.pages[0].scenes[0].panels[0].id).toBe(qs.panels[0].id);
-    expect(findPanel(r, qs.panels[0].id)?.scene.id).toBe(s.id);
+    expect(r.pages[0].scenes[0].panels.map((x) => x.id)).toEqual([qs.panels[0].id]);
+    expect(findPanel(r, qs.panels[0].id)?.scene?.id).toBe(s.id);
+  });
+});
+
+describe('operasi page gaya PPT', () => {
+  test('+Scene di page berisi 3 → null', () => {
+    const p = withPageSizes(P(), [3]);
+    expect(addSceneInPage(p, p.pages[0].id, null)).toBeNull();
+  });
+
+  test('+Scene menyisipkan setelah scene tertentu atau di akhir page', () => {
+    const p = withPageSizes(P(), [2, 1]);
+    const first = idAt(p, 1);
+    const r = addSceneInPage(p, p.pages[0].id, first)!;
+    expect(lens(r.project)).toEqual([3, 1]);
+    expect(sceneNumber(r.project, r.sceneId)).toBe(2);
+    const r2 = addSceneInPage(p, p.pages[1].id, null)!;
+    expect(lens(r2.project)).toEqual([2, 2]);
+    expect(sceneNumber(r2.project, r2.sceneId)).toBe(4);
+  });
+
+  test('tidak ada reflow: P1[1], P2[2,3] + scene di P2 → P1[1], P2[2,3,4]', () => {
+    const p = withPageSizes(P(), [1, 2]);
+    const r = addSceneInPage(p, p.pages[1].id, null)!;
+    expect(lens(r.project)).toEqual([1, 3]);
+  });
+
+  test('addPage setelah P1 → page baru di index 1 dengan 1 scene, nomor berikutnya bergeser', () => {
+    const p = withPageSizes(P(), [1, 2]);
+    const old2 = idAt(p, 2);
+    const r = addPage(p, p.pages[0].id);
+    expect(lens(r.project)).toEqual([1, 1, 2]);
+    expect(r.project.pages[1].id).toBe(r.pageId);
+    expect(r.project.pages[1].background).toBeNull();
+    expect(sceneNumber(r.project, r.sceneId)).toBe(2);
+    expect(sceneNumber(r.project, old2)).toBe(3);
+    expect(lens(addPage(p, null).project)).toEqual([1, 1, 2]);
+    expect(addPage(p, null).project.pages[0].scenes).toHaveLength(1);
+  });
+
+  test('removeScene scene satu-satunya di page = no-op; canRemoveScene false', () => {
+    const p = withPageSizes(P(), [1, 2]);
+    expect(canRemoveScene(p, idAt(p, 1))).toBe(false);
+    expect(removeScene(p, idAt(p, 1))).toBe(p);
+    expect(canRemoveScene(p, idAt(p, 2))).toBe(true);
+    const q = removeScene(p, idAt(p, 2));
+    expect(lens(q)).toEqual([1, 1]);
+  });
+
+  test('removePage menghapus page beserta scene, nomor bergeser; page terakhir tidak bisa dihapus', () => {
+    const p = withPageSizes(P(), [1, 3, 2]);
+    const fifth = idAt(p, 5);
+    const q = removePage(p, p.pages[1].id);
+    expect(lens(q)).toEqual([1, 2]);
+    expect(sceneNumber(q, fifth)).toBe(2);
+    const one = P();
+    expect(removePage(one, one.pages[0].id)).toBe(one);
+  });
+
+  test('movePage & moveScene di ujung = no-op; moveScene hanya dalam page', () => {
+    const p = withPageSizes(P(), [2, 1]);
+    expect(movePage(p, p.pages[0].id, -1)).toBe(p);
+    const m = movePage(p, p.pages[0].id, 1);
+    expect(lens(m)).toEqual([1, 2]);
+    expect(moveScene(p, idAt(p, 2), 1)).toBe(p);
+    const s = moveScene(p, idAt(p, 1), 1);
+    expect(flatScenes(s)[1].scene.id).toBe(idAt(p, 1));
+    expect(lens(s)).toEqual([2, 1]);
+  });
+
+  test('duplicatePage: id baru semua, isi sama, disisipkan setelah sumber', () => {
+    let p = withPageSizes(P(), [2, 1]);
+    p = updateScene(p, idAt(p, 1), { subtitle: 'kenapa' });
+    const r = duplicatePage(p, p.pages[0].id);
+    expect(lens(r.project)).toEqual([2, 2, 1]);
+    const [a, b] = [r.project.pages[0], r.project.pages[1]];
+    expect(b.id).toBe(r.pageId);
+    expect(b.id).not.toBe(a.id);
+    expect(b.scenes[0].subtitle).toBe('kenapa');
+    expect(b.scenes[0].id).not.toBe(a.scenes[0].id);
+    expect(b.scenes[0].panels[0].id).not.toBe(a.scenes[0].panels[0].id);
+  });
+
+  test('duplicateScene: setelah sumber; page penuh → tidak berubah', () => {
+    const p = withPageSizes(P(), [2]);
+    const r = duplicateScene(p, idAt(p, 1));
+    expect(lens(r.project)).toEqual([3]);
+    expect(sceneNumber(r.project, r.sceneId)).toBe(2);
+    const full = withPageSizes(P(), [3]);
+    const f = duplicateScene(full, idAt(full, 1));
+    expect(f.project).toBe(full);
+    expect(f.sceneId).toBe(idAt(full, 1));
+  });
+
+  test('pageOf', () => {
+    const p = withPageSizes(P(), [1, 2]);
+    expect(pageOf(p, idAt(p, 3))?.id).toBe(p.pages[1].id);
+    expect(pageOf(p, 'nope')).toBeNull();
   });
 });

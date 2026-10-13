@@ -51,40 +51,8 @@ function locate(p: Project, sceneId: string): { pi: number; si: number } | null 
   return null;
 }
 
-/**
- * Overflow of page `pi` (more than 3 scenes) moves to a new page inserted right after it.
- * Empty pages are dropped; an empty project keeps one page with one empty scene.
- */
-function normalize(pages: Page[], pi: number | null): Page[] {
-  let out = pages.slice();
-  if (pi !== null && out[pi] && out[pi].scenes.length > MAX_SCENES_PER_PAGE) {
-    const page = out[pi];
-    const keep = page.scenes.slice(0, MAX_SCENES_PER_PAGE);
-    const overflow = page.scenes.slice(MAX_SCENES_PER_PAGE);
-    out.splice(pi, 1, { ...page, scenes: keep }, emptyPage(overflow));
-  }
-  out = out.filter((pg) => pg.scenes.length > 0);
-  if (out.length === 0) out = [emptyPage()];
-  return out;
-}
-
 function withPages(p: Project, pages: Page[]): Project {
   return { ...p, pages };
-}
-
-function insertAt(p: Project, pi: number, si: number, scene: Scene): Project {
-  const pages = p.pages.slice();
-  const scenes = pages[pi].scenes.slice();
-  scenes.splice(si, 0, scene);
-  pages[pi] = { ...pages[pi], scenes };
-  return withPages(p, normalize(pages, pi));
-}
-
-export function addSceneAfter(p: Project, sceneId: string): { project: Project; sceneId: string } {
-  const loc = locate(p, sceneId);
-  if (!loc) throw new Error(`scene ${sceneId} not found`);
-  const scene = emptyScene();
-  return { project: insertAt(p, loc.pi, loc.si + 1, scene), sceneId: scene.id };
 }
 
 function cloneLayer(l: Layer): Layer {
@@ -95,35 +63,101 @@ function clonePanel(pn: Panel): Panel {
   return { id: newId(), background: structuredClone(pn.background), layers: pn.layers.map(cloneLayer) };
 }
 
+function cloneScene(s: Scene): Scene {
+  return { ...s, id: newId(), panels: s.panels.map(clonePanel) };
+}
+
+function pageIndex(p: Project, pageId: string): number {
+  return p.pages.findIndex((pg) => pg.id === pageId);
+}
+
+function setPageScenes(p: Project, pi: number, scenes: Scene[]): Project {
+  return withPages(p, p.pages.map((pg, i) => (i === pi ? { ...pg, scenes } : pg)));
+}
+
+export function pageOf(p: Project, sceneId: string): Page | null {
+  const loc = locate(p, sceneId);
+  return loc ? p.pages[loc.pi] : null;
+}
+
+/** Test/demo helper: replace pages with fresh pages of the given scene counts (each 1..3). */
+export function withPageSizes(p: Project, sizes: number[]): Project {
+  return withPages(p, sizes.map((n) => emptyPage(Array.from({ length: Math.max(1, Math.min(3, n)) }, emptyScene))));
+}
+
+/** Add an empty scene into a page (after `afterSceneId`, or at the end). Null when the page already has 3. */
+export function addSceneInPage(p: Project, pageId: string, afterSceneId: string | null): { project: Project; sceneId: string } | null {
+  const pi = pageIndex(p, pageId);
+  if (pi < 0 || p.pages[pi].scenes.length >= MAX_SCENES_PER_PAGE) return null;
+  const scenes = p.pages[pi].scenes.slice();
+  const at = afterSceneId ? scenes.findIndex((s) => s.id === afterSceneId) + 1 : scenes.length;
+  const scene = emptyScene();
+  scenes.splice(at <= 0 ? scenes.length : at, 0, scene);
+  return { project: setPageScenes(p, pi, scenes), sceneId: scene.id };
+}
+
+/** Insert a new page (1 empty scene) after `afterPageId`, or at the start when null. */
+export function addPage(p: Project, afterPageId: string | null): { project: Project; pageId: string; sceneId: string } {
+  const page = emptyPage();
+  const at = afterPageId ? pageIndex(p, afterPageId) + 1 : 0;
+  const pages = p.pages.slice();
+  pages.splice(at <= 0 && afterPageId ? pages.length : at, 0, page);
+  return { project: withPages(p, pages), pageId: page.id, sceneId: page.scenes[0].id };
+}
+
+export function duplicatePage(p: Project, pageId: string): { project: Project; pageId: string } {
+  const pi = pageIndex(p, pageId);
+  if (pi < 0) return { project: p, pageId };
+  const src = p.pages[pi];
+  const copy: Page = { id: newId(), background: structuredClone(src.background), scenes: src.scenes.map(cloneScene) };
+  const pages = p.pages.slice();
+  pages.splice(pi + 1, 0, copy);
+  return { project: withPages(p, pages), pageId: copy.id };
+}
+
+export function removePage(p: Project, pageId: string): Project {
+  if (p.pages.length <= 1 || pageIndex(p, pageId) < 0) return p;
+  return withPages(p, p.pages.filter((pg) => pg.id !== pageId));
+}
+
+export function movePage(p: Project, pageId: string, dir: -1 | 1): Project {
+  const i = pageIndex(p, pageId);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= p.pages.length) return p;
+  const pages = p.pages.slice();
+  [pages[i], pages[j]] = [pages[j], pages[i]];
+  return withPages(p, pages);
+}
+
 export function duplicateScene(p: Project, sceneId: string): { project: Project; sceneId: string } {
   const loc = locate(p, sceneId);
-  if (!loc) throw new Error(`scene ${sceneId} not found`);
-  const src = p.pages[loc.pi].scenes[loc.si];
-  const copy: Scene = { ...src, id: newId(), panels: src.panels.map(clonePanel) };
-  return { project: insertAt(p, loc.pi, loc.si + 1, copy), sceneId: copy.id };
+  if (!loc || p.pages[loc.pi].scenes.length >= MAX_SCENES_PER_PAGE) return { project: p, sceneId };
+  const scenes = p.pages[loc.pi].scenes.slice();
+  const copy = cloneScene(scenes[loc.si]);
+  scenes.splice(loc.si + 1, 0, copy);
+  return { project: setPageScenes(p, loc.pi, scenes), sceneId: copy.id };
+}
+
+export function canRemoveScene(p: Project, sceneId: string): boolean {
+  const pg = pageOf(p, sceneId);
+  return !!pg && pg.scenes.length > 1;
 }
 
 export function removeScene(p: Project, sceneId: string): Project {
   const loc = locate(p, sceneId);
-  if (!loc) return p;
-  const pages = p.pages.slice();
-  pages[loc.pi] = { ...pages[loc.pi], scenes: pages[loc.pi].scenes.filter((s) => s.id !== sceneId) };
-  return withPages(p, normalize(pages, null));
+  if (!loc || !canRemoveScene(p, sceneId)) return p;
+  return setPageScenes(p, loc.pi, p.pages[loc.pi].scenes.filter((s) => s.id !== sceneId));
 }
 
-/** Swap with neighbouring scene in flat order; page sizes are preserved. */
+/** Move a scene left/right within its page. */
 export function moveScene(p: Project, sceneId: string, dir: -1 | 1): Project {
-  const flat = flatScenes(p);
-  const i = flat.findIndex((s) => s.scene.id === sceneId);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= flat.length) return p;
-  const order = flat.map((s) => s.scene);
-  [order[i], order[j]] = [order[j], order[i]];
-  let k = 0;
-  return withPages(
-    p,
-    p.pages.map((pg) => ({ ...pg, scenes: pg.scenes.map(() => order[k++]) })),
-  );
+  const loc = locate(p, sceneId);
+  if (!loc) return p;
+  const scenes = p.pages[loc.pi].scenes.slice();
+  const j = loc.si + dir;
+  if (j < 0 || j >= scenes.length) return p;
+  [scenes[loc.si], scenes[j]] = [scenes[j], scenes[loc.si]];
+  return setPageScenes(p, loc.pi, scenes);
 }
 
 function mapScene(p: Project, sceneId: string, fn: (s: Scene) => Scene): Project {
