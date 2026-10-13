@@ -1,3 +1,4 @@
+import { ArrowLeft, ChevronLeft, ChevronRight, Copy, Images, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Plus, ScrollText, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   addLayer,
@@ -21,6 +22,9 @@ import { CoverSheet, coverScene, PageSheet, PT_TO_PX, type SheetInteraction } fr
 import { useEditor } from '../state/editorStore';
 import { nextZoom, useUi, type PanelName } from '../state/uiStore';
 import { Toasts } from '../ui/Toasts';
+import { navigate } from '../router';
+import { EditorSkeleton } from '../ui/Loading';
+import { trackLoading } from '../state/progress';
 import { AssetPanel, ASSET_MIME } from './AssetPanel';
 import { installClipboard } from './clipboard';
 import { ZoomBar } from './ZoomBar';
@@ -72,7 +76,7 @@ function Collapsed({ name, label }: { name: PanelName; label: string }) {
   const toggle = useUi((u) => u.togglePanel);
   return (
     <button className="collapsed" onClick={() => toggle(name)} title={`Buka ${label}`}>
-      <span>»</span>
+      <PanelLeftOpen size={14} aria-hidden />
       <span className="collapsed-label">{label}</span>
     </button>
   );
@@ -84,8 +88,8 @@ function PanelHead({ name, children }: { name: PanelName; children?: React.React
     <div className="panel-head">
       {children}
       <div className="grow" />
-      <button className="fold" onClick={() => toggle(name)} title="Lipat panel">
-        «
+      <button className="fold" onClick={() => toggle(name)} title="Lipat panel" aria-label="Lipat panel">
+        <PanelLeftClose size={14} aria-hidden />
       </button>
     </div>
   );
@@ -102,7 +106,7 @@ export function Editor({ slug }: { slug: string }) {
   const [stageBox, box] = useSize();
 
   useEffect(() => {
-    s.load(slug).catch((e) => setLoadError((e as Error).message));
+    trackLoading(s.load(slug)).catch((e) => setLoadError((e as Error).message));
     refreshAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
@@ -198,8 +202,22 @@ export function Editor({ slug }: { slug: string }) {
   }, []);
 
   const project = s.project;
-  if (loadError) return <div className="error pad">Gagal membuka project: {loadError}</div>;
-  if (!project || !s.currentSceneId) return <div className="pad muted">Memuat…</div>;
+  if (loadError)
+    return (
+      <div className="load-fail">
+        <div className="load-fail-box">
+          <b>Gagal membuka project</b>
+          <p className="mono">{loadError}</p>
+          <div className="row">
+            <button onClick={() => navigate('/')}><ArrowLeft size={14} aria-hidden /> Kembali ke daftar project</button>
+            <button className="primary" onClick={() => location.reload()}>
+              Coba lagi
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  if (!project || !s.currentSceneId || s.slug !== slug) return <EditorSkeleton />;
 
   const onCover = s.selectedCover && !!project.cover;
   const scene: Scene = onCover ? coverScene(project.cover!) : flatScenes(project).find((f) => f.scene.id === s.currentSceneId)!.scene;
@@ -301,10 +319,10 @@ export function Editor({ slug }: { slug: string }) {
               <PanelHead name="library">
                 <div className="tabs">
                   <button className={tab === 'storyline' ? 'on' : ''} onClick={() => setTab('storyline')}>
-                    Storyline
+                    <ScrollText size={14} aria-hidden /> Storyline
                   </button>
                   <button className={tab === 'assets' ? 'on' : ''} onClick={() => setTab('assets')}>
-                    Asset
+                    <Images size={14} aria-hidden /> Asset
                   </button>
                 </div>
               </PanelHead>
@@ -335,25 +353,25 @@ export function Editor({ slug }: { slug: string }) {
             <div className="grow" />
             {!onCover && (
               <>
-                <button onClick={() => sceneActions.move(-1)} disabled={indexInPage === 0} title="Geser ke kiri">
-                  ←
+                <button onClick={() => sceneActions.move(-1)} disabled={indexInPage === 0} title="Geser ke kiri" aria-label="Geser ke kiri">
+                  <ChevronLeft size={14} aria-hidden />
                 </button>
-                <button onClick={() => sceneActions.move(1)} disabled={indexInPage === page!.scenes.length - 1} title="Geser ke kanan">
-                  →
+                <button onClick={() => sceneActions.move(1)} disabled={indexInPage === page!.scenes.length - 1} title="Geser ke kanan" aria-label="Geser ke kanan">
+                  <ChevronRight size={14} aria-hidden />
                 </button>
                 <button onClick={sceneActions.add} disabled={full} title={full ? 'Page sudah 3 scene — tambah page baru' : 'Tambah scene di page ini'}>
-                  + Scene
+                  <Plus size={14} aria-hidden /> Scene
                 </button>
-                <button onClick={sceneActions.duplicate} disabled={full}>
-                  Duplikat
+                <button onClick={sceneActions.duplicate} disabled={full} title="Duplikat scene" aria-label="Duplikat scene">
+                  <Copy size={14} aria-hidden />
                 </button>
-                <button onClick={sceneActions.remove} className="danger" disabled={!canRemoveScene(project, scene.id)} title="Scene terakhir di page tidak bisa dihapus — hapus page-nya">
-                  Hapus
+                <button onClick={sceneActions.remove} className="danger" disabled={!canRemoveScene(project, scene.id)} title={canRemoveScene(project, scene.id) ? 'Hapus scene' : 'Scene terakhir di page tidak bisa dihapus — hapus page-nya'} aria-label="Hapus scene">
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </>
             )}
-            <button className={ui.zoom ? 'on' : ''} onClick={() => ui.setZoom(!ui.zoom)} title="Zoom scene (Z)">
-              {ui.zoom ? 'Lihat page' : 'Zoom'}
+            <button className={ui.zoom ? 'on' : ''} onClick={() => ui.setZoom(!ui.zoom)} title={ui.zoom ? 'Lihat page (Z / Esc)' : 'Zoom scene (Z)'} aria-label={ui.zoom ? 'Lihat page' : 'Zoom scene'}>
+              {ui.zoom ? <Minimize2 size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />}
             </button>
           </div>
           <div

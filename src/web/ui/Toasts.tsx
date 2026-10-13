@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useUi } from '../state/uiStore';
 
 export function Toasts() {
@@ -20,8 +21,8 @@ export function Toasts() {
               {t.action.label}
             </button>
           )}
-          <button onClick={() => dismiss(t.id)} title="Tutup">
-            ×
+          <button onClick={() => dismiss(t.id)} title="Tutup" aria-label="Tutup">
+            <X size={13} aria-hidden />
           </button>
         </div>
       ))}

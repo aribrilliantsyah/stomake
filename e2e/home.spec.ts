@@ -19,7 +19,7 @@ test('home: cari, grid/list, pagination, arsip, hapus + urungkan', async ({ page
   await expect(page.locator('.count')).toHaveText('26 project');
   // grid: 24 per page → 2 pages
   await expect(page.locator('.pcard')).toHaveCount(24);
-  await page.getByRole('button', { name: 'Berikutnya ›' }).click();
+  await page.getByRole('button', { name: 'Berikutnya' }).click();
   await expect(page).toHaveURL(/page=2/);
   await expect(page.locator('.pcard')).toHaveCount(2);
   await page.goBack();

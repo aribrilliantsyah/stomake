@@ -1,3 +1,4 @@
+import { Archive, ArchiveRestore, LayoutGrid, List, Plus, Search, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectPage, ProjectSort, ProjectSummary } from '../../shared/types';
 import { api } from '../api';
@@ -5,6 +6,8 @@ import { navigate } from '../router';
 import { useUi } from '../state/uiStore';
 import { ConfirmDialog, PromptDialog } from '../ui/Dialog';
 import { Toasts } from '../ui/Toasts';
+import { GridSkeleton } from '../ui/Loading';
+import { trackLoading } from '../state/progress';
 import { fullTime, homeStateFromSearch, homeStateToSearch, PAGE_SIZE, relativeTime, type HomeState, type HomeView } from './homeState';
 import { Pager } from './Pager';
 import { ProjectMenu, ProjectThumb, type ProjectActions } from './ProjectMenu';
@@ -77,7 +80,7 @@ export function ProjectList() {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api
+    trackLoading(api
       .queryProjects({ q: s.q, status: s.status, sort: s.sort, since: s.since, page: s.page, size })
       .then(
         (r) => {
@@ -90,7 +93,7 @@ export function ProjectList() {
         },
         (e) => alive && setError((e as Error).message),
       )
-      .finally(() => alive && setLoading(false));
+      .finally(() => alive && setLoading(false)));
     return () => {
       alive = false;
     };
@@ -200,6 +203,7 @@ export function ProjectList() {
       <header className="home-head">
         <h1>Storyboard Maker</h1>
         <div className="home-search">
+          <Search size={14} aria-hidden />
           <input
             ref={search}
             type="search"
@@ -217,7 +221,7 @@ export function ProjectList() {
           />
         </div>
         <button className="primary" onClick={() => setModal({ kind: 'new' })} title="Project baru (N)">
-          + Project Baru
+          <Plus size={14} aria-hidden /> Project Baru
         </button>
       </header>
 
@@ -256,10 +260,10 @@ export function ProjectList() {
         <span className="count mono">{loading && !data ? '…' : `${total} project`}</span>
         <div className="seg" role="group" aria-label="Tampilan">
           <button className={s.view === 'grid' ? 'on' : ''} onClick={() => update({ view: 'grid' })} title="Grid">
-            ▦ Grid
+            <LayoutGrid size={14} aria-hidden /> Grid
           </button>
           <button className={s.view === 'list' ? 'on' : ''} onClick={() => update({ view: 'list' })} title="List">
-            ☰ List
+            <List size={14} aria-hidden /> List
           </button>
         </div>
       </div>
@@ -267,19 +271,21 @@ export function ProjectList() {
       {selItems.length > 0 && (
         <div className="bulk-bar">
           <span className="mono">{selItems.length} dipilih</span>
-          <button onClick={() => setSelected(new Set())}>Batal pilih</button>
+          <button onClick={() => setSelected(new Set())}><X size={14} aria-hidden /> Batal pilih</button>
           <span className="spacer" />
-          {selItems.some((p) => !p.archived) && <button onClick={() => archiveMany(selItems.filter((p) => !p.archived), true)}>Arsipkan</button>}
-          {selItems.some((p) => p.archived) && <button onClick={() => archiveMany(selItems.filter((p) => p.archived), false)}>Pulihkan</button>}
+          {selItems.some((p) => !p.archived) && <button onClick={() => archiveMany(selItems.filter((p) => !p.archived), true)}><Archive size={14} aria-hidden /> Arsipkan</button>}
+          {selItems.some((p) => p.archived) && <button onClick={() => archiveMany(selItems.filter((p) => p.archived), false)}><ArchiveRestore size={14} aria-hidden /> Pulihkan</button>}
           <button className="danger" onClick={() => setModal({ kind: 'delete', ps: selItems })}>
-            Hapus ({selItems.length})
+            <Trash2 size={14} aria-hidden /> Hapus ({selItems.length})
           </button>
         </div>
       )}
 
       {error && <div className="error">{error}</div>}
 
-      {data && items.length === 0 ? (
+      {!data && !error ? (
+        <GridSkeleton count={s.view === 'grid' ? 8 : 4} />
+      ) : data && items.length === 0 ? (
         <div className="home-empty">
           {filtered ? (
             <>
@@ -290,7 +296,7 @@ export function ProjectList() {
             <>
               <p>Belum ada project.</p>
               <button className="primary" onClick={() => setModal({ kind: 'new' })}>
-                + Project Baru
+                <Plus size={14} aria-hidden /> Project Baru
               </button>
             </>
           )}

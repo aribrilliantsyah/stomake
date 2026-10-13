@@ -1,3 +1,4 @@
+import { BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
 import { removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { Background, Layer, Scene } from '../../shared/types';
 import { AssetPicker } from './AssetPicker';
@@ -111,10 +112,10 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
           </div>
           <div className="row">
             <button onClick={() => set({ flipX: !layer.flipX }, 'fx')} className={layer.flipX ? 'on' : ''}>
-              Flip ↔
+              <FlipHorizontal2 size={14} aria-hidden /> Flip
             </button>
             <button onClick={() => set({ flipY: !layer.flipY }, 'fy')} className={layer.flipY ? 'on' : ''}>
-              Flip ↕
+              <FlipVertical2 size={14} aria-hidden /> Flip
             </button>
           </div>
           <div className="muted mono small">{layer.ref}</div>
@@ -182,10 +183,10 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
         </div>
       )}
       <div className="row">
-        <button onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'top'))}>Paling depan</button>
-        <button onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'bottom'))}>Paling belakang</button>
+        <button onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'top'))}><BringToFront size={14} aria-hidden /> Paling depan</button>
+        <button onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'bottom'))}><SendToBack size={14} aria-hidden /> Paling belakang</button>
         <button className="danger" onClick={() => apply((p) => removeLayer(p, panelId, layer.id))}>
-          Hapus
+          <Trash2 size={14} aria-hidden /> Hapus
         </button>
       </div>
     </div>
@@ -270,10 +271,10 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
               <span className="ellipsis">{layerLabel(l)}</span>
               <span className="layer-btns">
                 <button title="Naik" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'up')); }}>
-                  ▲
+                  <ChevronUp size={13} aria-hidden />
                 </button>
                 <button title="Turun" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'down')); }}>
-                  ▼
+                  <ChevronDown size={13} aria-hidden />
                 </button>
               </span>
             </li>

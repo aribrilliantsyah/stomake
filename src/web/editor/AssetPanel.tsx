@@ -1,3 +1,4 @@
+import { Folder, Globe, Image as ImageIcon, Loader2, MoreHorizontal, Upload, Wallpaper } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Popover } from '../ui/Popover';
 import { setPageBackground, updatePanel } from '../../shared/model';
@@ -74,16 +75,16 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
     >
       <div className="seg">
         <button className={scope === 'project' ? 'on' : ''} onClick={() => setScope('project')}>
-          Project <span className="mono muted">{assets.project.length}</span>
+          <Folder size={14} aria-hidden /> Project <span className="mono muted">{assets.project.length}</span>
         </button>
         <button className={scope === 'global' ? 'on' : ''} onClick={() => setScope('global')}>
-          Global <span className="mono muted">{assets.global.length}</span>
+          <Globe size={14} aria-hidden /> Global <span className="mono muted">{assets.global.length}</span>
         </button>
       </div>
       <div className="row">
         <input data-native-undo placeholder="Cari asset…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button onClick={() => input.current?.click()} disabled={busy}>
-          {busy ? '…' : 'Upload'}
+          {busy ? <><Loader2 size={14} className="spin" aria-hidden /> Upload</> : <><Upload size={14} aria-hidden /> Upload</>}
         </button>
         <input
           ref={input}
@@ -119,8 +120,9 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
               className={`asset-more${menu?.ref === a.ref ? ' open' : ''}`}
               onClick={(e) => setMenu(menu?.ref === a.ref ? null : { ref: a.ref, el: e.currentTarget })}
               title="Jadikan background"
+              aria-label="Menu asset"
             >
-              ⋯
+              <MoreHorizontal size={14} aria-hidden />
             </button>
             {menu?.ref === a.ref && (
               <Popover anchor={menu.el} open onClose={() => setMenu(null)} width={230} height={240} align="end" className="menu-list asset-menu">
@@ -135,9 +137,9 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setPanelBg(a)}>{s.selectedCover ? 'Jadikan background frame cover' : 'Jadikan background scene'}</button>
+                <button onClick={() => setPanelBg(a)}><ImageIcon size={14} aria-hidden /> {s.selectedCover ? 'Jadikan background frame cover' : 'Jadikan background scene'}</button>
                 <button onClick={() => setPageBg(a)} disabled={s.selectedCover} title={s.selectedCover ? 'Cover memakai background default project (atur di panel Properti)' : ''}>
-                  Jadikan background page
+                  <Wallpaper size={14} aria-hidden /> Jadikan background page
                 </button>
               </Popover>
             )}

@@ -1,3 +1,4 @@
+import { AlertTriangle, ArrowLeft, Check, Eye, FileDown, Loader2, Redo2, Shapes, Smile, Type, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { addLayer, defaultEmoji, defaultShape, defaultText } from '../../shared/model';
 import { ShapeMenu } from './ShapeMenu';
@@ -57,21 +58,21 @@ export function Toolbar({ slug }: { slug: string }) {
 
   return (
     <header className="toolbar">
-      <button onClick={async () => { await s.flush(); navigate('/'); }}>← Projects</button>
+      <button onClick={async () => { await s.flush(); navigate('/'); }}><ArrowLeft size={14} aria-hidden /> Projects</button>
       <span className="project-name">{s.project?.name}</span>
       <span className="sep" />
       <button onClick={s.undo} disabled={!s.past.length} title="Undo (Ctrl+Z)">
-        Undo
+        <Undo2 size={14} aria-hidden /> Undo
       </button>
       <button onClick={s.redo} disabled={!s.future.length} title="Redo (Ctrl+Shift+Z)">
-        Redo
+        <Redo2 size={14} aria-hidden /> Redo
       </button>
       <span className="sep" />
       <button onClick={() => insert(defaultText(space))} title="Tambah teks">
-        T Teks
+        <Type size={14} aria-hidden /> Teks
       </button>
       <button ref={shape.ref} className={shape.open ? 'on' : ''} onClick={shape.toggle} title="Tambah shape">
-        ◇ Shape
+        <Shapes size={14} aria-hidden /> Shape
       </button>
       <Popover anchor={shape.el} open={shape.open} onClose={shape.close} width={280} height={260}>
         <ShapeMenu
@@ -82,7 +83,7 @@ export function Toolbar({ slug }: { slug: string }) {
         />
       </Popover>
       <button ref={emoji.ref} className={emoji.open ? 'on' : ''} onClick={emoji.toggle} title="Tambah emoji">
-        😀 Emoji
+        <Smile size={14} aria-hidden /> Emoji
       </button>
       <Popover anchor={emoji.el} open={emoji.open} onClose={emoji.close} width={232} height={160}>
         <div className="emoji-menu">
@@ -101,13 +102,14 @@ export function Toolbar({ slug }: { slug: string }) {
       </Popover>
       <div className="grow" />
       <span className={`save-status ${s.saveStatus}`} title={s.saveError ?? ''}>
+        {s.saveStatus === 'saved' ? <Check size={13} aria-hidden /> : s.saveStatus === 'error' ? <AlertTriangle size={13} aria-hidden /> : <Loader2 size={13} className="spin" aria-hidden />}
         {STATUS[s.saveStatus]}
       </span>
       <button onClick={async () => { await s.flush(); window.open(`/print/${slug}?page=${pageOfCurrent()}`, '_blank'); }}>
-        Preview Page
+        <Eye size={14} aria-hidden /> Preview Page
       </button>
       <button className="primary" onClick={doExport} disabled={exporting}>
-        {exporting ? 'Mengekspor…' : 'Export PDF'}
+        {exporting ? <><Loader2 size={14} className="spin" aria-hidden /> Mengekspor…</> : <><FileDown size={14} aria-hidden /> Export PDF</>}
       </button>
     </header>
   );

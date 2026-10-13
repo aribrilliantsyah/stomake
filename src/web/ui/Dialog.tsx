@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Spinner } from './Loading';
 
 /** Small modal for text input (new project / rename) and confirmations. */
 export function Dialog({
@@ -75,7 +76,7 @@ export function PromptDialog({
         <>
           <button onClick={onClose}>Batal</button>
           <button className="primary" onClick={() => submit()} disabled={!v.trim() || busy}>
-            {busy ? '…' : submitLabel}
+            {busy ? <><Spinner size={12} /> {submitLabel}</> : submitLabel}
           </button>
         </>
       }

@@ -1,3 +1,4 @@
+import { FileUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toast } from '../state/uiStore';
@@ -66,7 +67,7 @@ export function StorylinePanel({ slug }: { slug: string }) {
   return (
     <div className="storyline">
       <div className="row">
-        <button onClick={() => file.current?.click()}>Import .docx</button>
+        <button onClick={() => file.current?.click()}><FileUp size={14} aria-hidden /> Import .docx</button>
         <input
           ref={file}
           type="file"

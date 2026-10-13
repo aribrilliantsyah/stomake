@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo } from 'react';
 
 export function pagerItems(page: number, pages: number): (number | '…')[] {
@@ -23,7 +24,7 @@ export function Pager({ page, pages, total, size, go }: { page: number; pages: n
       </span>
       <span className="spacer" />
       <button disabled={page <= 1} onClick={() => go(page - 1)}>
-        ‹ Sebelumnya
+        <ChevronLeft size={14} aria-hidden /> Sebelumnya
       </button>
       {list.map((n, i) =>
         n === '…' ? (
@@ -37,7 +38,7 @@ export function Pager({ page, pages, total, size, go }: { page: number; pages: n
         ),
       )}
       <button disabled={page >= pages} onClick={() => go(page + 1)}>
-        Berikutnya ›
+        Berikutnya <ChevronRight size={14} aria-hidden />
       </button>
     </nav>
   );

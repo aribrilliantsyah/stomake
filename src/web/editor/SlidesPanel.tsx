@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, Copy, MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { addCover, addPage, duplicatePage, movePage, removeCover, removePage } from '../../shared/model';
 import type { Project } from '../../shared/types';
@@ -82,12 +83,13 @@ export function SlidesPanel({ slug }: { slug: string }) {
               <button
                 className="slide-more"
                 title="Hapus cover"
+                aria-label="Hapus cover"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (confirm('Hapus cover?')) s.apply((p) => removeCover(p));
                 }}
               >
-                ×
+                <X size={13} aria-hidden />
               </button>
             </div>
           </div>
@@ -135,25 +137,26 @@ export function SlidesPanel({ slug }: { slug: string }) {
               <button
                 className="slide-more"
                 title="Menu page"
+                aria-label="Menu page"
                 onClick={(e) => {
                   e.stopPropagation();
                   setMenu(menu?.pi === pi ? null : { pi, el: e.currentTarget });
                 }}
               >
-                ⋯
+                <MoreHorizontal size={14} aria-hidden />
               </button>
             </div>
             {menu?.pi === pi && (
               <Popover anchor={menu.el} open onClose={() => setMenu(null)} width={160} height={200} className="menu-list">
-                <button onClick={() => act(pi, 'dup')}>Duplikat page</button>
+                <button onClick={() => act(pi, 'dup')}><Copy size={14} aria-hidden /> Duplikat page</button>
                 <button onClick={() => act(pi, 'up')} disabled={pi === 0}>
-                  Naik
+                  <ArrowUp size={14} aria-hidden /> Naik
                 </button>
                 <button onClick={() => act(pi, 'down')} disabled={pi === project.pages.length - 1}>
-                  Turun
+                  <ArrowDown size={14} aria-hidden /> Turun
                 </button>
                 <button className="danger" onClick={() => act(pi, 'del')} disabled={project.pages.length <= 1}>
-                  Hapus page
+                  <Trash2 size={14} aria-hidden /> Hapus page
                 </button>
               </Popover>
             )}
@@ -161,7 +164,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
         ))}
       </div>
       <div className="slides-actions">
-        <button onClick={addPageAfterCurrent}>+ Page</button>
+        <button onClick={addPageAfterCurrent}><Plus size={14} aria-hidden /> Page</button>
         {!project.cover && (
           <button
             onClick={() => {
@@ -169,7 +172,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
               s.selectCover();
             }}
           >
-            + Cover
+            <Plus size={14} aria-hidden /> Cover
           </button>
         )}
       </div>

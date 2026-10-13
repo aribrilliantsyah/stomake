@@ -30,6 +30,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: 3px;
@@ -339,3 +343,43 @@ body.print-mode { background: #8a8a86; }
   .sheet { break-after: page; page-break-after: always; }
   .sheet:last-child { break-after: auto; page-break-after: auto; }
 }
+
+/* ---- loading ---- */
+.top-progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 2000; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity 0.15s; }
+.top-progress.on { opacity: 1; }
+.top-progress::before { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; background: var(--accent); animation: top-progress 1.1s ease-in-out infinite; }
+@keyframes top-progress { from { left: -35%; } to { left: 100%; } }
+.sk { display: block; background: #e7e6e2; position: relative; overflow: hidden; }
+.sk::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent); animation: shimmer 1.2s infinite; }
+.sk-line { height: 10px; }
+.skeleton-editor .toolbar { gap: 10px; min-height: 31px; }
+.skeleton-editor .grow { flex: 1; }
+.sk-body { flex: 1; display: flex; min-height: 0; }
+.sk-col { width: 180px; border-right: 1px solid var(--line); padding: 10px; display: grid; gap: 10px; align-content: start; background: var(--panel); }
+.sk-col.wide { width: 260px; border-right: 0; border-left: 1px solid var(--line); gap: 14px; }
+.sk-slide { aspect-ratio: 708.75 / 567; width: 100%; }
+.sk-center { flex: 1; display: grid; place-items: center; padding: 24px; }
+.sk-page { width: min(720px, 90%); aspect-ratio: 708.75 / 567; display: flex; align-items: center; justify-content: center; gap: 4%; }
+.sk-frame { width: 26%; aspect-ratio: 9 / 16; background: #f3f2ef; border: 1px solid #d9d8d3; position: relative; z-index: 1; }
+.sk-card { cursor: default; }
+.sk-card .pcard-body { gap: 8px; }
+.spinner { display: inline-block; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: -2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .top-progress::before, .sk::after, .spinner, .pthumb.loading::after { animation-duration: 3s; } }
+.load-fail { height: 100%; display: grid; place-items: center; }
+.load-fail-box { border: 1px solid var(--line-strong); background: var(--panel); padding: 16px 18px; max-width: 460px; display: grid; gap: 8px; }
+.load-fail-box p { margin: 0; color: var(--danger); font-size: 12px; word-break: break-word; }
+.load-fail-box .row { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ---- icons ---- */
+button svg, .icon svg { flex-shrink: 0; }
+.popover.menu-list > button, .popover .menu-list > button { justify-content: flex-start; gap: 8px; }
+.popover.menu-list > button svg { color: var(--muted); }
+.popover.menu-list > button.danger svg { color: var(--danger); }
+.spin { animation: spin 0.8s linear infinite; }
+.home-search { position: relative; }
+.home-search > svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.home-search input { padding-left: 28px; }
+.collapsed { flex-direction: column; justify-content: flex-start; }
+.layer-btns button, .slide-more, .icon-btn, .fold { padding-left: 4px; padding-right: 4px; }
+.save-status { display: inline-flex; align-items: center; gap: 4px; }

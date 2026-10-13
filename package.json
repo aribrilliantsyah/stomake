@@ -33,6 +33,7 @@
     "hono": "^4.13.13",
     "image-size": "^2.0.4",
     "konva": "^10.7.1",
+    "lucide-react": "^1.56.0",
     "mammoth": "^1.13.0",
     "playwright": "^1.64.0",
     "react": "^19.3.0",
