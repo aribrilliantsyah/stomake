@@ -17,6 +17,7 @@ const base = {
   y: z.number(),
   rotation: z.number(),
   opacity: z.number().min(0).max(1),
+  groupId: z.string().optional(),
 };
 
 const layer = z.discriminatedUnion('type', [

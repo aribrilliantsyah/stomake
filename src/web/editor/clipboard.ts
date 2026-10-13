@@ -1,4 +1,5 @@
-import { addLayer, findPanel, layerFromDrop, pasteFileName, pasteLayer, removeLayer } from '../../shared/model';
+import { addLayer, findPanel, layerFromDrop, pasteFileName } from '../../shared/model';
+import { pasteLayers, removeLayers } from '../../shared/multi';
 import { panelSpace } from '../../shared/layout';
 import { api } from '../api';
 import { useEditor } from '../state/editorStore';
@@ -9,30 +10,31 @@ function isTypingTarget(t: EventTarget | null): boolean {
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || !!el.isContentEditable);
 }
 
-function selectedLayer() {
+function selectedLayers() {
   const st = useEditor.getState();
-  if (!st.project || !st.activePanelId || !st.selectedLayerId) return null;
-  const layer = findPanel(st.project, st.activePanelId)?.panel.layers.find((l) => l.id === st.selectedLayerId);
-  return layer ? { layer, panelId: st.activePanelId } : null;
+  if (!st.project || !st.activePanelId || !st.selectedLayerIds.length) return null;
+  const want = new Set(st.selectedLayerIds);
+  const layers = findPanel(st.project, st.activePanelId)?.panel.layers.filter((l) => want.has(l.id)) ?? [];
+  return layers.length ? { layers, panelId: st.activePanelId } : null;
 }
 
 export function handleCopy(e: ClipboardEvent): void {
   if (isTypingTarget(e.target)) return;
   if (getSelection()?.toString()) return; // copying visible page text
-  const sel = selectedLayer();
+  const sel = selectedLayers();
   if (!sel) return;
   e.preventDefault();
-  useEditor.getState().setClipboard({ layer: structuredClone(sel.layer), panelId: sel.panelId });
+  useEditor.getState().setClipboard({ layers: structuredClone(sel.layers), panelId: sel.panelId });
 }
 
 export function handleCut(e: ClipboardEvent): void {
   if (useEditor.getState().agentActive) return;
   if (isTypingTarget(e.target)) return;
-  const sel = selectedLayer();
+  const sel = selectedLayers();
   if (!sel) return;
   handleCopy(e);
   const st = useEditor.getState();
-  st.apply((p) => removeLayer(p, sel.panelId, sel.layer.id));
+  st.apply((p) => removeLayers(p, sel.panelId, sel.layers.map((l) => l.id)));
   st.selectLayer(null);
 }
 
@@ -76,13 +78,13 @@ export async function handlePaste(e: ClipboardEvent): Promise<void> {
   const clip = st.clipboard;
   if (!clip) return;
   e.preventDefault();
-  let newId = '';
+  let ids: string[] = [];
   st.apply((p) => {
-    const r = pasteLayer(p, panelId, clip.layer, clip.panelId === panelId);
-    newId = r.layerId;
+    const r = pasteLayers(p, panelId, clip.layers, clip.panelId === panelId);
+    ids = r.layerIds;
     return r.project;
   });
-  useEditor.getState().selectLayer(newId);
+  useEditor.getState().setSelection(ids);
 }
 
 let onAssetsChanged: (() => void) | null = null;

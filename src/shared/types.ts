@@ -54,6 +54,8 @@ export interface LayerBase {
   y: number;
   rotation: number;
   opacity: number;
+  /** layers sharing a groupId (same panel, >= 2) select and move together; groups are flat */
+  groupId?: string;
 }
 
 export interface ImageLayer extends LayerBase {

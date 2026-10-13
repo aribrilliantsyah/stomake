@@ -10,10 +10,7 @@ import {
   layerFromDrop,
   moveScene,
   pageOf,
-  removeLayer,
   removeScene,
-  reorderLayer,
-  updateLayer,
 } from '../../shared/model';
 import { FRAME, PAGE, panelSpace } from '../../shared/layout';
 import type { AssetInfo, Layer, Scene } from '../../shared/types';
@@ -28,6 +25,7 @@ import { trackLoading } from '../state/progress';
 import { connectLive } from '../state/live';
 import { AssetPanel, ASSET_MIME } from './AssetPanel';
 import { installClipboard } from './clipboard';
+import { groupLayers, moveLayers, pasteLayers, patchLayers, removeLayers, reorderLayers, ungroupLayers } from '../../shared/multi';
 import { ZoomBar } from './ZoomBar';
 import { undoRedoAction } from './shortcuts';
 import { PropsPanel, setPropsAssetsChanged } from './PropsPanel';
@@ -191,32 +189,44 @@ export function Editor({ slug }: { slug: string }) {
         return;
       }
       const panelId = st.activePanelId;
-      const layerId = st.selectedLayerId;
-      if (!panelId || !layerId) return;
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (!panelId) return;
+      const layersNow = (st.project && findPanel(st.project, panelId)?.panel.layers) || [];
+      if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        st.apply((p) => removeLayer(p, panelId, layerId));
+        st.setSelection(layersNow.map((l) => l.id));
+        return;
+      }
+      const ids = st.selectedLayerIds;
+      if (!ids.length) return;
+      if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        if (e.shiftKey) st.apply((p) => ungroupLayers(p, panelId, ids));
+        else st.apply((p) => groupLayers(p, panelId, ids).project);
+        st.setSelection(ids);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        st.apply((p) => removeLayers(p, panelId, ids));
         st.selectLayer(null);
       } else if (mod && e.key.toLowerCase() === 'd') {
         e.preventDefault();
-        const found = st.project && findPanel(st.project, panelId);
-        const src = found?.panel.layers.find((l) => l.id === layerId);
-        if (!src) return;
-        const copy = { ...structuredClone(src), id: crypto.randomUUID(), x: src.x + 40, y: src.y + 40 } as Layer;
-        st.apply((p) => addLayer(p, panelId, copy));
-        st.selectLayer(copy.id);
+        const src = layersNow.filter((l) => ids.includes(l.id));
+        let added: string[] = [];
+        st.apply((p) => {
+          const r = pasteLayers(p, panelId, src, true);
+          added = r.layerIds;
+          return r.project;
+        });
+        st.setSelection(added);
       } else if (e.key === ']') {
-        st.apply((p) => reorderLayer(p, panelId, layerId, e.shiftKey ? 'top' : 'up'));
+        st.apply((p) => reorderLayers(p, panelId, ids, e.shiftKey ? 'top' : 'up'));
       } else if (e.key === '[') {
-        st.apply((p) => reorderLayer(p, panelId, layerId, e.shiftKey ? 'bottom' : 'down'));
+        st.apply((p) => reorderLayers(p, panelId, ids, e.shiftKey ? 'bottom' : 'down'));
       } else if (e.key.startsWith('Arrow')) {
         e.preventDefault();
         const step = e.shiftKey ? 50 : 5;
         const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
-        const found = st.project && findPanel(st.project, panelId);
-        const l = found?.panel.layers.find((x) => x.id === layerId);
-        if (l) st.apply((p) => updateLayer(p, panelId, layerId, { x: l.x + dx, y: l.y + dy }), { coalesceKey: `nudge:${layerId}` });
+        st.apply((p) => moveLayers(p, panelId, ids, dx, dy), { coalesceKey: `nudge:${ids.join(',')}` });
       } else if (e.key === 'Escape') {
         st.selectLayer(null);
       }
@@ -256,15 +266,25 @@ export function Editor({ slug }: { slug: string }) {
     editable: !locked,
     activeSceneId: scene.id,
     activePanelId: s.activePanelId,
-    selectedLayerId: s.selectedLayerId,
+    selectedLayerIds: s.selectedLayerIds,
     onSelectScene: (id) => {
       if (!onCover) s.selectScene(id);
     },
-    onSelectLayer: (panelId, id) => {
+    onSelectLayer: (panelId, id, mode) => {
       if (panelId !== useEditor.getState().activePanelId) s.setActivePanel(panelId);
-      s.selectLayer(id);
+      const st = useEditor.getState();
+      if (!id) st.selectLayer(null);
+      else if (mode === 'toggle') st.toggleLayer(id);
+      else if (mode === 'single') st.selectLayer(id, { single: true });
+      // pressing on an already-selected layer keeps the multi-selection so it can be dragged together
+      else if (!st.selectedLayerIds.includes(id)) st.selectLayer(id);
     },
-    onChangeLayer: (panelId, layerId, patch) => s.apply((p) => updateLayer(p, panelId, layerId, patch)),
+    onSelectMany: (panelId, ids, additive) => {
+      if (panelId !== useEditor.getState().activePanelId) s.setActivePanel(panelId);
+      const st = useEditor.getState();
+      st.setSelection(additive ? [...st.selectedLayerIds, ...ids] : ids);
+    },
+    onChangeLayers: (panelId, patches) => s.apply((p) => patchLayers(p, panelId, patches)),
     onDropAsset: (sceneId, e, rect) => {
       const target = sceneId === project.cover?.id ? coverScene(project.cover) : flat.find((f) => f.scene.id === sceneId)?.scene;
       if (!target) return;
@@ -429,9 +449,10 @@ export function Editor({ slug }: { slug: string }) {
                     width={zoomW}
                     interactive={!locked}
                     activePanelId={s.activePanelId}
-                    selectedLayerId={s.selectedLayerId}
+                    selectedLayerIds={s.selectedLayerIds}
                     onSelectLayer={it.onSelectLayer}
-                    onChangeLayer={it.onChangeLayer}
+                    onSelectMany={it.onSelectMany}
+                    onChangeLayers={it.onChangeLayers}
                   />
                 </div>
               ) : onCover ? (

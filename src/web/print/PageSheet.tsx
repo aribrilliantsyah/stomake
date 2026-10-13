@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { BRUSH, columnXs, COVER, FRAME, LABEL_SIZE, LABEL_Y, NOTE, PAGE, SUB, TITLE, fitText } from '../../shared/layout';
 import type { Background, Cover, Layer, Project, Scene } from '../../shared/types';
-import { SceneCanvas } from '../editor/SceneCanvas';
+import { SceneCanvas, type LayerEditing } from '../editor/SceneCanvas';
 import { assetUrl } from '../state/imageCache';
 import { BrushFrame, BrushLine } from './BrushLine';
 
@@ -29,13 +29,10 @@ function bgStyle(bg: Background, slug: string): React.CSSProperties {
 }
 
 /** Editing hooks; when absent the sheet is a static print/thumbnail. */
-export interface SheetInteraction {
+export interface SheetInteraction extends LayerEditing {
   activeSceneId?: string | null;
   activePanelId?: string | null;
-  selectedLayerId?: string | null;
   onSelectScene?(sceneId: string): void;
-  onSelectLayer?(panelId: string, layerId: string | null): void;
-  onChangeLayer?(panelId: string, layerId: string, patch: Partial<Layer>): void;
   /** asset dropped onto a frame; `rect` is the frame canvas box in client px */
   onDropAsset?(sceneId: string, e: React.DragEvent, rect: DOMRect): void;
   onOpenScene?(sceneId: string): void;
@@ -77,9 +74,10 @@ function Frame({ scene, x, y, slug, scale, pixelRatio, interactive, it }: { scen
         interactive={interactive && it.editable !== false}
         pixelRatio={pixelRatio}
         activePanelId={active ? it.activePanelId : null}
-        selectedLayerId={active ? it.selectedLayerId : null}
+        selectedLayerIds={active ? it.selectedLayerIds : undefined}
         onSelectLayer={it.onSelectLayer}
-        onChangeLayer={it.onChangeLayer}
+        onSelectMany={it.onSelectMany}
+        onChangeLayers={it.onChangeLayers}
       />
       <BrushFrame w={FRAME.w * scale} h={FRAME.h * scale} scale={scale} />
     </div>

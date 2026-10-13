@@ -1,10 +1,13 @@
 import type Konva from 'konva';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Group, Image as KImage, Layer as KLayer, Line, Rect, Stage, Transformer } from 'react-konva';
 import { panelSpace } from '../../shared/layout';
 import type { Background, Layer, Panel, Scene } from '../../shared/types';
 import { useAssetImage } from '../state/imageCache';
-import { LayerNode } from './LayerNode';
+import { layersInRect, type Box } from '../../shared/multi';
+import { LayerNode, type SelectMode } from './LayerNode';
+
+const ACCENT = '#ae4f2c';
 
 const SPACE_W = 1080;
 
@@ -23,44 +26,112 @@ export function BackgroundNode({ bg, w, h, slug }: { bg: Background; w: number; 
   );
 }
 
-interface PanelProps {
+/** selection + editing callbacks shared by PanelContent / SceneCanvas / PageSheet */
+export interface LayerEditing {
+  selectedLayerIds?: string[];
+  onSelectLayer?: (panelId: string, id: string | null, mode?: SelectMode) => void;
+  /** marquee result; `additive` = Shift/Ctrl held */
+  onSelectMany?: (panelId: string, ids: string[], additive: boolean) => void;
+  /** one undo step for every layer touched by a drag / transform */
+  onChangeLayers?: (panelId: string, patches: Record<string, Partial<Layer>>) => void;
+}
+
+interface PanelProps extends LayerEditing {
   panel: Panel;
   split: boolean;
   slug: string;
   interactive: boolean;
-  selectedLayerId?: string | null;
-  onSelectLayer?: (panelId: string, id: string | null) => void;
-  onChangeLayer?: (panelId: string, layerId: string, patch: Partial<Layer>) => void;
 }
 
+type Rect4 = { x: number; y: number; width: number; height: number };
+
 /** Draws one panel in panel space (1080 x 1920|960); caller applies scale/offset. */
-export function PanelContent({ panel, split, slug, interactive, selectedLayerId, onSelectLayer, onChangeLayer }: PanelProps) {
+export function PanelContent({ panel, split, slug, interactive, selectedLayerIds = [], onSelectLayer, onSelectMany, onChangeLayers }: PanelProps) {
   const space = panelSpace(split);
   const nodes = useRef(new Map<string, Konva.Node>());
   const tr = useRef<Konva.Transformer>(null);
+  const root = useRef<Konva.Group>(null);
   const register = useCallback((id: string, n: Konva.Node | null) => {
     if (n) nodes.current.set(id, n);
     else nodes.current.delete(id);
   }, []);
 
+  // latest props for callbacks fired from Konva / microtasks
+  const live = useRef({ panelId: panel.id, onChangeLayers, onSelectMany, layers: panel.layers });
+  live.current = { panelId: panel.id, onChangeLayers, onSelectMany, layers: panel.layers };
+
+  // drag/transform of N nodes fires N end events in one tick → one patch, one undo step
+  const pending = useRef<Record<string, Partial<Layer>> | null>(null);
+  const commit = useCallback((id: string, patch: Partial<Layer>) => {
+    if (!pending.current) {
+      pending.current = {};
+      queueMicrotask(() => {
+        const all = pending.current!;
+        pending.current = null;
+        live.current.onChangeLayers?.(live.current.panelId, all);
+      });
+    }
+    pending.current[id] = { ...pending.current[id], ...patch } as Partial<Layer>;
+  }, []);
+
+  // outlines of each member when several layers are selected (the transformer draws only one box)
+  const [outlines, setOutlines] = useState<Rect4[]>([]);
+  const outlineKey = useRef('');
+  const setOutlinesIfChanged = (next: Rect4[]) => {
+    const key = JSON.stringify(next);
+    if (key === outlineKey.current) return;
+    outlineKey.current = key;
+    setOutlines(next);
+  };
+
   useEffect(() => {
     if (!tr.current) return;
-    const n = selectedLayerId ? nodes.current.get(selectedLayerId) : undefined;
-    tr.current.nodes(n ? [n] : []);
+    const ns = selectedLayerIds.map((id) => nodes.current.get(id)).filter((n): n is Konva.Node => !!n);
+    tr.current.nodes(ns);
     tr.current.getLayer()?.batchDraw();
+    setOutlinesIfChanged(ns.length > 1 && root.current ? ns.map((n) => roundRect(n.getClientRect({ relativeTo: root.current! }))) : []);
   });
 
-  const selected = panel.layers.find((l) => l.id === selectedLayerId);
+  // marquee (rubber-band) selection on empty space
+  const [marquee, setMarquee] = useState<Rect4 | null>(null);
+  const startMarquee = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const additive = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+    if (!additive) onSelectLayer?.(panel.id, null);
+    const g = root.current;
+    const stage = g?.getStage();
+    const p0 = g?.getRelativePointerPosition();
+    if (!g || !stage || !p0) return;
+    let rect: Rect4 = { x: p0.x, y: p0.y, width: 0, height: 0 };
+    const move = () => {
+      const p = g.getRelativePointerPosition();
+      if (!p) return;
+      rect = { x: p0.x, y: p0.y, width: p.x - p0.x, height: p.y - p0.y };
+      setMarquee(rect);
+    };
+    const up = () => {
+      stage.off('mousemove.marquee');
+      window.removeEventListener('mouseup', up, true);
+      setMarquee(null);
+      if (Math.abs(rect.width) < 6 && Math.abs(rect.height) < 6) return; // a plain click
+      const boxes: Box[] = live.current.layers.flatMap((l) => {
+        const n = nodes.current.get(l.id);
+        return n ? [{ id: l.id, ...n.getClientRect({ relativeTo: g }) }] : [];
+      });
+      live.current.onSelectMany?.(live.current.panelId, layersInRect(boxes, rect), additive);
+    };
+    stage.on('mousemove.marquee', move);
+    window.addEventListener('mouseup', up, true);
+  };
+
+  const sel = panel.layers.filter((l) => selectedLayerIds.includes(l.id));
+  const multi = sel.length > 1;
+  const one = sel.length === 1 ? sel[0] : undefined;
+  const freeAspect = !multi && (one?.type === 'arrow' || one?.type === 'shape');
+  const sideAnchors = !multi && (one?.type === 'image' || one?.type === 'arrow' || one?.type === 'shape');
 
   return (
-    <Group clipX={0} clipY={0} clipWidth={space.w} clipHeight={space.h}>
-      <Rect
-        width={space.w}
-        height={space.h}
-        fill="transparent"
-        onMouseDown={() => onSelectLayer?.(panel.id, null)}
-        listening={interactive}
-      />
+    <Group ref={root} clipX={0} clipY={0} clipWidth={space.w} clipHeight={space.h}>
+      <Rect width={space.w} height={space.h} fill="transparent" onMouseDown={startMarquee} listening={interactive} />
       <BackgroundNode bg={panel.background} w={space.w} h={space.h} slug={slug} />
       {panel.layers.map((l) => (
         <LayerNode
@@ -69,23 +140,29 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerId,
           slug={slug}
           interactive={interactive}
           registerNode={register}
-          onSelect={(id) => onSelectLayer?.(panel.id, id)}
-          onChange={(id, patch) => onChangeLayer?.(panel.id, id, patch)}
+          onSelect={(id, mode) => onSelectLayer?.(panel.id, id, mode)}
+          onSelectSingle={(id) => onSelectLayer?.(panel.id, id, 'single')}
+          onGestureStart={() => setOutlinesIfChanged([])}
+          onChange={commit}
         />
       ))}
+      {interactive &&
+        outlines.map((o, i) => (
+          <Rect key={i} {...o} stroke={ACCENT} strokeWidth={1} dash={[4, 3]} strokeScaleEnabled={false} listening={false} />
+        ))}
       {interactive && (
         <Transformer
           ref={tr}
           rotateEnabled
-          keepRatio={selected?.type !== 'arrow' && selected?.type !== 'shape'}
+          keepRatio={!freeAspect}
           enabledAnchors={
-            selected?.type === 'image' || selected?.type === 'arrow' || selected?.type === 'shape'
+            sideAnchors
               ? ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right']
               : ['top-left', 'top-right', 'bottom-left', 'bottom-right']
           }
           anchorSize={10}
-          borderStroke="#ae4f2c"
-          anchorStroke="#ae4f2c"
+          borderStroke={ACCENT}
+          anchorStroke={ACCENT}
           anchorCornerRadius={0}
           rotationSnaps={[0, 90, 180, 270]}
           flipEnabled={false}
@@ -93,11 +170,18 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerId,
           ignoreStroke
         />
       )}
+      {marquee && (
+        <Rect {...marquee} fill="rgba(174,79,44,0.08)" stroke={ACCENT} strokeWidth={1} dash={[4, 3]} strokeScaleEnabled={false} listening={false} />
+      )}
     </Group>
   );
 }
 
-interface SceneCanvasProps {
+function roundRect(r: Rect4): Rect4 {
+  return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+}
+
+interface SceneCanvasProps extends LayerEditing {
   scene: Scene;
   slug: string;
   /** rendered width in CSS px */
@@ -105,14 +189,11 @@ interface SceneCanvasProps {
   interactive: boolean;
   pixelRatio?: number;
   activePanelId?: string | null;
-  selectedLayerId?: string | null;
-  onSelectLayer?: (panelId: string, id: string | null) => void;
-  onChangeLayer?: (panelId: string, layerId: string, patch: Partial<Layer>) => void;
   stageRef?: React.Ref<Konva.Stage>;
 }
 
 /** A whole 9:16 scene frame (1 or 2 stacked panels). */
-export function SceneCanvas({ scene, slug, width, interactive, pixelRatio, activePanelId, selectedLayerId, onSelectLayer, onChangeLayer, stageRef }: SceneCanvasProps) {
+export function SceneCanvas({ scene, slug, width, interactive, pixelRatio, activePanelId, selectedLayerIds, onSelectLayer, onSelectMany, onChangeLayers, stageRef }: SceneCanvasProps) {
   const scale = width / SPACE_W;
   const height = (width * 16) / 9;
   const space = panelSpace(scene.split);
@@ -126,9 +207,10 @@ export function SceneCanvas({ scene, slug, width, interactive, pixelRatio, activ
               split={scene.split}
               slug={slug}
               interactive={interactive}
-              selectedLayerId={panel.id === activePanelId ? selectedLayerId : null}
+              selectedLayerIds={panel.id === activePanelId ? selectedLayerIds : undefined}
               onSelectLayer={onSelectLayer}
-              onChangeLayer={onChangeLayer}
+              onSelectMany={onSelectMany}
+              onChangeLayers={onChangeLayers}
             />
           </Group>
         ))}
@@ -140,7 +222,7 @@ export function SceneCanvas({ scene, slug, width, interactive, pixelRatio, activ
             y={scene.panels.findIndex((p) => p.id === activePanelId) * (height / 2)}
             width={width}
             height={height / 2}
-            stroke="#ae4f2c"
+            stroke={ACCENT}
             strokeWidth={2}
             dash={[6, 4]}
             listening={false}

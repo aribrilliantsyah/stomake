@@ -23,7 +23,7 @@ function setup() {
   const [a, b] = p.pages[0].scenes.map((s) => s.panels[0].id);
   const layer = { ...defaultEmoji('🔥', space), id: 'L1', x: 100, y: 200 };
   p = addLayer(p, a, layer);
-  useEditor.setState({ project: p, slug: 'a', currentSceneId: p.pages[0].scenes[0].id, selectedCover: false, activePanelId: a, selectedLayerId: 'L1', past: [], future: [], clipboard: null });
+  useEditor.setState({ project: p, slug: 'a', currentSceneId: p.pages[0].scenes[0].id, selectedCover: false, activePanelId: a, selectedLayerId: 'L1', selectedLayerIds: ['L1'], past: [], future: [], clipboard: null });
   return { a, b };
 }
 const layersOf = (panelIndex: number) => useEditor.getState().project!.pages[0].scenes[panelIndex].panels[0].layers;
@@ -66,7 +66,7 @@ test('copy lalu paste di scene lain', async () => {
   const c = clipEvent('copy');
   handleCopy(c);
   expect(c.defaultPrevented).toBe(true);
-  useEditor.setState({ currentSceneId: useEditor.getState().project!.pages[0].scenes[1].id, activePanelId: b, selectedLayerId: null });
+  useEditor.setState({ currentSceneId: useEditor.getState().project!.pages[0].scenes[1].id, activePanelId: b, selectedLayerId: null, selectedLayerIds: [] });
   const v = clipEvent('paste');
   await handlePaste(v);
   expect(v.defaultPrevented).toBe(true);
@@ -79,7 +79,7 @@ test('cut menghapus layer sumber', () => {
   setup();
   handleCut(clipEvent('cut'));
   expect(layersOf(0)).toHaveLength(0);
-  expect(useEditor.getState().clipboard?.layer.id).toBe('L1');
+  expect(useEditor.getState().clipboard?.layers.map((l) => l.id)).toEqual(['L1']);
 });
 
 test('handlePaste diabaikan saat target textarea', async () => {
@@ -124,4 +124,32 @@ test('Ctrl+C pada asset terpilih di panel Asset lalu Ctrl+V → layer asset itu 
   useEditor.setState({ selectedLayerId: l.id });
   handleCopy(clipEvent('copy'));
   expect(useEditor.getState().copiedAsset).toBeNull();
+});
+
+test('copy-paste beberapa layer + grup: semua ikut, grup dibuat ulang, selection = hasil paste', async () => {
+  const { a } = setup();
+  const { groupLayers } = await import('../src/shared/multi');
+  useEditor.getState().apply((p) => addLayer(addLayer(p, a, { ...defaultEmoji('⭐', space), id: 'L2' }), a, { ...defaultEmoji('💧', space), id: 'L3' }));
+  useEditor.getState().apply((p) => groupLayers(p, a, ['L2', 'L3']).project);
+  useEditor.getState().setSelection(['L1', 'L3']); // L3 pulls in its group
+  expect(useEditor.getState().selectedLayerIds).toEqual(['L1', 'L2', 'L3']);
+  handleCopy(clipEvent('copy'));
+  await handlePaste(clipEvent('paste'));
+  const ls = layersOf(0);
+  expect(ls).toHaveLength(6);
+  const pasted = ls.slice(3);
+  expect(useEditor.getState().selectedLayerIds).toEqual(pasted.map((l) => l.id));
+  expect(pasted[1].groupId).toBeTruthy();
+  expect(pasted[1].groupId).toBe(pasted[2].groupId);
+  expect(pasted[1].groupId).not.toBe(ls[1].groupId);
+  expect(pasted[0]).toMatchObject({ x: 140, y: 240 });
+});
+
+test('cut beberapa layer menghapus semuanya', () => {
+  const { a } = setup();
+  useEditor.getState().apply((p) => addLayer(p, a, { ...defaultEmoji('⭐', space), id: 'L2' }));
+  useEditor.getState().setSelection(['L1', 'L2']);
+  handleCut(clipEvent('cut'));
+  expect(layersOf(0)).toHaveLength(0);
+  expect(useEditor.getState().selectedLayerIds).toEqual([]);
 });

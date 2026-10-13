@@ -9,12 +9,19 @@ import { ShapeBody } from './ShapeBody';
 
 export const EMOJI_FONT = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
 
+export type SelectMode = 'replace' | 'toggle' | 'single';
+
 interface Props {
   layer: Layer;
   slug: string;
   interactive: boolean;
-  onSelect?: (id: string) => void;
+  /** pointer down on the layer; Shift/Ctrl/Cmd = toggle */
+  onSelect?: (id: string, mode: SelectMode) => void;
+  /** double-click: edit one member of a group on its own */
+  onSelectSingle?: (id: string) => void;
   onChange?: (id: string, patch: Partial<Layer>) => void;
+  /** drag / transform started (parent hides stale outlines) */
+  onGestureStart?: () => void;
   registerNode?: (id: string, node: Konva.Node | null) => void;
 }
 
@@ -45,7 +52,7 @@ function ImageBody({ layer, slug }: { layer: Extract<Layer, { type: 'image' }>; 
   );
 }
 
-export function LayerNode({ layer, slug, interactive, onSelect, onChange, registerNode }: Props) {
+export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, onChange, onGestureStart, registerNode }: Props) {
   const ref = useRef<Konva.Group>(null);
   useEffect(() => {
     registerNode?.(layer.id, ref.current);
@@ -117,8 +124,17 @@ export function LayerNode({ layer, slug, interactive, onSelect, onChange, regist
       opacity={layer.opacity}
       draggable={interactive}
       listening={interactive}
-      onMouseDown={() => onSelect?.(layer.id)}
-      onTap={() => onSelect?.(layer.id)}
+      onMouseDown={(e) => onSelect?.(layer.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey ? 'toggle' : 'replace')}
+      onTap={() => onSelect?.(layer.id, 'replace')}
+      onDblClick={(e) => {
+        if (!layer.groupId) return;
+        // a grouped layer: double-click picks just this member (and doesn't open the scene)
+        e.evt.stopPropagation();
+        e.cancelBubble = true;
+        onSelectSingle?.(layer.id);
+      }}
+      onDragStart={() => onGestureStart?.()}
+      onTransformStart={() => onGestureStart?.()}
       onDragEnd={(e) => onChange?.(layer.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) })}
       onTransformEnd={() => {
         const n = ref.current!;

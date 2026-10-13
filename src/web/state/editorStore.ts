@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { findScene, flatScenes } from '../../shared/model';
-import type { AssetInfo, Layer, Project } from '../../shared/types';
+import { findPanel, findScene, flatScenes } from '../../shared/model';
+import type { AssetInfo, Layer, Panel, Project } from '../../shared/types';
+import { expandGroups } from '../../shared/multi';
 import { api } from '../api';
 import { toast } from './uiStore';
 
@@ -25,14 +26,17 @@ interface EditorState {
   /** cover page selected (currentSceneId keeps the last scene) */
   selectedCover: boolean;
   activePanelId: string | null;
+  /** primary selected layer (last clicked); always a member of selectedLayerIds */
   selectedLayerId: string | null;
+  /** all selected layers in the active panel, back → front */
+  selectedLayerIds: string[];
   saveStatus: SaveStatus;
   saveError: string | null;
   past: Project[];
   future: Project[];
   /** layer copied with Ctrl+C / Ctrl+X (app-internal clipboard) */
-  clipboard: { layer: Layer; panelId: string } | null;
-  setClipboard(c: { layer: Layer; panelId: string } | null): void;
+  clipboard: { layers: Layer[]; panelId: string } | null;
+  setClipboard(c: { layers: Layer[]; panelId: string } | null): void;
   /** asset copied from the Asset panel (Ctrl+C on a tile); pasting places it in the active panel */
   copiedAsset: AssetInfo | null;
   copyAsset(a: AssetInfo | null): void;
@@ -46,7 +50,12 @@ interface EditorState {
   /** index of the page being edited, -1 for the cover */
   currentPageIndex(): number;
   setActivePanel(id: string): void;
-  selectLayer(id: string | null): void;
+  /** click: selects the layer and its whole group; `single` (double-click) selects only that member */
+  selectLayer(id: string | null, opts?: { single?: boolean }): void;
+  /** Shift/Ctrl+click: add or remove the layer (and its group) */
+  toggleLayer(id: string): void;
+  /** marquee / Ctrl+A: replace the selection (groups expanded) */
+  setSelection(ids: string[]): void;
   flush(): Promise<void>;
   /** an AI agent is editing this project: the editor is read-only */
   agentActive: boolean;
@@ -83,7 +92,15 @@ function clearTimer() {
   saveTimer = null;
 }
 
-type Sel = Pick<EditorState, 'currentSceneId' | 'activePanelId' | 'selectedLayerId' | 'selectedCover'>;
+type Sel = Pick<EditorState, 'currentSceneId' | 'activePanelId' | 'selectedLayerId' | 'selectedCover'> & { selectedLayerIds?: string[] };
+
+/** keep only ids still in the panel (in panel order); primary falls back to the front-most selected */
+function keepLayers(panel: Panel, s: Sel): { selectedLayerId: string | null; selectedLayerIds: string[] } {
+  const want = new Set(s.selectedLayerIds ?? (s.selectedLayerId ? [s.selectedLayerId] : []));
+  const ids = panel.layers.filter((l) => want.has(l.id)).map((l) => l.id);
+  const primary = s.selectedLayerId && ids.includes(s.selectedLayerId) ? s.selectedLayerId : (ids.at(-1) ?? null);
+  return { selectedLayerId: primary, selectedLayerIds: ids };
+}
 
 function locateScene(p: Project, id: string | null): { pi: number; si: number } | null {
   if (!id) return null;
@@ -101,8 +118,7 @@ function locateScene(p: Project, id: string | null): { pi: number; si: number } 
 function fixSelection(p: Project, s: Sel, prev?: Project | null) {
   if (s.selectedCover && p.cover) {
     const panel = p.cover.panel;
-    const layer = panel.layers.some((l) => l.id === s.selectedLayerId) ? s.selectedLayerId : null;
-    return { selectedCover: true, currentSceneId: s.currentSceneId ?? flatScenes(p)[0].scene.id, activePanelId: panel.id, selectedLayerId: layer };
+    return { selectedCover: true, currentSceneId: s.currentSceneId ?? flatScenes(p)[0].scene.id, activePanelId: panel.id, ...keepLayers(panel, s) };
   }
   let scene = s.currentSceneId ? findScene(p, s.currentSceneId) : null;
   if (!scene && prev) {
@@ -121,11 +137,15 @@ function fixSelection(p: Project, s: Sel, prev?: Project | null) {
   }
   scene ??= flatScenes(p)[0].scene;
   const panel = scene.panels.find((pn) => pn.id === s.activePanelId) ?? scene.panels[0];
-  const layer = panel.layers.some((l) => l.id === s.selectedLayerId) ? s.selectedLayerId : null;
-  return { selectedCover: false, currentSceneId: scene.id, activePanelId: panel.id, selectedLayerId: layer };
+  const keep = panel.id === s.activePanelId ? keepLayers(panel, s) : { selectedLayerId: null, selectedLayerIds: [] };
+  return { selectedCover: false, currentSceneId: scene.id, activePanelId: panel.id, ...keep };
 }
 
 export const useEditor = create<EditorState>((set, get) => {
+  function activeLayers() {
+    const { project, activePanelId } = get();
+    return (project && activePanelId && findPanel(project, activePanelId)?.panel.layers) || [];
+  }
   async function doSave() {
     const { slug, project } = get();
     if (!slug || !project) return;
@@ -182,6 +202,7 @@ export const useEditor = create<EditorState>((set, get) => {
     selectedCover: false,
     activePanelId: null,
     selectedLayerId: null,
+    selectedLayerIds: [],
     saveStatus: 'saved',
     saveError: null,
     past: [],
@@ -198,7 +219,7 @@ export const useEditor = create<EditorState>((set, get) => {
     async setAgent(active, since) {
       if (active) {
         const was = get().agentActive;
-        set({ agentActive: true, agentSince: since ?? get().agentSince ?? new Date().toISOString(), selectedLayerId: null });
+        set({ agentActive: true, agentSince: since ?? get().agentSince ?? new Date().toISOString(), selectedLayerId: null, selectedLayerIds: [] });
         if (!was) {
           clearTimer();
           // everything typed so far goes to disk before the agent is allowed to write
@@ -285,7 +306,7 @@ export const useEditor = create<EditorState>((set, get) => {
       pendingAfterSave = false;
       baseVersion = null;
       early = [];
-      set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null, agentActive: false, agentSince: null, clientId: null, remoteStoryline: null });
+      set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null, selectedLayerIds: [], agentActive: false, agentSince: null, clientId: null, remoteStoryline: null });
     },
 
     async load(slug) {
@@ -347,11 +368,31 @@ export const useEditor = create<EditorState>((set, get) => {
     },
 
     setActivePanel(id) {
-      set({ activePanelId: id, selectedLayerId: null });
+      set({ activePanelId: id, selectedLayerId: null, selectedLayerIds: [] });
     },
 
-    selectLayer(id) {
-      set({ selectedLayerId: id });
+    selectLayer(id, opts) {
+      if (!id) return set({ selectedLayerId: null, selectedLayerIds: [] });
+      const layers = activeLayers();
+      const ids = opts?.single ? [id] : expandGroups(layers, [id]);
+      set({ selectedLayerId: id, selectedLayerIds: ids });
+    },
+
+    toggleLayer(id) {
+      const layers = activeLayers();
+      const group = expandGroups(layers, [id]);
+      const cur = get().selectedLayerIds;
+      const on = cur.includes(id);
+      const want = new Set(on ? cur.filter((x) => !group.includes(x)) : [...cur, ...group]);
+      const ids = layers.filter((l) => want.has(l.id)).map((l) => l.id);
+      const primary = on ? (ids.includes(get().selectedLayerId ?? '') ? get().selectedLayerId : (ids.at(-1) ?? null)) : id;
+      set({ selectedLayerIds: ids, selectedLayerId: primary });
+    },
+
+    setSelection(ids) {
+      const layers = activeLayers();
+      const all = expandGroups(layers, ids);
+      set({ selectedLayerIds: all, selectedLayerId: all.at(-1) ?? null });
     },
 
     /** Resolves once everything currently in memory is on disk (or a save failed). */

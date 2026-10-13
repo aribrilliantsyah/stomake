@@ -1,4 +1,4 @@
-import { ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
+import { ChevronRight, Group, Ungroup, ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
 import { replaceRef, removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { Background, Layer, Scene } from '../../shared/types';
 import { AssetPicker } from './AssetPicker';
@@ -6,6 +6,7 @@ import { FontPicker } from './FontPicker';
 import { api, type AssetLists } from '../api';
 import { toast } from '../state/uiStore';
 import { useState } from 'react';
+import { groupLayers, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers } from '../../shared/multi';
 import { ColorField } from '../ui/ColorField';
 import { useEditor } from '../state/editorStore';
 
@@ -252,6 +253,185 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
 const layerLabel = (l: Layer) =>
   l.type === 'image' ? l.ref.slice(l.ref.indexOf(':') + 1) : l.type === 'text' ? `T  ${l.text}` : l.type === 'arrow' ? '↑ panah' : l.type === 'shape' ? `◇ ${l.shape}` : `${l.char} emoji`;
 
+type Row = { kind: 'layer'; layer: Layer; inGroup: boolean } | { kind: 'group'; groupId: string; members: Layer[] };
+
+/** front-most first; a group becomes one header row followed by its members (members sit next to each other) */
+function layerRows(layers: Layer[], open: Set<string>): Row[] {
+  const rows: Row[] = [];
+  const seen = new Set<string>();
+  for (const l of [...layers].reverse()) {
+    if (!l.groupId) {
+      rows.push({ kind: 'layer', layer: l, inGroup: false });
+      continue;
+    }
+    if (seen.has(l.groupId)) continue;
+    seen.add(l.groupId);
+    const members = layers.filter((x) => x.groupId === l.groupId).reverse();
+    rows.push({ kind: 'group', groupId: l.groupId, members });
+    if (open.has(l.groupId)) for (const m of members) rows.push({ kind: 'layer', layer: m, inGroup: true });
+  }
+  return rows;
+}
+
+function LayerList({ panelId, layers }: { panelId: string; layers: Layer[] }) {
+  const s = useEditor();
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const sel = new Set(s.selectedLayerIds);
+  const pick = (e: React.MouseEvent, id: string, single = false) => {
+    if (e.shiftKey || e.ctrlKey || e.metaKey) s.toggleLayer(id);
+    else s.selectLayer(id, { single });
+  };
+  const move = (e: React.MouseEvent, ids: string[], dir: 'up' | 'down') => {
+    e.stopPropagation();
+    s.apply((p) => reorderLayers(p, panelId, ids, dir));
+  };
+  const rows = layerRows(layers, open);
+  return (
+    <ul className="layer-list">
+      {rows.map((row) => {
+        if (row.kind === 'group') {
+          const ids = row.members.map((m) => m.id);
+          const on = ids.every((id) => sel.has(id));
+          const isOpen = open.has(row.groupId);
+          return (
+            <li key={`g:${row.groupId}`} className={`group-row${on ? ' on' : ''}`} onClick={(e) => pick(e, ids[0])}>
+              <button
+                className="ib sm ghost"
+                aria-label={isOpen ? 'Tutup grup' : 'Buka grup'}
+                title={isOpen ? 'Tutup grup' : 'Buka grup'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((o) => {
+                    const n = new Set(o);
+                    if (n.has(row.groupId)) n.delete(row.groupId);
+                    else n.add(row.groupId);
+                    return n;
+                  });
+                }}
+              >
+                {isOpen ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}
+              </button>
+              <Group size={13} aria-hidden className="muted" />
+              <span className="ellipsis">Grup</span>
+              <span className="muted mono small">{row.members.length}</span>
+              <span className="layer-btns">
+                <button className="ib sm ghost" title="Naik" aria-label="Naik" onClick={(e) => move(e, ids, 'up')}>
+                  <ChevronUp size={13} aria-hidden />
+                </button>
+                <button className="ib sm ghost" title="Turun" aria-label="Turun" onClick={(e) => move(e, ids, 'down')}>
+                  <ChevronDown size={13} aria-hidden />
+                </button>
+              </span>
+            </li>
+          );
+        }
+        const l = row.layer;
+        return (
+          <li key={l.id} className={`${sel.has(l.id) ? 'on' : ''}${row.inGroup ? ' member' : ''}`} onClick={(e) => pick(e, l.id, row.inGroup)}>
+            <span className="ellipsis">{layerLabel(l)}</span>
+            {!row.inGroup && (
+              <span className="layer-btns">
+                <button className="ib sm ghost" title="Naik" aria-label="Naik" onClick={(e) => move(e, [l.id], 'up')}>
+                  <ChevronUp size={13} aria-hidden />
+                </button>
+                <button className="ib sm ghost" title="Turun" aria-label="Turun" onClick={(e) => move(e, [l.id], 'down')}>
+                  <ChevronDown size={13} aria-hidden />
+                </button>
+              </span>
+            )}
+          </li>
+        );
+      })}
+      {!layers.length && <li className="muted empty">Tarik asset dari tab Asset ke canvas.</li>}
+    </ul>
+  );
+}
+
+/** several layers selected: only what applies to all of them */
+function MultiProps({ panelId, layers }: { panelId: string; layers: Layer[] }) {
+  const s = useEditor();
+  const ids = s.selectedLayerIds;
+  const sel = layers.filter((l) => ids.includes(l.id));
+  const gid = sel[0]?.groupId;
+  const oneGroup = !!gid && sel.every((l) => l.groupId === gid) && layers.filter((l) => l.groupId === gid).length === sel.length;
+  const anyGroup = sel.some((l) => l.groupId);
+  const op = Math.round((sel.reduce((n, l) => n + l.opacity, 0) / Math.max(1, sel.length)) * 100);
+  const mixedOpacity = sel.some((l) => Math.round(l.opacity * 100) !== Math.round(sel[0].opacity * 100));
+  return (
+    <div className="layer-props">
+      <div className="multi-head">
+        <span className="small muted">{oneGroup ? `Grup · ${sel.length} layer` : `${sel.length} layer dipilih`}</span>
+      </div>
+      <div className="grid2">
+        <button
+          disabled={oneGroup}
+          title="Kelompokkan (Ctrl+G)"
+          onClick={() => {
+            s.apply((p) => groupLayers(p, panelId, ids).project);
+            s.setSelection(ids);
+          }}
+        >
+          <Group size={14} aria-hidden /> Group
+        </button>
+        <button
+          disabled={!anyGroup}
+          title="Pisahkan grup (Ctrl+Shift+G)"
+          onClick={() => {
+            s.apply((p) => ungroupLayers(p, panelId, ids));
+            s.setSelection(ids);
+          }}
+        >
+          <Ungroup size={14} aria-hidden /> Ungroup
+        </button>
+      </div>
+      <div className="fld opacity-field">
+        <span>Opacity{mixedOpacity ? ' (campuran)' : ''}</span>
+        <div className="opacity-row">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={op}
+            onChange={(e) => s.apply((p) => setLayersOpacity(p, panelId, ids, Number(e.target.value)), { coalesceKey: `o:${ids.join(',')}` })}
+            aria-label="Opacity"
+          />
+          <span className="suffix-input">
+            <input
+              type="number"
+              className="mono pct"
+              min={0}
+              max={100}
+              value={op}
+              onChange={(e) => s.apply((p) => setLayersOpacity(p, panelId, ids, parseFloat(e.target.value)), { coalesceKey: `o:${ids.join(',')}` })}
+            />
+            <span className="muted">%</span>
+          </span>
+        </div>
+      </div>
+      <p className="muted small hint-multi">Geser salah satu untuk memindahkan semuanya. Shift/Ctrl+klik untuk menambah atau mengurangi pilihan, panah untuk menggeser.</p>
+      <div className="layer-actions">
+        <button className="ib" title="Paling depan" aria-label="Paling depan" onClick={() => s.apply((p) => reorderLayers(p, panelId, ids, 'top'))}>
+          <BringToFront size={14} aria-hidden />
+        </button>
+        <button className="ib" title="Paling belakang" aria-label="Paling belakang" onClick={() => s.apply((p) => reorderLayers(p, panelId, ids, 'bottom'))}>
+          <SendToBack size={14} aria-hidden />
+        </button>
+        <span className="grow" />
+        <button
+          className="danger"
+          onClick={() => {
+            s.apply((p) => removeLayers(p, panelId, ids));
+            s.selectLayer(null);
+          }}
+        >
+          <Trash2 size={14} aria-hidden /> Hapus {sel.length} layer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene; number: number; pageIndex: number; assets: AssetLists }) {
   const s = useEditor();
   const project = s.project!;
@@ -320,24 +500,12 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
       )}
 
       <section>
-        <h3>Layer</h3>
-        <ul className="layer-list">
-          {[...panel.layers].reverse().map((l) => (
-            <li key={l.id} className={l.id === s.selectedLayerId ? 'on' : ''} onClick={() => s.selectLayer(l.id)}>
-              <span className="ellipsis">{layerLabel(l)}</span>
-              <span className="layer-btns">
-                <button className="ib sm ghost" title="Naik" aria-label="Naik" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'up')); }}>
-                  <ChevronUp size={13} aria-hidden />
-                </button>
-                <button className="ib sm ghost" title="Turun" aria-label="Turun" onClick={(e) => { e.stopPropagation(); s.apply((p) => reorderLayer(p, panel.id, l.id, 'down')); }}>
-                  <ChevronDown size={13} aria-hidden />
-                </button>
-              </span>
-            </li>
-          ))}
-          {!panel.layers.length && <li className="muted empty">Tarik asset dari tab Asset ke canvas.</li>}
-        </ul>
-        {layer && <LayerProps layer={layer} panelId={panel.id} />}
+        <h3>
+          Layer
+          {s.selectedLayerIds.length > 1 && <span className="h3-count mono">{s.selectedLayerIds.length} dipilih</span>}
+        </h3>
+        <LayerList panelId={panel.id} layers={panel.layers} />
+        {s.selectedLayerIds.length > 1 ? <MultiProps panelId={panel.id} layers={panel.layers} /> : layer && <LayerProps layer={layer} panelId={panel.id} />}
       </section>
 
       <section>
