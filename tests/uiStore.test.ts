@@ -82,3 +82,12 @@ test('zoom page: default fit, step naik/turun seperti Word, batas 25–400%', as
   ui.getState().setPageZoom('fit');
   expect(ui.getState().pageZoom).toBe('fit');
 });
+
+test('toast error tidak tergusur oleh toast sukses baru', async () => {
+  const ui = await load();
+  ui.getState().toast('err', 'gagal simpan');
+  for (let i = 1; i <= 5; i++) ui.getState().toast('ok', `ok${i}`);
+  const texts = ui.getState().toasts.map((t) => t.text);
+  expect(texts).toContain('gagal simpan');
+  expect(texts).toHaveLength(4);
+});

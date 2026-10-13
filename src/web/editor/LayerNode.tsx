@@ -137,6 +137,7 @@ export function LayerNode({ layer, slug, interactive, onSelect, onChange, regist
             onChange?.(layer.id, { ...base, size: Math.max(8, Math.round(layer.size * sy)) });
             break;
           case 'shape':
+            // lines: the hit box is synthetic, only the horizontal scale is meaningful
             onChange?.(layer.id, { ...base, ...resizeShape(layer, sx, sy) });
             break;
           case 'arrow': {

@@ -49,8 +49,9 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
     const p = s.project;
     if (!p) return;
     const pi = s.currentPageIndex();
+    if (pi < 0) return; // cover has no page background of its own
     const bg = { kind: 'asset', ref: a.ref, fit: 'cover' } as const;
-    s.apply((q) => (pi < 0 ? { ...q, pageBackground: bg } : setPageBackground(q, pi, bg)));
+    s.apply((q) => setPageBackground(q, pi, bg));
     setMenu(null);
   }
 
@@ -134,8 +135,10 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
                     </div>
                   </div>
                 </div>
-                <button onClick={() => setPanelBg(a)}>Jadikan background scene</button>
-                <button onClick={() => setPageBg(a)}>Jadikan background page</button>
+                <button onClick={() => setPanelBg(a)}>{s.selectedCover ? 'Jadikan background frame cover' : 'Jadikan background scene'}</button>
+                <button onClick={() => setPageBg(a)} disabled={s.selectedCover} title={s.selectedCover ? 'Cover memakai background default project (atur di panel Properti)' : ''}>
+                  Jadikan background page
+                </button>
               </Popover>
             )}
           </div>

@@ -88,10 +88,12 @@ export const useUi = create<UiState>((set, get) => ({
     const id = `t${++seq}`;
     let toasts = [...get().toasts, { id, kind, text, link }];
     while (toasts.length > MAX_TOASTS) {
-      const [old, ...rest] = toasts;
+      // evict the oldest non-error toast first; errors only go when everything is an error
+      const idx = toasts.findIndex((t) => t.kind !== 'err');
+      const old = toasts[idx >= 0 ? idx : 0];
       clearTimeout(timers.get(old.id));
       timers.delete(old.id);
-      toasts = rest;
+      toasts = toasts.filter((t) => t.id !== old.id);
     }
     set({ toasts });
     const ms = TOAST_MS[kind];

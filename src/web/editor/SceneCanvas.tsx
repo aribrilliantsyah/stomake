@@ -88,6 +88,8 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerId,
           anchorStroke="#2f6fed"
           anchorCornerRadius={0}
           rotationSnaps={[0, 90, 180, 270]}
+          flipEnabled={false}
+          boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 4 || Math.abs(newBox.height) < 4 ? oldBox : newBox)}
           ignoreStroke
         />
       )}

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { defaultShape, resizeShape } from '../src/shared/model';
+import { defaultShape, lineHitBox, resizeShape } from '../src/shared/model';
 import { SHAPE_KINDS } from '../src/shared/types';
 
 const full = { w: 1080, h: 1920 };
@@ -23,8 +23,27 @@ test('resizeShape line (h=0) tetap 0, tidak NaN', () => {
   expect(resizeShape(defaultShape('line', full), 2, 3)).toEqual({ width: 1000, height: 0 });
 });
 
-test('resizeShape negatif/NaN → 0', () => {
+test('resizeShape NaN → ukuran minimum (tidak NaN)', () => {
   const s = defaultShape('rect', full);
-  expect(resizeShape(s, -1, Number.NaN)).toEqual({ width: 0, height: 0 });
+  expect(resizeShape(s, Number.NaN, Number.NaN)).toEqual({ width: 8, height: 8 });
   expect(resizeShape(s, 1.5, 0.5)).toEqual({ width: 600, height: 200 });
+});
+
+test('resizeShape: skala negatif (handle ditarik melewati sisi seberang) tidak jadi garis', () => {
+  const s = defaultShape('rect', full);
+  expect(resizeShape(s, -1.5, 1)).toEqual({ width: 600, height: 400 });
+  expect(resizeShape(s, 1, -0.5)).toEqual({ width: 400, height: 200 });
+});
+
+test('resizeShape: shape non-garis minimal 8px; garis tetap tinggi 0', () => {
+  expect(resizeShape(defaultShape('ellipse', full), 0.001, 0.001)).toEqual({ width: 8, height: 8 });
+  expect(resizeShape(defaultShape('line', full), 3, 7)).toEqual({ width: 1500, height: 0 });
+});
+
+test('lineHitBox: garis punya kotak tinggi > 0 supaya Transformer bisa resize/rotate', () => {
+  const l = defaultShape('line', full);
+  const box = lineHitBox(l);
+  expect(box.height).toBeGreaterThan(0);
+  expect(box.width).toBe(500);
+  expect(box.y).toBe(-box.height / 2);
 });

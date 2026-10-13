@@ -1,4 +1,5 @@
 import { Arrow, Circle, Ellipse, Group, Line, Path, Rect, Star } from 'react-konva';
+import { isLineShape, lineHitBox } from '../../shared/model';
 import type { ShapeLayer } from '../../shared/types';
 
 /** Speech bubble path: rounded box with a tail at the bottom-left, centered on 0,0. */
@@ -26,6 +27,19 @@ function bubblePath(w: number, h: number): string {
 }
 
 export function ShapeBody({ layer }: { layer: ShapeLayer }) {
+  if (isLineShape(layer.shape) && layer.height === 0) {
+    const b = lineHitBox(layer);
+    return (
+      <Group>
+        <Rect {...b} fill="transparent" />
+        <ShapeInner layer={layer} />
+      </Group>
+    );
+  }
+  return <ShapeInner layer={layer} />;
+}
+
+function ShapeInner({ layer }: { layer: ShapeLayer }) {
   const { width: w, height: h, strokeWidth: sw } = layer;
   const common = {
     fill: layer.fill ?? undefined,

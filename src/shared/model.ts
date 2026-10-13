@@ -314,13 +314,25 @@ export function defaultShape(kind: ShapeKind, space: { w: number; h: number }): 
   };
 }
 
-/** New box after a Transformer scale; never negative or NaN; zero stays zero. */
+export const MIN_SHAPE = 8;
+
+/**
+ * New box after a Transformer scale. A negative scale (handle dragged past the opposite edge)
+ * keeps its magnitude; non-line shapes never go below MIN_SHAPE; a line's height stays 0.
+ */
 export function resizeShape(l: ShapeLayer, sx: number, sy: number): Pick<ShapeLayer, 'width' | 'height'> {
-  const f = (v: number, s: number) => {
-    const n = Math.round(v * s);
-    return Number.isFinite(n) && n > 0 ? n : 0;
+  const f = (v: number, s: number, min: number) => {
+    const n = Math.round(v * Math.abs(s));
+    return Number.isFinite(n) ? Math.max(min, n) : min;
   };
-  return { width: f(l.width, sx), height: f(l.height, sy) };
+  const line = isLineShape(l.shape);
+  return { width: f(l.width, sx, MIN_SHAPE), height: line ? 0 : f(l.height, sy, MIN_SHAPE) };
+}
+
+/** Invisible box around a line shape so the Transformer has a non-zero height to work with. */
+export function lineHitBox(l: ShapeLayer): { x: number; y: number; width: number; height: number } {
+  const height = Math.max(40, l.strokeWidth * 3);
+  return { x: -l.width / 2, y: -height / 2, width: l.width, height };
 }
 
 // ---- clipboard ----
