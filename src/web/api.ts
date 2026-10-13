@@ -1,4 +1,4 @@
-import type { AssetInfo, Project, ProjectPage, ProjectQuery } from '../shared/types';
+import type { AssetInfo, Project, ProjectPage, ProjectQuery, SettingsView } from '../shared/types';
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
@@ -21,6 +21,8 @@ export interface AssetLists {
 }
 
 export const api = {
+  getSettings: () => req<SettingsView>('/api/settings'),
+  putSettings: (s: { mcp: { enabled: boolean } }) => req<SettingsView>('/api/settings', jsonInit('PUT', s)),
   queryProjects: (q: ProjectQuery) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '' && v !== 0) p.set(k, String(v));

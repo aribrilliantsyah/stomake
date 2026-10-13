@@ -9,6 +9,7 @@ import { api } from '../api';
 import { navigate } from '../router';
 import { AgentBadge } from './AgentBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { SettingsButton } from '../ui/SettingsDialog';
 import { useEditor } from '../state/editorStore';
 import { toast } from '../state/uiStore';
 
@@ -105,6 +106,7 @@ export function Toolbar({ slug }: { slug: string }) {
       <div className="grow" />
       <AgentBadge />
       <ThemeToggle />
+      <SettingsButton />
       <span className={`save-status ${s.saveStatus}`} title={s.saveError ?? ''}>
         {s.saveStatus === 'saved' ? <Check size={13} aria-hidden /> : s.saveStatus === 'error' ? <AlertTriangle size={13} aria-hidden /> : <Loader2 size={13} className="spin" aria-hidden />}
         {STATUS[s.saveStatus]}

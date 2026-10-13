@@ -443,3 +443,27 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .agent-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: agent-pulse 1.2s ease-in-out infinite; }
 @keyframes agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 .badge.ai { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---- settings ---- */
+.set-section { padding: 4px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 12px; display: grid; gap: 8px; }
+.set-section:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.set-section h3 { margin: 0; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.set-row { display: flex; align-items: center; gap: 8px; }
+.set-row .grow { flex: 1; }
+.set-off { opacity: 0.5; }
+.seg-radio { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--line-strong); margin-left: -1px; cursor: pointer; font-size: 12px; background: var(--panel); }
+.seg-radio:first-child { border-radius: 3px 0 0 3px; margin-left: 0; }
+.seg-radio:last-child { border-radius: 0 3px 3px 0; }
+.seg-radio.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); position: relative; z-index: 1; }
+.seg-radio { position: relative; }
+.seg-radio input { position: absolute; inset: 0; margin: 0; appearance: none; cursor: pointer; border: 0; background: transparent; }
+.seg-radio input:focus-visible { outline: 1px solid var(--accent); }
+.switch { width: 34px; height: 18px; padding: 0; border-radius: 9px; position: relative; background: var(--line-strong); border-color: var(--line-strong); }
+.switch .knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--panel); transition: left 0.12s; }
+.switch.on { background: var(--accent); border-color: var(--accent); }
+.switch.on .knob { left: 18px; }
+.copy-row { display: flex; align-items: center; gap: 6px; }
+.copy-row.top { align-items: flex-start; }
+.mcp-url { flex: 1; padding: 4px 6px; border: 1px solid var(--line); background: var(--panel-2); font-size: 12px; overflow: auto; white-space: nowrap; }
+.mcp-config { flex: 1; margin: 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel-2); font-size: 11px; line-height: 1.45; overflow: auto; }
+.dialog { width: 460px; }

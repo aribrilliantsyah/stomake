@@ -52,6 +52,32 @@ Data disimpan di `~/Storyboard` (ubah dengan env `STORYBOARD_HOME`):
 | Z / double-click frame | Zoom satu scene |
 | Ctrl+1 / Ctrl+2 / Ctrl+3 | Lipat panel Slides / Storyline-Asset / Properti |
 
+## Agent AI (MCP)
+
+1. Buka ⚙ **Pengaturan** → nyalakan **MCP**. Default mati; selama mati `/mcp` membalas 404.
+2. Daftarkan URL ke agent (Hermes, Claude Code, Cursor, …). Contoh konfigurasi (tombol Salin ada di dialog):
+
+   ```json
+   { "mcpServers": { "storyboard-maker": { "type": "http", "url": "http://127.0.0.1:5178/mcp" } } }
+   ```
+
+   Claude Code: `claude mcp add --transport http storyboard-maker http://127.0.0.1:5178/mcp`
+
+3. Ada 19 tool: `list_projects`, `create_project`, `get_project`, `get/set_storyline`, `list_assets`, `add_page`, `add_scene`, `remove_scene`, `remove_page`, `update_scene`, `set_cover`, `set_background`, `add_layer`, `update_layer`, `remove_layer`, `reorder_layer`, `export_pdf`, `finish_editing`.
+   - Agent tidak bisa menghapus, mengarsipkan, atau mengganti nama project.
+   - Agent tidak bisa meng-upload file.
+
+Saat agent mengedit project yang sedang dibuka:
+- Editor menampilkan perubahan secara live dan menjadi read-only, dengan badge **AI sedang bekerja…**.
+- Kunci terbuka saat agent memanggil `finish_editing`, atau 10 detik setelah aksi terakhirnya.
+- Setelah itu, perubahan agent bisa dibatalkan satu per satu dengan Ctrl+Z.
+
+Server hanya mendengarkan di 127.0.0.1. Permintaan dari host atau origin lain ditolak.
+
+## Tema
+
+Tombol ☾/☀ di header untuk beralih terang/gelap. Pilihan "Ikuti sistem" ada di Pengaturan. Isi storyboard dan PDF tidak ikut berubah warna.
+
 ## Development
 
 ```bash
