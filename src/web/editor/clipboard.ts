@@ -18,6 +18,7 @@ function selectedLayer() {
 
 export function handleCopy(e: ClipboardEvent): void {
   if (isTypingTarget(e.target)) return;
+  if (getSelection()?.toString()) return; // copying visible page text
   const sel = selectedLayer();
   if (!sel) return;
   e.preventDefault();
@@ -52,17 +53,24 @@ export async function handlePaste(e: ClipboardEvent): Promise<void> {
     const slug = st.slug;
     try {
       const named = images.map((f, i) => new File([f], i === 0 ? pasteFileName(new Date()) : pasteFileName(new Date()).replace('.png', `-${i + 1}.png`), { type: f.type }));
-      const infos = await api.uploadAssets('project', named, slug);
+      const infos = await api.uploadClips(slug, named);
       const space = panelSpace(isSplitPanel(panelId));
       for (const info of infos) {
         const layer = layerFromDrop(info, space.w / 2, space.h / 2, space);
         useEditor.getState().apply((p) => addLayer(p, panelId, layer));
         useEditor.getState().selectLayer(layer.id);
       }
-      onAssetsChanged?.();
     } catch (err) {
       toast('err', `Gagal menempel gambar: ${(err as Error).message}`);
     }
+    return;
+  }
+  if (st.copiedAsset) {
+    e.preventDefault();
+    const space = panelSpace(isSplitPanel(panelId));
+    const layer = layerFromDrop(st.copiedAsset, space.w / 2, space.h / 2, space);
+    st.apply((p) => addLayer(p, panelId, layer));
+    useEditor.getState().selectLayer(layer.id);
     return;
   }
   const clip = st.clipboard;

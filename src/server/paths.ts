@@ -60,6 +60,10 @@ export function projectDir(slug: string): string {
   return join(projectsDir(), slug);
 }
 
+export function projectClipsDir(slug: string): string {
+  return join(projectDir(slug), 'clips');
+}
+
 export function projectAssetsDir(slug: string): string {
   return join(projectDir(slug), 'assets');
 }

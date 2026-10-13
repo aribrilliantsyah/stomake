@@ -4,9 +4,9 @@ import { extname, join } from 'node:path';
 import { Hono } from 'hono';
 import { publish } from './live';
 import mammoth from 'mammoth';
-import { AssetError, listAssets, MIME, saveAssets } from './assets';
+import { AssetError, listAssets, MIME, promoteClip, saveAssets } from './assets';
 import { badRequest, checkSlug, type Ctx } from './http';
-import { isSafeName, isValidSlug, libraryDir, projectAssetsDir } from './paths';
+import { isSafeName, isValidSlug, libraryDir, projectAssetsDir, projectClipsDir } from './paths';
 import { projectExists, writeStoryline } from './store';
 
 async function filesFrom(form: FormData, key: string): Promise<{ name: string; data: Buffer }[]> {
@@ -27,8 +27,8 @@ export function assetRoutes(): Hono {
     return c.json(await listAssets(slug || undefined));
   });
 
-  const upload = (scope: 'global' | 'project') => async (c: Ctx) => {
-    if (scope === 'project') {
+  const upload = (scope: 'global' | 'project' | 'clip') => async (c: Ctx) => {
+    if (scope !== 'global') {
       const err = checkSlug(c);
       if (err) return err;
     }
@@ -45,6 +45,15 @@ export function assetRoutes(): Hono {
   };
   r.post('/api/assets/global', upload('global'));
   r.post('/api/assets/project/:slug', upload('project'));
+  r.post('/api/projects/:slug/clips', upload('clip'));
+  r.post('/api/projects/:slug/clips/:name/promote', async (c) => {
+    const err = checkSlug(c);
+    if (err) return err;
+    const name = c.req.param('name');
+    if (!isSafeName(name)) return badRequest(c, 'invalid name');
+    const info = await promoteClip(c.req.param('slug'), name);
+    return info ? c.json(info) : c.json({ error: 'not found' }, 404);
+  });
 
   const serveFile = async (c: Ctx, dir: string, name: string) => {
     if (!isSafeName(name)) return badRequest(c, 'invalid name');
@@ -54,6 +63,11 @@ export function assetRoutes(): Hono {
     return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': type, 'cache-control': 'no-cache' });
   };
   r.get('/files/global/:name', (c) => serveFile(c, libraryDir(), c.req.param('name')));
+  r.get('/files/clip/:slug/:name', async (c) => {
+    const slug = c.req.param('slug');
+    if (!isValidSlug(slug)) return badRequest(c, 'invalid slug');
+    return serveFile(c, projectClipsDir(slug), c.req.param('name'));
+  });
   r.get('/files/project/:slug/:name', async (c) => {
     const slug = c.req.param('slug');
     if (!isValidSlug(slug)) return badRequest(c, 'invalid slug');

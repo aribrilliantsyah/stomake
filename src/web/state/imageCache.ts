@@ -17,7 +17,7 @@ export function assetUrl(ref: AssetRef, slug: string): string {
   const i = ref.indexOf(':');
   const scope = ref.slice(0, i);
   const name = encodeURIComponent(ref.slice(i + 1));
-  return scope === 'global' ? `/files/global/${name}` : `/files/project/${slug}/${name}`;
+  return scope === 'global' ? `/files/global/${name}` : `/files/${scope === 'clip' ? 'clip' : 'project'}/${slug}/${name}`;
 }
 
 export function loadImage(url: string): Promise<HTMLImageElement | null> {

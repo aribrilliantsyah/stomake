@@ -192,6 +192,7 @@ export async function duplicateProject(slug: string): Promise<string> {
   const to = projectDir(target);
   await mkdir(to, { recursive: true });
   await cp(join(from, 'assets'), join(to, 'assets'), { recursive: true }).catch(() => mkdir(join(to, 'assets'), { recursive: true }));
+  await cp(join(from, 'clips'), join(to, 'clips'), { recursive: true }).catch(() => undefined);
   await mkdir(join(to, 'exports'), { recursive: true });
   await writeFile(join(to, 'storyline.txt'), await readStoryline(slug), 'utf8');
   const now = new Date().toISOString();

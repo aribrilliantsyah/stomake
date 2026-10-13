@@ -98,9 +98,10 @@ Default posisi = tengah panel. Default ukuran image = 60% lebar panel (sama deng
 - Semua warna UI memakai CSS variable. Tidak boleh ada warna hex/rgb UI langsung di komponen; warna konten storyboard boleh.
 - Variabel minimum: `--bg --panel --panel-2 --line --line-strong --text --muted --accent --accent-soft --danger --danger-soft --hover --shadow`.
 - Palet gelap compact dan netral (tanpa glow/gradient):
-  - `--bg #17181a`, `--panel #1f2023`, `--panel-2 #26272b`
-  - `--line #34353a`, `--line-strong #45464c`
-  - `--text #e6e6e3`, `--muted #9a9a95`
-  - `--accent #6b9bff`, `--accent-soft #22304d`, `--danger #ef6a5a`
+  - `--bg #1a1918`, `--panel #232220`, `--panel-2 #2a2926`
+  - `--line #383632`, `--line-strong #4a4843`
+  - `--text #ece9e2`, `--muted #a19d94`
+  - `--accent #d97757`, `--accent-soft #30231d`, `--danger #ef6a5a`
+  - Revisi 5: aksen biru diganti clay hangat (terang `#ae4f2c`, gelap `#d97757`) dan netral jadi hangat, atas permintaan user ("terlalu kontras dengan biru… warna claude atau hitam"). Tombol utama tetap hitam/teks. Kontras aksen ≥ 4.5:1 di panel dan accent-soft.
 - **Isi storyboard tidak berubah**: page, frame, teks di canvas, thumbnail, dan PDF tetap warna aslinya. Route `/print` selalu terang.
 - Kontras teks UI ≥ 4.5:1 terhadap `--panel` di kedua tema.

@@ -1,14 +1,17 @@
-import { BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
-import { removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
+import { ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
+import { replaceRef, removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { Background, Layer, Scene } from '../../shared/types';
 import { AssetPicker } from './AssetPicker';
 import { FontPicker } from './FontPicker';
-import type { AssetLists } from '../api';
+import { api, type AssetLists } from '../api';
+import { toast } from '../state/uiStore';
+import { useState } from 'react';
+import { ColorField } from '../ui/ColorField';
 import { useEditor } from '../state/editorStore';
 
 function Num({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
-    <label className="field num-field">
+    <label className="fld">
       <span>{label}</span>
       <input
         type="number"
@@ -29,7 +32,7 @@ function BgEditor({ label, bg, onChange, allowInherit, assets }: { label: string
   const kind = bg === null ? 'inherit' : bg.kind;
   return (
     <div className="bg-editor">
-      <div className="field">
+      <label className="fld">
         <span>{label}</span>
         <select
           value={kind}
@@ -46,31 +49,56 @@ function BgEditor({ label, bg, onChange, allowInherit, assets }: { label: string
             Gambar asset
           </option>
         </select>
-      </div>
-      {bg?.kind === 'color' && (
-        <div className="field">
-          <span />
-          <input type="color" value={bg.color} onChange={(e) => onChange({ kind: 'color', color: e.target.value.toUpperCase() })} />
-          <input className="mono hex" value={bg.color} onChange={(e) => onChange({ kind: 'color', color: e.target.value })} />
-        </div>
-      )}
+      </label>
+      {bg?.kind === 'color' && <ColorField label={label} value={bg.color} onChange={(color) => onChange({ kind: 'color', color })} />}
       {bg?.kind === 'asset' && (
-        <>
-          <div className="field">
-            <span />
-            <AssetPicker value={bg.ref} assets={assets} onChange={(ref) => onChange({ ...bg, ref })} />
-          </div>
-          <div className="field">
-            <span />
-            <select value={bg.fit} onChange={(e) => onChange({ ...bg, fit: e.target.value as 'cover' | 'contain' })}>
-              <option value="cover">Penuhi (cover)</option>
-              <option value="contain">Muat (contain)</option>
-            </select>
-          </div>
-        </>
+        <div className="fld-row">
+          <AssetPicker value={bg.ref} assets={assets} onChange={(ref) => onChange({ ...bg, ref })} />
+          <select className="fit-select" value={bg.fit} onChange={(e) => onChange({ ...bg, fit: e.target.value as 'cover' | 'contain' })} aria-label="Penyesuaian">
+            <option value="cover">Penuhi</option>
+            <option value="contain">Muat</option>
+          </select>
+        </div>
       )}
     </div>
   );
+}
+
+/** A pasted image lives only in this scene; offer to add it to the project's asset library. */
+function SaveClip({ layer, panelId }: { layer: Extract<Layer, { type: 'image' }>; panelId: string }) {
+  const [busy, setBusy] = useState(false);
+  const slug = useEditor((s) => s.slug);
+  const apply = useEditor((s) => s.apply);
+  const name = layer.ref.slice('clip:'.length);
+  return (
+    <div className="clip-note">
+      <span className="muted small">Gambar tempelan — belum ada di Asset.</span>
+      <button
+        disabled={busy || !slug}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            const info = await api.promoteClip(slug!, name);
+            // every layer using this clip now points at the library copy
+            apply((p) => replaceRef(p, layer.ref, info.ref));
+            onAssetsChanged?.();
+            toast('ok', `Disimpan ke Asset: ${info.name}`);
+          } catch (e) {
+            toast('err', `Gagal menyimpan: ${(e as Error).message}`);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? <Loader2 size={14} className="spin" aria-hidden /> : <ImagePlus size={14} aria-hidden />} Simpan ke asset
+      </button>
+    </div>
+  );
+}
+
+let onAssetsChanged: (() => void) | null = null;
+export function setPropsAssetsChanged(fn: (() => void) | null) {
+  onAssetsChanged = fn;
 }
 
 function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
@@ -78,13 +106,14 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
   const set = (patch: Partial<Layer>, key = 'f') => apply((p) => updateLayer(p, panelId, layer.id, patch), { coalesceKey: `${key}:${layer.id}` });
   return (
     <div className="layer-props">
-      <div className="grid2">
+      <div className="grid3">
         <Num label="X" value={layer.x} onChange={(x) => set({ x }, 'x')} />
         <Num label="Y" value={layer.y} onChange={(y) => set({ y }, 'y')} />
         <Num label="Rotasi" value={layer.rotation} onChange={(rotation) => set({ rotation }, 'r')} />
       </div>
-      <div className="field opacity-field">
+      <div className="fld opacity-field">
         <span>Opacity</span>
+        <div className="opacity-row">
         <input
           type="range"
           min={0}
@@ -94,7 +123,8 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
           onChange={(e) => apply((p) => setLayerOpacity(p, panelId, layer.id, Number(e.target.value)), { coalesceKey: `o:${layer.id}` })}
           aria-label="Opacity"
         />
-        <input
+        <span className="suffix-input">
+<input
           type="number"
           className="mono pct"
           min={0}
@@ -102,7 +132,9 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
           value={Math.round(layer.opacity * 100)}
           onChange={(e) => apply((p) => setLayerOpacity(p, panelId, layer.id, parseFloat(e.target.value)), { coalesceKey: `o:${layer.id}` })}
         />
-        <span className="muted">%</span>
+<span className="muted">%</span>
+</span>
+        </div>
       </div>
       {layer.type === 'image' && (
         <>
@@ -110,44 +142,59 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
             <Num label="Lebar" value={layer.width} onChange={(width) => set({ width: Math.max(4, width) }, 'w')} />
             <Num label="Tinggi" value={layer.height} onChange={(height) => set({ height: Math.max(4, height) }, 'h')} />
           </div>
-          <div className="row">
+          <div className="grid2">
             <button onClick={() => set({ flipX: !layer.flipX }, 'fx')} className={layer.flipX ? 'on' : ''}>
-              <FlipHorizontal2 size={14} aria-hidden /> Flip
+              <FlipHorizontal2 size={14} aria-hidden /> Balik horizontal
             </button>
             <button onClick={() => set({ flipY: !layer.flipY }, 'fy')} className={layer.flipY ? 'on' : ''}>
-              <FlipVertical2 size={14} aria-hidden /> Flip
+              <FlipVertical2 size={14} aria-hidden /> Balik vertikal
             </button>
           </div>
-          <div className="muted mono small">{layer.ref}</div>
+          {layer.ref.startsWith('clip:') ? (
+            <SaveClip layer={layer} panelId={panelId} />
+          ) : (
+            <div className="muted mono small ellipsis" title={layer.ref}>
+              {layer.ref}
+            </div>
+          )}
         </>
       )}
       {layer.type === 'text' && (
         <>
-          <label className="field col">
+          <label className="fld">
             <span>Isi teks</span>
             <textarea rows={2} value={layer.text} onChange={(e) => set({ text: e.target.value }, 'txt')} />
           </label>
           <div className="grid2">
-            <label className="field num-field">
+            <label className="fld">
               <span>Font</span>
               <FontPicker value={layer.font} onChange={(font) => set({ font })} />
             </label>
             <Num label="Ukuran" value={layer.fontSize} onChange={(fontSize) => set({ fontSize: Math.max(8, fontSize) }, 'fs')} />
           </div>
-          <div className="row">
-            <span className="lbl">Warna</span>
-            <input type="color" value={layer.fill} onChange={(e) => set({ fill: e.target.value }, 'fill')} />
-            <span className="lbl">Outline</span>
-            <input type="checkbox" checked={!!layer.stroke} onChange={(e) => set({ stroke: e.target.checked ? '#FFFFFF' : null })} />
-            {layer.stroke && <input type="color" value={layer.stroke} onChange={(e) => set({ stroke: e.target.value }, 'stroke')} />}
+          <div className="fld">
+            <span>Warna teks</span>
+            <ColorField label="Warna teks" value={layer.fill} onChange={(fill) => set({ fill }, 'fill')} />
           </div>
-          {layer.stroke && <Num label="Tebal outline" value={layer.strokeWidth} onChange={(strokeWidth) => set({ strokeWidth: Math.max(0, strokeWidth) }, 'sw')} />}
+          <label className="check">
+            <input type="checkbox" checked={!!layer.stroke} onChange={(e) => set({ stroke: e.target.checked ? '#FFFFFF' : null })} />
+            Outline
+          </label>
+          {layer.stroke && (
+            <div className="grid2 wide-first">
+              <ColorField label="Warna outline" value={layer.stroke} onChange={(stroke) => set({ stroke }, 'stroke')} />
+              <Num label="" value={layer.strokeWidth} onChange={(strokeWidth) => set({ strokeWidth: Math.max(0, strokeWidth) }, 'sw')} />
+            </div>
+          )}
         </>
       )}
       {layer.type === 'arrow' && (
-        <div className="row">
+        <div className="grid2">
           <Num label="Tebal" value={layer.strokeWidth} onChange={(strokeWidth) => set({ strokeWidth: Math.max(1, strokeWidth) }, 'sw')} />
-          <input type="color" value={layer.color} onChange={(e) => set({ color: e.target.value }, 'c')} />
+          <div className="fld">
+            <span>Warna</span>
+            <ColorField label="Warna" value={layer.color} onChange={(color) => set({ color }, 'c')} />
+          </div>
         </div>
       )}
       {layer.type === 'shape' && (
@@ -156,37 +203,46 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
             <Num label="Lebar" value={layer.width} onChange={(width) => set({ width: Math.max(0, width) }, 'w')} />
             <Num label="Tinggi" value={layer.height} onChange={(height) => set({ height: Math.max(0, height) }, 'h')} />
           </div>
-          <div className="row">
-            <span className="lbl">Isi</span>
+          <label className="check">
             <input type="checkbox" checked={!!layer.fill} onChange={(e) => set({ fill: e.target.checked ? '#FFFFFF' : null })} />
-            {layer.fill && <input type="color" value={layer.fill} onChange={(e) => set({ fill: e.target.value }, 'fill')} />}
-            <span className="lbl">Garis</span>
+            Isi
+          </label>
+          {layer.fill && <ColorField label="Warna isi" value={layer.fill} onChange={(fill) => set({ fill }, 'fill')} />}
+          <label className="check">
             <input type="checkbox" checked={!!layer.stroke} onChange={(e) => set({ stroke: e.target.checked ? '#000000' : null })} />
-            {layer.stroke && <input type="color" value={layer.stroke} onChange={(e) => set({ stroke: e.target.value }, 'stroke')} />}
-          </div>
-          <div className="row">
-            <Num label="Tebal garis" value={layer.strokeWidth} onChange={(strokeWidth) => set({ strokeWidth: Math.max(0, strokeWidth) }, 'sw')} />
-            <label className="check">
-              <input type="checkbox" checked={layer.dash} onChange={(e) => set({ dash: e.target.checked })} />
-              Putus-putus
-            </label>
-          </div>
+            Garis
+          </label>
+          {layer.stroke && (
+            <div className="grid2 wide-first">
+              <ColorField label="Warna garis" value={layer.stroke} onChange={(stroke) => set({ stroke }, 'stroke')} />
+              <Num label="" value={layer.strokeWidth} onChange={(strokeWidth) => set({ strokeWidth: Math.max(0, strokeWidth) }, 'sw')} />
+            </div>
+          )}
+          <label className="check">
+            <input type="checkbox" checked={layer.dash} onChange={(e) => set({ dash: e.target.checked })} />
+            Garis putus-putus
+          </label>
         </>
       )}
       {layer.type === 'emoji' && (
         <div className="grid2">
-          <label className="field num-field">
+          <label className="fld">
             <span>Emoji</span>
             <input value={layer.char} onChange={(e) => e.target.value && set({ char: e.target.value }, 'ch')} />
           </label>
           <Num label="Ukuran" value={layer.size} onChange={(size) => set({ size: Math.max(8, size) }, 'sz')} />
         </div>
       )}
-      <div className="row">
-        <button onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'top'))}><BringToFront size={14} aria-hidden /> Paling depan</button>
-        <button onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'bottom'))}><SendToBack size={14} aria-hidden /> Paling belakang</button>
+      <div className="layer-actions">
+        <button className="ib" title="Paling depan" aria-label="Paling depan" onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'top'))}>
+          <BringToFront size={14} aria-hidden />
+        </button>
+        <button className="ib" title="Paling belakang" aria-label="Paling belakang" onClick={() => apply((p) => reorderLayer(p, panelId, layer.id, 'bottom'))}>
+          <SendToBack size={14} aria-hidden />
+        </button>
+        <span className="grow" />
         <button className="danger" onClick={() => apply((p) => removeLayer(p, panelId, layer.id))}>
-          <Trash2 size={14} aria-hidden /> Hapus
+          <Trash2 size={14} aria-hidden /> Hapus layer
         </button>
       </div>
     </div>
@@ -209,7 +265,7 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
       {onCover ? (
         <section>
           <h3>Cover</h3>
-          <label className="field col">
+          <label className="fld">
             <span>Judul cover</span>
             <input value={project.cover!.title} onChange={(e) => s.apply((p) => updateCover(p, { title: e.target.value }), { coalesceKey: 'cover-title' })} />
           </label>
@@ -223,7 +279,7 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
       ) : (
       <section>
         <h3>Scene {number}</h3>
-        <label className="field col">
+        <label className="fld">
           <span>Catatan efek (atas frame)</span>
           <textarea
             rows={3}
@@ -232,7 +288,7 @@ export function PropsPanel({ scene, number, pageIndex, assets }: { scene: Scene;
             onChange={(e) => s.apply((p) => updateScene(p, scene.id, { note: e.target.value }), { coalesceKey: `note:${scene.id}` })}
           />
         </label>
-        <label className="field col">
+        <label className="fld">
           <span>Subtitle / narasi (bawah frame)</span>
           <textarea
             rows={3}

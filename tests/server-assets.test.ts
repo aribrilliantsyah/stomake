@@ -69,3 +69,41 @@ test('import docx → text berisi storyline dan tersimpan di storyline.txt', asy
   expect(text).toContain('kenapa orang yang hipotermia');
   expect(readFileSync(join(home, 'projects/selimut-darurat/storyline.txt'), 'utf8')).toBe(text);
 });
+
+test('paste ke scene: gambar disimpan sebagai clip (tidak muncul di daftar asset), bisa diambil lewat /files/clip', async () => {
+  const fd = new FormData();
+  fd.append('files', new File([new Uint8Array(red)], 'paste-20261013-120000.png', { type: 'image/png' }));
+  const r = await app.request('/api/projects/selimut-darurat/clips', { method: 'POST', body: fd });
+  expect(r.status).toBe(200);
+  const [info] = await r.json();
+  expect(info.ref).toBe('clip:paste-20261013-120000.png');
+  expect(info.url).toBe('/files/clip/selimut-darurat/paste-20261013-120000.png');
+  expect(existsSync(join(home, 'projects', 'selimut-darurat', 'clips', 'paste-20261013-120000.png'))).toBe(true);
+  const list = await (await app.request('/api/assets?project=selimut-darurat')).json();
+  expect(list.project).toEqual([]);
+  const f = await app.request(info.url);
+  expect(f.status).toBe(200);
+  expect(f.headers.get('content-type')).toBe('image/png');
+});
+
+test('simpan clip ke asset project: file disalin ke assets (nama unik), clip tetap ada', async () => {
+  const fd = new FormData();
+  fd.append('files', new File([new Uint8Array(red)], 'tempel.png', { type: 'image/png' }));
+  await app.request('/api/projects/selimut-darurat/clips', { method: 'POST', body: fd });
+  await upload('/api/assets/project/selimut-darurat', [['tempel.png', red]]);
+  const r = await app.request('/api/projects/selimut-darurat/clips/tempel.png/promote', { method: 'POST' });
+  expect(r.status).toBe(200);
+  const info = await r.json();
+  expect(info.ref).toBe('project:tempel (2).png');
+  expect(existsSync(join(home, 'projects', 'selimut-darurat', 'clips', 'tempel.png'))).toBe(true);
+  expect((await app.request('/api/projects/selimut-darurat/clips/hilang.png/promote', { method: 'POST' })).status).toBe(404);
+  expect((await app.request('/api/projects/selimut-darurat/clips/..%2Fproject.json/promote', { method: 'POST' })).status).toBe(400);
+});
+
+test('schema menerima ref clip:', async () => {
+  const { parseProject } = await import('../src/shared/schema');
+  const { createProject } = await import('../src/shared/model');
+  const p = createProject('A', 'now');
+  p.pages[0].scenes[0].panels[0].background = { kind: 'asset', ref: 'clip:x.png', fit: 'cover' };
+  expect(() => parseProject(p)).not.toThrow();
+});

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { findScene, flatScenes } from '../../shared/model';
-import type { Layer, Project } from '../../shared/types';
+import type { AssetInfo, Layer, Project } from '../../shared/types';
 import { api } from '../api';
 import { toast } from './uiStore';
 
@@ -33,6 +33,9 @@ interface EditorState {
   /** layer copied with Ctrl+C / Ctrl+X (app-internal clipboard) */
   clipboard: { layer: Layer; panelId: string } | null;
   setClipboard(c: { layer: Layer; panelId: string } | null): void;
+  /** asset copied from the Asset panel (Ctrl+C on a tile); pasting places it in the active panel */
+  copiedAsset: AssetInfo | null;
+  copyAsset(a: AssetInfo | null): void;
   reset(): void;
   load(slug: string): Promise<void>;
   apply(fn: (p: Project) => Project, opts?: { coalesceKey?: string }): void;
@@ -268,7 +271,11 @@ export const useEditor = create<EditorState>((set, get) => {
       }
     },
     setClipboard(c) {
-      set({ clipboard: c });
+      set({ clipboard: c, copiedAsset: null });
+    },
+    copiedAsset: null,
+    copyAsset(a) {
+      set({ copiedAsset: a, clipboard: a ? null : get().clipboard });
     },
 
     reset() {

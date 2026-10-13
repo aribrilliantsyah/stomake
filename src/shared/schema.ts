@@ -4,7 +4,7 @@ import { SHAPE_KINDS, type Project } from './types';
 
 const assetRef = z
   .string()
-  .regex(/^(global|project):[^/\\]+$/, 'asset ref must start with global: or project:');
+  .regex(/^(global|project|clip):[^/\\]+$/, 'asset ref must start with global:, project: or clip:');
 
 const background = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('color'), color: z.string() }),

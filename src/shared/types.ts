@@ -1,4 +1,5 @@
-export type AssetRef = `global:${string}` | `project:${string}`;
+/** clip: = image pasted into a scene, kept with the project but not listed as an asset */
+export type AssetRef = `global:${string}` | `project:${string}` | `clip:${string}`;
 
 export type Background =
   | { kind: 'color'; color: string }

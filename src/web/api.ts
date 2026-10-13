@@ -53,6 +53,13 @@ export const api = {
     const url = scope === 'global' ? '/api/assets/global' : `/api/assets/project/${slug}`;
     return req<AssetInfo[]>(url, { method: 'POST', body: fd });
   },
+  /** pasted images: kept with the project (ref clip:...) but not added to the asset library */
+  uploadClips: (slug: string, files: File[]) => {
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f);
+    return req<AssetInfo[]>(`/api/projects/${slug}/clips`, { method: 'POST', body: fd });
+  },
+  promoteClip: (slug: string, name: string) => req<AssetInfo>(`/api/projects/${slug}/clips/${encodeURIComponent(name)}/promote`, { method: 'POST' }),
   exportPdf: (slug: string) =>
     req<{ path: string; missingAssets: string[]; fonts?: string[]; missingFonts?: string[] }>(`/api/projects/${slug}/export`, { method: 'POST' }),
 };

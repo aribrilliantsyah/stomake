@@ -88,3 +88,14 @@ test('setLayerOpacity: persen 0–100 → 0–1, dibatasi, berlaku untuk teks/ga
   expect(ls.find((l) => l.id === 't')!.opacity).toBe(0.5);
   expect(ls.find((l) => l.id === 's')!.opacity).toBe(0.2);
 });
+
+test('replaceRef mengganti ref di layer & background (scene, page, cover)', async () => {
+  const { replaceRef, addCover } = await import('../src/shared/model');
+  let p = addCover(createProject('A', 'now'));
+  const pn = p.pages[0].scenes[0].panels[0].id;
+  p = addLayer(p, pn, { id: 'i', type: 'image', ref: 'clip:a.png', x: 0, y: 0, width: 1, height: 1, rotation: 0, opacity: 1, flipX: false, flipY: false });
+  p = { ...p, pages: [{ ...p.pages[0], background: { kind: 'asset', ref: 'clip:a.png', fit: 'cover' } }] };
+  const q = replaceRef(p, 'clip:a.png', 'project:a.png');
+  expect(JSON.stringify(q)).not.toContain('clip:a.png');
+  expect(q.pages[0].scenes[0].panels[0].layers[0]).toMatchObject({ ref: 'project:a.png' });
+});

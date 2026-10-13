@@ -1,5 +1,5 @@
 import { newId } from './ids';
-import type { Cover, ShapeKind, ShapeLayer, ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
+import type { AssetRef, Cover, ShapeKind, ShapeLayer, ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
 
 export const DEFAULT_PAGE_BG = { kind: 'color', color: '#D4BFB3' } as const;
 export const DEFAULT_PANEL_BG = { kind: 'color', color: '#FFFFFF' } as const;
@@ -358,4 +358,20 @@ export function setLayerOpacity(p: Project, panelId: string, layerId: string, pe
   if (!Number.isFinite(percent)) return p;
   const v = Math.round(Math.max(0, Math.min(100, percent))) / 100;
   return updateLayer(p, panelId, layerId, { opacity: v });
+}
+
+/** Point every image layer and background using `from` at `to` (e.g. a pasted clip saved to the library). */
+export function replaceRef(p: Project, from: AssetRef, to: AssetRef): Project {
+  const bg = (b: Background): Background => (b.kind === 'asset' && b.ref === from ? { ...b, ref: to } : b);
+  const panel = (pn: Panel): Panel => ({
+    ...pn,
+    background: bg(pn.background),
+    layers: pn.layers.map((l) => (l.type === 'image' && l.ref === from ? { ...l, ref: to } : l)),
+  });
+  return {
+    ...p,
+    pageBackground: bg(p.pageBackground),
+    cover: p.cover ? { ...p.cover, panel: panel(p.cover.panel) } : null,
+    pages: p.pages.map((pg) => ({ ...pg, background: pg.background ? bg(pg.background) : null, scenes: pg.scenes.map((s) => ({ ...s, panels: s.panels.map(panel) })) })),
+  };
 }

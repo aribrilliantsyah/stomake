@@ -66,12 +66,15 @@ test('kedua palet punya semua variabel; palet gelap sesuai spec', () => {
     expect(light[v], `light ${v}`).toBeTruthy();
     expect(dark[v], `dark ${v}`).toBeTruthy();
   }
-  expect(dark).toMatchObject({ '--bg': '#17181a', '--panel': '#1f2023', '--panel-2': '#26272b', '--line': '#34353a', '--line-strong': '#45464c', '--text': '#e6e6e3', '--muted': '#9a9a95', '--accent': '#6b9bff', '--accent-soft': '#22304d', '--danger': '#ef6a5a' });
+  // warm neutral + clay accent (revisi 5, SPEC-V3 §8 R5)
+  expect(dark).toMatchObject({ '--bg': '#1a1918', '--panel': '#232220', '--panel-2': '#2a2926', '--line': '#383632', '--line-strong': '#4a4843', '--text': '#ece9e2', '--muted': '#a19d94', '--accent': '#d97757', '--accent-soft': '#30231d', '--danger': '#ef6a5a' });
 });
 
 test('kontras teks ≥ 4.5 di kedua tema', () => {
   for (const sel of [':root', ':root[data-theme="dark"]']) {
     const v = vars(sel);
+    expect(contrast(v['--accent'], v['--panel']), `${sel} accent`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(v['--accent'], v['--accent-soft']), `${sel} accent on soft`).toBeGreaterThanOrEqual(4.5);
     expect(contrast(v['--text'], v['--panel']), `${sel} text`).toBeGreaterThanOrEqual(4.5);
     expect(contrast(v['--muted'], v['--panel']), `${sel} muted`).toBeGreaterThanOrEqual(4.5);
   }

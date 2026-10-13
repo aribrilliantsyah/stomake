@@ -84,8 +84,8 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerId,
               : ['top-left', 'top-right', 'bottom-left', 'bottom-right']
           }
           anchorSize={10}
-          borderStroke="#2f6fed"
-          anchorStroke="#2f6fed"
+          borderStroke="#ae4f2c"
+          anchorStroke="#ae4f2c"
           anchorCornerRadius={0}
           rotationSnaps={[0, 90, 180, 270]}
           flipEnabled={false}
@@ -140,7 +140,7 @@ export function SceneCanvas({ scene, slug, width, interactive, pixelRatio, activ
             y={scene.panels.findIndex((p) => p.id === activePanelId) * (height / 2)}
             width={width}
             height={height / 2}
-            stroke="#2f6fed"
+            stroke="#ae4f2c"
             strokeWidth={2}
             dash={[6, 4]}
             listening={false}

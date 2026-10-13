@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { imageSize } from 'image-size';
 import type { AssetInfo, AssetRef } from '../shared/types';
-import { hasAssetExt, isSafeName, libraryDir, projectAssetsDir } from './paths';
+import { hasAssetExt, isSafeName, libraryDir, projectAssetsDir, projectClipsDir } from './paths';
 
 export const MIME: Record<string, string> = {
   '.png': 'image/png',
@@ -23,12 +23,14 @@ export function uniqueName(dir: string, name: string): string {
   }
 }
 
-function fileUrl(scope: 'global' | 'project', name: string, slug?: string): string {
+type Scope = 'global' | 'project' | 'clip';
+
+function fileUrl(scope: Scope, name: string, slug?: string): string {
   const n = encodeURIComponent(name);
-  return scope === 'global' ? `/files/global/${n}` : `/files/project/${slug}/${n}`;
+  return scope === 'global' ? `/files/global/${n}` : `/files/${scope}/${slug}/${n}`;
 }
 
-async function info(scope: 'global' | 'project', dir: string, name: string, slug?: string): Promise<AssetInfo | null> {
+export async function info(scope: Scope, dir: string, name: string, slug?: string): Promise<AssetInfo | null> {
   try {
     const { width = 1, height = 1 } = imageSize(await readFile(join(dir, name)));
     return { ref: `${scope}:${name}` as AssetRef, name, width, height, url: fileUrl(scope, name, slug) };
@@ -54,11 +56,11 @@ export async function listAssets(slug?: string): Promise<{ project: AssetInfo[];
 export class AssetError extends Error {}
 
 export async function saveAssets(
-  scope: 'global' | 'project',
+  scope: Scope,
   files: { name: string; data: Buffer }[],
   slug?: string,
 ): Promise<AssetInfo[]> {
-  const dir = scope === 'global' ? libraryDir() : projectAssetsDir(slug!);
+  const dir = scope === 'global' ? libraryDir() : scope === 'clip' ? projectClipsDir(slug!) : projectAssetsDir(slug!);
   for (const f of files) {
     if (!isSafeName(f.name)) throw new AssetError(`nama file tidak valid: ${f.name}`);
     if (!hasAssetExt(f.name)) throw new AssetError(`format tidak didukung: ${f.name}`);
@@ -72,4 +74,12 @@ export async function saveAssets(
     if (i) out.push(i);
   }
   return out;
+}
+
+/** Copy a pasted clip into the project's asset library (unique name). */
+export async function promoteClip(slug: string, name: string): Promise<AssetInfo | null> {
+  const src = join(projectClipsDir(slug), name);
+  if (!existsSync(src)) return null;
+  const [out] = await saveAssets('project', [{ name, data: await readFile(src) }], slug);
+  return out ?? null;
 }

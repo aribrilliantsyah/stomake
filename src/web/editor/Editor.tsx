@@ -30,7 +30,7 @@ import { AssetPanel, ASSET_MIME } from './AssetPanel';
 import { installClipboard } from './clipboard';
 import { ZoomBar } from './ZoomBar';
 import { undoRedoAction } from './shortcuts';
-import { PropsPanel } from './PropsPanel';
+import { PropsPanel, setPropsAssetsChanged } from './PropsPanel';
 import { SceneCanvas } from './SceneCanvas';
 import { SlidesPanel } from './SlidesPanel';
 import { StorylinePanel } from './StorylinePanel';
@@ -128,6 +128,11 @@ export function Editor({ slug }: { slug: string }) {
   }
 
   useEffect(() => installClipboard(slug, refreshAssets), [slug]);
+  useEffect(() => {
+    setPropsAssetsChanged(refreshAssets);
+    return () => setPropsAssetsChanged(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
   // flush pending save on tab close / unmount
   useEffect(() => {

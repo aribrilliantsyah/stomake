@@ -3,11 +3,13 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { addLayer, createProject, defaultEmoji, pasteFileName, pasteLayer, withPageSizes } from '../src/shared/model';
 
 const uploadAssets = vi.fn();
+const uploadClips = vi.fn();
 vi.mock('../src/web/api', () => ({
   api: {
     getProject: vi.fn(),
     saveProject: vi.fn().mockResolvedValue({ updatedAt: 'x' }),
     uploadAssets: (...a: unknown[]) => uploadAssets(...a),
+    uploadClips: (...a: unknown[]) => uploadClips(...a),
   },
 }));
 
@@ -35,6 +37,8 @@ function clipEvent(type: string, target: EventTarget = document.body, files: Fil
 
 beforeEach(() => {
   uploadAssets.mockReset();
+  uploadClips.mockReset();
+  useEditor.setState({ copiedAsset: null });
 });
 
 test('pasteLayer ke panel lain: posisi sama, id baru', () => {
@@ -91,17 +95,33 @@ test('handlePaste diabaikan saat target textarea', async () => {
   expect(c.defaultPrevented).toBe(false);
 });
 
-test('handlePaste dengan file image memanggil uploadAssets lalu menambah layer', async () => {
+test('paste gambar ke scene: disimpan sebagai clip (bukan asset), layer ditambah', async () => {
   setup();
-  uploadAssets.mockResolvedValue([{ ref: 'project:paste-1.png', name: 'paste-1.png', width: 200, height: 100, url: '' }]);
+  uploadClips.mockResolvedValue([{ ref: 'clip:paste-1.png', name: 'paste-1.png', width: 200, height: 100, url: '' }]);
   const img = new File([new Uint8Array([1, 2])], 'image.png', { type: 'image/png' });
-  const v = clipEvent('paste', document.body, [img]);
-  await handlePaste(v);
-  expect(uploadAssets).toHaveBeenCalledTimes(1);
-  const [scope, files, slug] = uploadAssets.mock.calls[0];
-  expect(scope).toBe('project');
+  await handlePaste(clipEvent('paste', document.body, [img]));
+  expect(uploadAssets).not.toHaveBeenCalled();
+  expect(uploadClips).toHaveBeenCalledTimes(1);
+  const [slug, files] = uploadClips.mock.calls[0];
   expect(slug).toBe('a');
   expect((files as File[])[0].name).toMatch(/^paste-\d{8}-\d{6}\.png$/);
   const l = layersOf(0).at(-1)!;
-  expect(l).toMatchObject({ type: 'image', ref: 'project:paste-1.png', x: 540, y: 960, width: 648, height: 324 });
+  expect(l).toMatchObject({ type: 'image', ref: 'clip:paste-1.png', x: 540, y: 960, width: 648, height: 324 });
+});
+
+test('Ctrl+C pada asset terpilih di panel Asset lalu Ctrl+V → layer asset itu di scene aktif', async () => {
+  setup();
+  const asset = { ref: 'global:api.png' as const, name: 'api.png', width: 100, height: 200, url: '/files/global/api.png' };
+  const tile = document.createElement('div');
+  tile.dataset.assetTile = '1';
+  document.body.appendChild(tile);
+  useEditor.getState().copyAsset(asset);
+  useEditor.setState({ selectedLayerId: null });
+  await handlePaste(clipEvent('paste', document.body));
+  const l = layersOf(0).at(-1)!;
+  expect(l).toMatchObject({ type: 'image', ref: 'global:api.png', width: 648, height: 1296 });
+  // copying a layer afterwards takes over the clipboard again
+  useEditor.setState({ selectedLayerId: l.id });
+  handleCopy(clipEvent('copy'));
+  expect(useEditor.getState().copiedAsset).toBeNull();
 });

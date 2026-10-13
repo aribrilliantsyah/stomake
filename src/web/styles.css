@@ -1,20 +1,20 @@
 :root {
-  --bg: #f4f4f2;
+  --bg: #f5f4ef;
   --panel: #ffffff;
-  --panel-2: #faf9f7;
+  --panel-2: #faf9f5;
   --input: #ffffff;
-  --line: #d6d6d2;
-  --line-strong: #b9b9b4;
-  --text: #1d1d1b;
-  --muted: #6b6b66;
+  --line: #e3e1d9;
+  --line-strong: #cfccc1;
+  --text: #1f1e1b;
+  --muted: #73706a;
   --on-primary: #ffffff;
-  --accent: #2f6fed;
-  --accent-soft: #e8eefc;
+  --accent: #ae4f2c;
+  --accent-soft: #f7ebe5;
   --danger: #c23b2a;
   --danger-soft: #fdf0ef;
   --ok: #2e8b57;
   --warn: #a26b00;
-  --hover: #f0f3fb;
+  --hover: #f0eee8;
   --shadow: rgba(0, 0, 0, 0.12);
   --backdrop: rgba(20, 20, 18, 0.32);
   --badge-bg: #f4f4f1;
@@ -27,6 +27,7 @@
   --stage: #ffffff;
   color-scheme: light;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b6b66' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --ink-accent: var(--accent);
   font-family: Inter, system-ui, sans-serif;
   font-size: 13px;
   color: var(--text);
@@ -34,22 +35,22 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #17181a;
-  --panel: #1f2023;
-  --panel-2: #26272b;
-  --input: #17181a;
-  --line: #34353a;
-  --line-strong: #45464c;
-  --text: #e6e6e3;
-  --muted: #9a9a95;
-  --on-primary: #17181a;
-  --accent: #6b9bff;
-  --accent-soft: #22304d;
+  --bg: #1a1918;
+  --panel: #232220;
+  --panel-2: #2a2926;
+  --input: #1a1918;
+  --line: #383632;
+  --line-strong: #4a4843;
+  --text: #ece9e2;
+  --muted: #a19d94;
+  --on-primary: #1a1918;
+  --accent: #d97757;
+  --accent-soft: #30231d;
   --danger: #ef6a5a;
   --danger-soft: #3a2220;
   --ok: #5fbf8a;
   --warn: #d9a441;
-  --hover: #2a2c31;
+  --hover: #2e2c29;
   --shadow: rgba(0, 0, 0, 0.5);
   --backdrop: rgba(0, 0, 0, 0.55);
   --badge-bg: #26272b;
@@ -320,12 +321,12 @@ table.list tr.empty td { color: var(--muted); cursor: default; }
 .sheet-frame.active { outline: 2px solid var(--accent); outline-offset: 3px; }
 .stage-box .sheet { box-shadow: 0 0 0 1px var(--line-strong); }
 .side { background: var(--panel); min-height: 0; overflow: auto; }
-.side.left { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+.side.left { border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
 .side.right { border-left: 1px solid var(--line); }
 .tabs { display: flex; border-bottom: 1px solid var(--line); }
 .tabs button { flex: 1; border: 0; border-radius: 0; border-bottom: 2px solid transparent; padding: 6px; }
 .tabs button.on { background: transparent; color: var(--text); border-bottom-color: var(--text); }
-.tab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px; }
+.tab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px; overflow: hidden; }
 .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
 .row input:not([type]) { flex: 1; }
 .lbl { font-size: 11px; color: var(--muted); }
@@ -338,7 +339,11 @@ table.list tr.empty td { color: var(--muted); cursor: default; }
 
 .asset-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .asset-panel.drop-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
-.asset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow: auto; align-content: start; }
+.asset-scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px -8px; padding: 0 8px 8px; }
+.asset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-content: start; }
+.asset-more-row { padding: 10px 0; text-align: center; }
+.asset.picked { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.asset:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .asset { position: relative; border: 1px solid var(--line); cursor: grab; background: var(--panel); }
 .asset:hover { border-color: var(--text); }
 .thumb {
@@ -565,7 +570,8 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .asset-picker-trigger { min-height: var(--ctl-h); height: var(--ctl-h); padding: 0 8px 0 2px; }
 .asset-picker-trigger .thumb.mini { width: 20px; height: 20px; }
 /* thin scrollbars matching the theme */
-* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+/* Chromium ignores ::-webkit-scrollbar once scrollbar-width is set (and then draws arrows), so the standard props are Firefox-only */
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; } }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
 *::-webkit-scrollbar-track { background: transparent; }
@@ -579,3 +585,44 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .tabs button { height: 37px; }
 :root[data-theme="dark"] button:disabled { opacity: 0.38; }
 :root[data-theme="dark"] input[type='checkbox'] { outline: 1px solid var(--line-strong); outline-offset: -1px; border-radius: 2px; }
+
+/* ---- sidebar form system: label on top, every control full width, one height ---- */
+.fld { display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-bottom: 8px; }
+.fld > span { font-size: 11px; color: var(--muted); line-height: 14px; min-height: 14px; }
+.fld > input, .fld > select, .fld > textarea, .fld > .font-picker, .fld > .color-field, .fld > .asset-pick-wrap { width: 100%; }
+.fld > textarea { resize: vertical; min-height: 52px; }
+.fld-row { display: flex; gap: 6px; margin-bottom: 8px; min-width: 0; }
+.fld-row > :first-child { flex: 1; min-width: 0; }
+.fit-select { width: 92px; flex: none; }
+.grid2, .grid3 { display: grid; gap: 6px; min-width: 0; }
+.grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid2.wide-first { grid-template-columns: minmax(0, 1fr) 64px; align-items: end; margin-bottom: 8px; }
+.grid2.wide-first .fld { margin-bottom: 0; }
+.grid2.wide-first .fld > span:empty { display: none; }
+.grid2 > button { width: 100%; margin-bottom: 8px; }
+.fld input[type='number'] { text-align: right; padding-right: 4px; }
+.bg-editor { margin-bottom: 4px; }
+.bg-editor > .color-field { margin-bottom: 8px; }
+.props .check { margin: 2px 0 8px; font-size: 12px; }
+
+/* colour = one input: swatch inside the left edge, hex text after it */
+.color-field { display: flex; align-items: center; height: var(--ctl-h); border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input); min-width: 0; overflow: hidden; }
+.color-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.color-swatch { position: relative; flex: none; width: 18px; height: 18px; margin: 0 6px 0 3px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--line-strong); cursor: pointer; }
+.color-swatch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; padding: 0; border: 0; cursor: pointer; }
+.color-field > input { flex: 1; min-width: 0; border: 0; height: 100%; padding: 0 6px 0 0; background: transparent; box-shadow: none !important; text-transform: uppercase; }
+
+.opacity-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 8px; align-items: center; }
+.opacity-row input[type='range'] { width: 100%; margin: 0; padding: 0; border: 0; }
+.suffix-input { display: flex; align-items: center; height: var(--ctl-h); border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--input); padding-right: 6px; }
+.suffix-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.suffix-input input { flex: 1; min-width: 0; height: 100% !important; border: 0; background: transparent; box-shadow: none !important; text-align: right; padding: 0 2px 0 4px; }
+.suffix-input > span { font-size: 11px; }
+.layer-actions { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.clip-note { display: flex; flex-direction: column; gap: 6px; padding: 8px; margin-bottom: 8px; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: var(--panel-2); }
+.clip-note button { align-self: flex-start; }
+
+/* toolbar buttons follow the same rules as everywhere else */
+.toolbar > button:not(.ib):not(.primary) { background: var(--panel); }
+.toolbar .save-status { display: inline-flex; align-items: center; gap: 4px; height: var(--ctl-h); }
