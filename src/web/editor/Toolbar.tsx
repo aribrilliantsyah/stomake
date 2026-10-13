@@ -6,6 +6,7 @@ import type { Layer } from '../../shared/types';
 import { api } from '../api';
 import { navigate } from '../router';
 import { useEditor } from '../state/editorStore';
+import { toast } from '../state/uiStore';
 
 export const EMOJIS = ['🔥', '❄️', '💧', '❌', '✅', '❓', '❗', '😱', '💨', '⚡', '💀', '👆'];
 
@@ -21,7 +22,6 @@ export function Toolbar({ slug }: { slug: string }) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [shapeOpen, setShapeOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [toast, setToast] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
 
   const scene = s.selectedCover && s.project?.cover ? { split: false, panels: [s.project.cover.panel] } : s.project?.pages.flatMap((p) => p.scenes).find((x) => x.id === s.currentSceneId);
   const panel = scene?.panels.find((p) => p.id === s.activePanelId) ?? scene?.panels[0];
@@ -40,15 +40,15 @@ export function Toolbar({ slug }: { slug: string }) {
 
   async function doExport() {
     setExporting(true);
-    setToast(null);
     try {
       await s.flush();
       const r = await api.exportPdf(slug);
-      if (r.missingAssets.length)
-        setToast({ kind: 'warn', text: `PDF dibuat, tapi ${r.missingAssets.length} asset hilang: ${r.missingAssets.join(', ')}` });
-      else setToast({ kind: 'ok', text: `PDF dibuat: ${r.path}` });
+      const link = { href: `/api/projects/${slug}/export.pdf`, label: 'Buka PDF' };
+      toast('ok', `PDF dibuat: ${r.path}`, link);
+      if (r.missingAssets.length) toast('warn', `${r.missingAssets.length} asset hilang: ${r.missingAssets.join(', ')}`);
+      if (r.missingFonts?.length) toast('warn', `Font tidak tersedia (pakai font pengganti): ${r.missingFonts.join(', ')}`);
     } catch (e) {
-      setToast({ kind: 'err', text: `Export gagal: ${(e as Error).message}` });
+      toast('err', `Export gagal: ${(e as Error).message}`);
     } finally {
       setExporting(false);
     }
@@ -113,17 +113,6 @@ export function Toolbar({ slug }: { slug: string }) {
       <button className="primary" onClick={doExport} disabled={exporting}>
         {exporting ? 'Mengekspor…' : 'Export PDF'}
       </button>
-      {toast && (
-        <div className={`toast ${toast.kind}`}>
-          <span>{toast.text}</span>
-          {toast.kind !== 'err' && (
-            <a href={`/api/projects/${slug}/export.pdf`} target="_blank" rel="noreferrer">
-              Buka PDF
-            </a>
-          )}
-          <button onClick={() => setToast(null)}>×</button>
-        </div>
-      )}
     </header>
   );
 }

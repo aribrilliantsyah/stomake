@@ -3,6 +3,7 @@ import { setPageBackground, updatePanel } from '../../shared/model';
 import type { AssetInfo } from '../../shared/types';
 import { api, type AssetLists } from '../api';
 import { useEditor } from '../state/editorStore';
+import { toast } from '../state/uiStore';
 
 export const ASSET_MIME = 'application/x-storyboard-asset';
 
@@ -20,14 +21,17 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
 
   async function upload(files: File[]) {
     const ok = files.filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+    if (ok.length < files.length) toast('warn', `${files.length - ok.length} file dilewati (hanya png/jpg/gif/webp)`);
     if (!ok.length) return;
     setBusy(true);
     setErr(null);
     try {
-      await api.uploadAssets(scope, ok, slug);
+      const done = await api.uploadAssets(scope, ok, slug);
       onUploaded();
+      toast('ok', `${done.length} asset di-upload`);
     } catch (e) {
       setErr((e as Error).message);
+      toast('err', `Upload gagal: ${(e as Error).message}`);
     } finally {
       setBusy(false);
     }

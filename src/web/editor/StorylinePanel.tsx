@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { toast } from '../state/uiStore';
 
 export function StorylinePanel({ slug }: { slug: string }) {
   const [text, setText] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [loaded, setLoaded] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -42,7 +42,10 @@ export function StorylinePanel({ slug }: { slug: string }) {
       pending.current = null;
       api.saveStoryline(slug, v).then(
         () => setStatus('saved'),
-        () => setStatus('error'),
+        () => {
+          setStatus('error');
+          toast('err', 'Storyline gagal disimpan');
+        },
       );
     }, 1000);
   }
@@ -52,9 +55,9 @@ export function StorylinePanel({ slug }: { slug: string }) {
     try {
       const r = await api.importDocx(slug, f);
       setText(r.text);
-      setMsg(`Diimpor dari ${f.name}`);
+      toast('ok', `Storyline diimpor dari ${f.name}`);
     } catch (e) {
-      setMsg(`Import gagal: ${(e as Error).message}`);
+      toast('err', `Import gagal: ${(e as Error).message}`);
     }
   }
 
@@ -79,7 +82,6 @@ export function StorylinePanel({ slug }: { slug: string }) {
         <span className="muted mono">{words} kata</span>
         <span className="muted">{status === 'saving' ? '…' : status === 'saved' ? '✓' : status === 'error' ? 'gagal' : ''}</span>
       </div>
-      {msg && <div className="hint muted">{msg}</div>}
       <textarea
         className="storyline-text"
         value={text}

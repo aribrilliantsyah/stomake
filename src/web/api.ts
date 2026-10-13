@@ -40,5 +40,5 @@ export const api = {
     return req<AssetInfo[]>(url, { method: 'POST', body: fd });
   },
   exportPdf: (slug: string) =>
-    req<{ path: string; missingAssets: string[] }>(`/api/projects/${slug}/export`, { method: 'POST' }),
+    req<{ path: string; missingAssets: string[]; fonts?: string[]; missingFonts?: string[] }>(`/api/projects/${slug}/export`, { method: 'POST' }),
 };
