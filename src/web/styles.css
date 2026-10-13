@@ -169,6 +169,16 @@ table.list tr.empty td { color: var(--muted); cursor: default; }
 .layer-btns button { padding: 0 4px; line-height: 14px; font-size: 9px; }
 .layer-props { border-top: 1px solid var(--line); padding-top: 8px; }
 
+/* ---- font picker ---- */
+.font-picker { position: relative; }
+.font-current { width: 100%; text-align: left; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.font-menu { right: 0; top: 28px; width: 240px; display: flex; flex-direction: column; gap: 4px; }
+.font-list { max-height: 300px; overflow: auto; display: flex; flex-direction: column; }
+.font-list button { text-align: left; border-color: transparent; font-size: 16px; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.font-list .font-load { font-family: Inter, sans-serif; font-size: 12px; border-color: var(--line-strong); margin: 2px 4px; }
+.font-group { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 6px 6px 2px; border-top: 1px solid var(--line); }
+.font-group:first-child { border-top: 0; }
+
 /* ---- print ---- */
 body.print-mode { background: #8a8a86; }
 .print-root { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; }

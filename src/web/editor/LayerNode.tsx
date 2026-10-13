@@ -2,15 +2,11 @@ import type Konva from 'konva';
 import { useEffect, useRef } from 'react';
 import { Arrow, Group, Image as KImage, Rect, Text } from 'react-konva';
 import type { Layer } from '../../shared/types';
+import { fontStack } from '../../shared/fonts';
 import { resizeShape } from '../../shared/model';
 import { useAssetImage } from '../state/imageCache';
 import { ShapeBody } from './ShapeBody';
 
-export const FONT_STACK: Record<string, string> = {
-  'Coming Soon': '"Coming Soon", cursive',
-  Bangers: 'Bangers, Impact, sans-serif',
-  Inter: 'Inter, system-ui, sans-serif',
-};
 export const EMOJI_FONT = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
 
 interface Props {
@@ -64,8 +60,9 @@ export function LayerNode({ layer, slug, interactive, onSelect, onChange, regist
     case 'text': {
       body = (
         <Text
+          key={`${layer.font}|${layer.fontSize}|${layer.text}`}
           text={layer.text}
-          fontFamily={FONT_STACK[layer.font]}
+          fontFamily={fontStack(layer.font)}
           fontSize={layer.fontSize}
           fill={layer.fill}
           stroke={layer.stroke ?? undefined}

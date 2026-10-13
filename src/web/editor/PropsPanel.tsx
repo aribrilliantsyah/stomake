@@ -1,5 +1,6 @@
 import { removeLayer, reorderLayer, setPageBackground, setSplit, updateLayer, updatePanel, updateScene } from '../../shared/model';
-import type { AssetRef, Background, FontName, Layer, Scene } from '../../shared/types';
+import type { AssetRef, Background, Layer, Scene } from '../../shared/types';
+import { FontPicker } from './FontPicker';
 import type { AssetLists } from '../api';
 import { useEditor } from '../state/editorStore';
 
@@ -127,11 +128,7 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
           <div className="grid2">
             <label className="field num-field">
               <span>Font</span>
-              <select value={layer.font} onChange={(e) => set({ font: e.target.value as FontName })}>
-                <option>Bangers</option>
-                <option>Coming Soon</option>
-                <option>Inter</option>
-              </select>
+              <FontPicker value={layer.font} onChange={(font) => set({ font })} />
             </label>
             <Num label="Ukuran" value={layer.fontSize} onChange={(fontSize) => set({ fontSize: Math.max(8, fontSize) }, 'fs')} />
           </div>
