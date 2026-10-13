@@ -1,5 +1,5 @@
 import { newId } from './ids';
-import type { ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
+import type { Cover, ArrowLayer, AssetInfo, Background, EmojiLayer, ImageLayer, Layer, Page, Panel, Project, Scene, TextLayer } from './types';
 
 export const DEFAULT_PAGE_BG = { kind: 'color', color: '#D4BFB3' } as const;
 export const DEFAULT_PANEL_BG = { kind: 'color', color: '#FFFFFF' } as const;
@@ -188,7 +188,8 @@ export function updateScene(
   return mapScene(p, sceneId, (s) => ({ ...s, ...patch }));
 }
 
-export function findPanel(p: Project, panelId: string): { panel: Panel; scene: Scene } | null {
+export function findPanel(p: Project, panelId: string): { panel: Panel; scene: Scene | null } | null {
+  if (p.cover && p.cover.panel.id === panelId) return { panel: p.cover.panel, scene: null };
   for (const pg of p.pages)
     for (const scene of pg.scenes) {
       const panel = scene.panels.find((pn) => pn.id === panelId);
@@ -200,6 +201,7 @@ export function findPanel(p: Project, panelId: string): { panel: Panel; scene: S
 export function updatePanel(p: Project, panelId: string, fn: (panel: Panel) => Panel): Project {
   const found = findPanel(p, panelId);
   if (!found) return p;
+  if (!found.scene) return { ...p, cover: { ...p.cover!, panel: fn(p.cover!.panel) } };
   return mapScene(p, found.scene.id, (s) => ({
     ...s,
     panels: s.panels.map((pn) => (pn.id === panelId ? fn(pn) : pn)),
@@ -268,4 +270,19 @@ export function reorderLayer(p: Project, panelId: string, layerId: string, dir: 
 
 export function setPageBackground(p: Project, pageIndex: number, bg: Background | null): Project {
   return { ...p, pages: p.pages.map((pg, i) => (i === pageIndex ? { ...pg, background: bg } : pg)) };
+}
+
+// ---- cover ----
+
+export function addCover(p: Project): Project {
+  if (p.cover) return p;
+  return { ...p, cover: { id: newId(), title: 'VISUAL ASLI', panel: emptyPanel() } };
+}
+
+export function removeCover(p: Project): Project {
+  return p.cover ? { ...p, cover: null } : p;
+}
+
+export function updateCover(p: Project, patch: Partial<Pick<Cover, 'title'>>): Project {
+  return p.cover ? { ...p, cover: { ...p.cover, ...patch } } : p;
 }

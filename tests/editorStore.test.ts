@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { createProject, updateScene } from '../src/shared/model';
+import { addCover, addPage, createProject, removeCover, removePage, updateScene, withPageSizes } from '../src/shared/model';
 
 const saveProject = vi.fn();
 const getProject = vi.fn();
@@ -129,4 +129,38 @@ test('load project lain menyimpan dulu perubahan yang tertunda', async () => {
   expect(saveProject).toHaveBeenCalledTimes(1);
   expect(saveProject.mock.calls[0][0]).toBe('a');
   expect(saveProject.mock.calls[0][1].pages[0].scenes[0].subtitle).toBe('belum tersimpan');
+});
+
+test('selectCover lalu hapus cover → seleksi kembali ke scene', () => {
+  const st = useEditor.getState();
+  st.apply((p) => addCover(p));
+  st.selectCover();
+  expect(useEditor.getState().selectedCover).toBe(true);
+  expect(useEditor.getState().activePanelId).toBe(useEditor.getState().project!.cover!.panel.id);
+  useEditor.getState().apply((p) => removeCover(p));
+  expect(useEditor.getState().selectedCover).toBe(false);
+  expect(useEditor.getState().currentSceneId).toBe(sid);
+});
+
+test('removePage page aktif → seleksi page sebelumnya (atau berikutnya bila page 0)', () => {
+  const st = useEditor.getState();
+  st.apply((p) => withPageSizes(p, [2, 1, 3]));
+  const pr = useEditor.getState().project!;
+  st.selectScene(pr.pages[1].scenes[0].id);
+  st.apply((p) => removePage(p, p.pages[1].id));
+  const after = useEditor.getState();
+  expect(after.currentSceneId).toBe(pr.pages[0].scenes[0].id);
+  st.selectScene(pr.pages[0].scenes[1].id);
+  st.apply((p) => removePage(p, p.pages[0].id));
+  expect(useEditor.getState().currentSceneId).toBe(pr.pages[2].scenes[0].id);
+});
+
+test('currentPageIndex: -1 saat cover dipilih', () => {
+  const st = useEditor.getState();
+  st.apply((p) => addPage(addCover(p), p.pages[0].id).project);
+  expect(useEditor.getState().currentPageIndex()).toBe(0);
+  st.selectScene(useEditor.getState().project!.pages[1].scenes[0].id);
+  expect(useEditor.getState().currentPageIndex()).toBe(1);
+  st.selectCover();
+  expect(useEditor.getState().currentPageIndex()).toBe(-1);
 });

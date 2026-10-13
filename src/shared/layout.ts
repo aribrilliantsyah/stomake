@@ -10,6 +10,9 @@ export const NOTE = { y: 109, size: 7, width: 165, maxLines: 2 } as const;
 export const SUB = { y: 390, size: 11, minSize: 8, width: 165, maxLines: 4, lineHeight: 1.25 } as const;
 export const BRUSH = { y: 470, width: 150 } as const;
 
+/** Cover page: title + single centered frame, no labels. */
+export const COVER = { titleY: 23, titleSize: 30, x: 282.375, y: 128 } as const;
+
 export const PANEL_SPACE = { w: 1080, h: 1920 } as const;
 
 /**

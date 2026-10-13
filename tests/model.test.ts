@@ -17,7 +17,12 @@ import {
   setSplit,
   updateScene,
   withPageSizes,
+  addCover,
+  removeCover,
+  updateCover,
+  updatePanel,
 } from '../src/shared/model';
+import { COVER } from '../src/shared/layout';
 import type { Project } from '../src/shared/types';
 
 const P = () => createProject('Selimut Darurat', '2026-10-12T00:00:00Z');
@@ -151,5 +156,30 @@ describe('operasi page gaya PPT', () => {
     const p = withPageSizes(P(), [1, 2]);
     expect(pageOf(p, idAt(p, 3))?.id).toBe(p.pages[1].id);
     expect(pageOf(p, 'nope')).toBeNull();
+  });
+});
+
+describe('cover', () => {
+  test('addCover: judul VISUAL ASLI, panel putih kosong, tidak mengubah nomor scene; idempoten', () => {
+    const p = withPageSizes(P(), [2]);
+    const q = addCover(p);
+    expect(q.cover).toMatchObject({ title: 'VISUAL ASLI', panel: { background: { kind: 'color', color: '#FFFFFF' }, layers: [] } });
+    expect(nums(q)).toEqual([1, 2]);
+    expect(addCover(q)).toBe(q);
+    expect(removeCover(q).cover).toBeNull();
+    expect(updateCover(q, { title: 'REFERENSI' }).cover?.title).toBe('REFERENSI');
+    expect(updateCover(p, { title: 'x' })).toBe(p);
+  });
+
+  test('findPanel/updatePanel bekerja pada cover panel', () => {
+    const q = addCover(P());
+    const id = q.cover!.panel.id;
+    expect(findPanel(q, id)).toEqual({ panel: q.cover!.panel, scene: null });
+    const r = updatePanel(q, id, (pn) => ({ ...pn, background: { kind: 'color', color: '#000000' } }));
+    expect(r.cover!.panel.background).toEqual({ kind: 'color', color: '#000000' });
+  });
+
+  test('COVER layout di tengah', () => {
+    expect(COVER).toEqual({ titleY: 23, titleSize: 30, x: 282.375, y: 128 });
   });
 });
