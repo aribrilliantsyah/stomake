@@ -2,35 +2,16 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BUILTIN_FONTS, fontStack } from '../../shared/fonts';
 import { listLocalFonts, loadFont, localFontsSupported } from '../fonts';
+import { placePopover, type Rect } from '../ui/Popover';
 
 let localCache: string[] | null = null;
 
 export const MENU_W = 260;
 const MENU_H = 360;
 
-/**
- * Place the menu under the trigger, kept fully inside the viewport (flip up / shift left as needed).
- * Rendered with position: fixed in a portal so panel overflow can never clip it.
- */
-export function placeMenu(trigger: { left: number; right: number; top: number; bottom: number }, vw: number, vh: number, w = MENU_W, h = MENU_H): { left: number; top: number; maxHeight: number } {
-  const margin = 8;
-  let left = Math.min(trigger.left, vw - w - margin);
-  left = Math.max(margin, left);
-  const below = vh - trigger.bottom - margin;
-  const above = trigger.top - margin;
-  let top: number;
-  let maxHeight: number;
-  if (below >= Math.min(h, 240) || below >= above) {
-    maxHeight = Math.max(120, Math.min(h, below));
-    top = trigger.bottom + 2;
-  } else {
-    maxHeight = Math.max(120, Math.min(h, above));
-    top = trigger.top - 2 - maxHeight;
-  }
-  // trigger may be partly scrolled out of view: always keep the whole menu on screen
-  maxHeight = Math.min(maxHeight, vh - 2 * margin);
-  top = Math.max(margin, Math.min(top, vh - margin - maxHeight));
-  return { left, top, maxHeight };
+/** Kept for tests/back-compat: same placement as every Popover. */
+export function placeMenu(trigger: Rect, vw: number, vh: number, w = MENU_W, h = MENU_H) {
+  return placePopover(trigger, vw, vh, w, h, 'start');
 }
 
 function FontRow({ name, active, onPick }: { name: string; active: boolean; onPick: (n: string) => void }) {

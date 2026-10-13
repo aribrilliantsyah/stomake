@@ -1,5 +1,6 @@
 import { removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
-import type { AssetRef, Background, Layer, Scene } from '../../shared/types';
+import type { Background, Layer, Scene } from '../../shared/types';
+import { AssetPicker } from './AssetPicker';
 import { FontPicker } from './FontPicker';
 import type { AssetLists } from '../api';
 import { useEditor } from '../state/editorStore';
@@ -56,27 +57,7 @@ function BgEditor({ label, bg, onChange, allowInherit, assets }: { label: string
         <>
           <div className="field">
             <span />
-            <select value={bg.ref} onChange={(e) => onChange({ ...bg, ref: e.target.value as AssetRef })}>
-              {!all.some((a) => a.ref === bg.ref) && <option value={bg.ref}>{bg.ref} (hilang)</option>}
-              {assets.project.length > 0 && (
-                <optgroup label="Project">
-                  {assets.project.map((a) => (
-                    <option key={a.ref} value={a.ref}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {assets.global.length > 0 && (
-                <optgroup label="Global">
-                  {assets.global.map((a) => (
-                    <option key={a.ref} value={a.ref}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+            <AssetPicker value={bg.ref} assets={assets} onChange={(ref) => onChange({ ...bg, ref })} />
           </div>
           <div className="field">
             <span />

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { addLayer, defaultEmoji, defaultShape, defaultText } from '../../shared/model';
 import { ShapeMenu } from './ShapeMenu';
+import { Popover, useAnchor } from '../ui/Popover';
 import { panelSpace } from '../../shared/layout';
 import type { Layer } from '../../shared/types';
 import { api } from '../api';
@@ -19,8 +20,8 @@ const STATUS: Record<string, string> = {
 
 export function Toolbar({ slug }: { slug: string }) {
   const s = useEditor();
-  const [emojiOpen, setEmojiOpen] = useState(false);
-  const [shapeOpen, setShapeOpen] = useState(false);
+  const emoji = useAnchor<HTMLButtonElement>();
+  const shape = useAnchor<HTMLButtonElement>();
   const [exporting, setExporting] = useState(false);
 
   const scene = s.selectedCover && s.project?.cover ? { split: false, panels: [s.project.cover.panel] } : s.project?.pages.flatMap((p) => p.scenes).find((x) => x.id === s.currentSceneId);
@@ -69,40 +70,35 @@ export function Toolbar({ slug }: { slug: string }) {
       <button onClick={() => insert(defaultText(space))} title="Tambah teks">
         T Teks
       </button>
-      <div className="menu-wrap">
-        <button onClick={() => setShapeOpen((v) => !v)} title="Tambah shape">
-          ◇ Shape
-        </button>
-        {shapeOpen && (
-          <ShapeMenu
-            onClose={() => setShapeOpen(false)}
-            onPick={(k) => {
-              insert(defaultShape(k, space));
-              setShapeOpen(false);
-            }}
-          />
-        )}
-      </div>
-      <div className="menu-wrap">
-        <button onClick={() => setEmojiOpen((v) => !v)} title="Tambah emoji">
-          😀 Emoji
-        </button>
-        {emojiOpen && (
-          <div className="menu emoji-menu" onMouseLeave={() => setEmojiOpen(false)}>
-            {EMOJIS.map((c) => (
-              <button
-                key={c}
-                onClick={() => {
-                  insert(defaultEmoji(c, space));
-                  setEmojiOpen(false);
-                }}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <button ref={shape.ref} className={shape.open ? 'on' : ''} onClick={shape.toggle} title="Tambah shape">
+        ◇ Shape
+      </button>
+      <Popover anchor={shape.el} open={shape.open} onClose={shape.close} width={280} height={260}>
+        <ShapeMenu
+          onPick={(k) => {
+            insert(defaultShape(k, space));
+            shape.close();
+          }}
+        />
+      </Popover>
+      <button ref={emoji.ref} className={emoji.open ? 'on' : ''} onClick={emoji.toggle} title="Tambah emoji">
+        😀 Emoji
+      </button>
+      <Popover anchor={emoji.el} open={emoji.open} onClose={emoji.close} width={232} height={160}>
+        <div className="emoji-menu">
+          {EMOJIS.map((c) => (
+            <button
+              key={c}
+              onClick={() => {
+                insert(defaultEmoji(c, space));
+                emoji.close();
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </Popover>
       <div className="grow" />
       <span className={`save-status ${s.saveStatus}`} title={s.saveError ?? ''}>
         {STATUS[s.saveStatus]}

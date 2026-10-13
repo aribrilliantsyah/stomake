@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { addCover, addPage, duplicatePage, movePage, removeCover, removePage } from '../../shared/model';
 import type { Project } from '../../shared/types';
 import { SheetThumb } from '../print/PageSheet';
+import { Popover } from '../ui/Popover';
 import { useEditor } from '../state/editorStore';
 
 /** 708.75pt page (945px) into the 132px thumbnail box: 132 / 945 */
@@ -17,7 +18,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
   const s = useEditor();
   const project = s.project!;
   const current = s.currentPageIndex();
-  const [menu, setMenu] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ pi: number; el: HTMLElement } | null>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
@@ -121,7 +122,8 @@ export function SlidesPanel({ slug }: { slug: string }) {
             onClick={() => selectPage(pi)}
             onContextMenu={(e) => {
               e.preventDefault();
-              setMenu(pi);
+              const btn = (e.currentTarget as HTMLElement).querySelector('.slide-more') as HTMLElement;
+              setMenu({ pi, el: btn });
             }}
           >
             <div className="slide-thumb">
@@ -135,14 +137,14 @@ export function SlidesPanel({ slug }: { slug: string }) {
                 title="Menu page"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setMenu(menu === pi ? null : pi);
+                  setMenu(menu?.pi === pi ? null : { pi, el: e.currentTarget });
                 }}
               >
                 ⋯
               </button>
             </div>
-            {menu === pi && (
-              <div className="menu slide-menu" onMouseLeave={() => setMenu(null)} onClick={(e) => e.stopPropagation()}>
+            {menu?.pi === pi && (
+              <Popover anchor={menu.el} open onClose={() => setMenu(null)} width={160} height={200} className="menu-list">
                 <button onClick={() => act(pi, 'dup')}>Duplikat page</button>
                 <button onClick={() => act(pi, 'up')} disabled={pi === 0}>
                   Naik
@@ -153,7 +155,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
                 <button className="danger" onClick={() => act(pi, 'del')} disabled={project.pages.length <= 1}>
                   Hapus page
                 </button>
-              </div>
+              </Popover>
             )}
           </div>
         ))}

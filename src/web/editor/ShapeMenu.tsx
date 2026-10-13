@@ -13,9 +13,9 @@ export const SHAPES: { kind: ShapeKind; icon: string; label: string }[] = [
   { kind: 'bubble', icon: '💬', label: 'Balon kata' },
 ];
 
-export function ShapeMenu({ onPick, onClose }: { onPick: (k: ShapeKind) => void; onClose: () => void }) {
+export function ShapeMenu({ onPick }: { onPick: (k: ShapeKind) => void }) {
   return (
-    <div className="menu shape-menu" onMouseLeave={onClose}>
+    <div className="shape-menu">
       {SHAPES.map((s) => (
         <button key={s.kind} title={s.label} onClick={() => onPick(s.kind)}>
           <span className="shape-icon">{s.icon}</span>

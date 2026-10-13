@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Popover } from '../ui/Popover';
 import { setPageBackground, updatePanel } from '../../shared/model';
 import type { AssetInfo } from '../../shared/types';
 import { api, type AssetLists } from '../api';
@@ -13,7 +14,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [over, setOver] = useState(false);
-  const [menu, setMenu] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ ref: string; el: HTMLElement } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const s = useEditor();
 
@@ -113,14 +114,29 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
               <img src={a.url} alt={a.name} loading="lazy" draggable={false} />
             </div>
             <div className="asset-name">{a.name}</div>
-            <button className="asset-more" onClick={() => setMenu(menu === a.ref ? null : a.ref)} title="Jadikan background">
+            <button
+              className={`asset-more${menu?.ref === a.ref ? ' open' : ''}`}
+              onClick={(e) => setMenu(menu?.ref === a.ref ? null : { ref: a.ref, el: e.currentTarget })}
+              title="Jadikan background"
+            >
               ⋯
             </button>
-            {menu === a.ref && (
-              <div className="menu asset-menu" onMouseLeave={() => setMenu(null)}>
+            {menu?.ref === a.ref && (
+              <Popover anchor={menu.el} open onClose={() => setMenu(null)} width={230} height={240} align="end" className="menu-list asset-menu">
+                <div className="asset-menu-head">
+                  <span className="thumb">
+                    <img src={a.url} alt="" draggable={false} />
+                  </span>
+                  <div className="asset-menu-meta">
+                    <div className="ellipsis">{a.name}</div>
+                    <div className="muted mono small">
+                      {a.width}×{a.height}
+                    </div>
+                  </div>
+                </div>
                 <button onClick={() => setPanelBg(a)}>Jadikan background scene</button>
                 <button onClick={() => setPageBg(a)}>Jadikan background page</button>
-              </div>
+              </Popover>
             )}
           </div>
         ))}
