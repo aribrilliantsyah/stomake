@@ -383,3 +383,14 @@ button svg, .icon svg { flex-shrink: 0; }
 .collapsed { flex-direction: column; justify-content: flex-start; }
 .layer-btns button, .slide-more, .icon-btn, .fold { padding-left: 4px; padding-right: 4px; }
 .save-status { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---- agent lock ---- */
+fieldset.lockable { border: 0; margin: 0; padding: 0; min-width: 0; display: contents; }
+fieldset.lockable:disabled { display: block; opacity: 0.6; }
+fieldset.slides-actions.lockable { display: flex; border: 0; border-top: 1px solid var(--line); margin: 0; padding: 6px; }
+fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
+.agent-badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--accent); color: var(--accent); background: #eef3fd; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.agent-badge .muted { font-weight: 400; }
+.agent-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: agent-pulse 1.2s ease-in-out infinite; }
+@keyframes agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.badge.ai { color: var(--accent); border-color: var(--accent); background: #eef3fd; }

@@ -153,6 +153,12 @@ export function Editor({ slug }: { slug: string }) {
         return;
       }
       const st = useEditor.getState();
+      if (st.agentActive) {
+        // read-only while an agent works: allow only navigation (Esc, Z zoom, arrows to switch scene are not edits)
+        if (undoRedoAction(e) || e.key === 'Delete' || e.key === 'Backspace') e.preventDefault();
+        if (e.key === 'Escape' && useUi.getState().zoom) useUi.getState().setZoom(false);
+        return;
+      }
       const ur = undoRedoAction(e);
       if (ur) {
         e.preventDefault();
@@ -230,7 +236,9 @@ export function Editor({ slug }: { slug: string }) {
   const number = onCover ? 0 : flat.find((f) => f.scene.id === scene.id)!.number;
   const indexInPage = page ? page.scenes.findIndex((x) => x.id === scene.id) : 0;
 
+  const locked = s.agentActive;
   const it: SheetInteraction = {
+    editable: !locked,
     activeSceneId: scene.id,
     activePanelId: s.activePanelId,
     selectedLayerId: s.selectedLayerId,
@@ -356,19 +364,19 @@ export function Editor({ slug }: { slug: string }) {
             <div className="grow" />
             {!onCover && (
               <>
-                <button onClick={() => sceneActions.move(-1)} disabled={indexInPage === 0} title="Geser ke kiri" aria-label="Geser ke kiri">
+                <button onClick={() => sceneActions.move(-1)} disabled={locked || indexInPage === 0} title="Geser ke kiri" aria-label="Geser ke kiri">
                   <ChevronLeft size={14} aria-hidden />
                 </button>
-                <button onClick={() => sceneActions.move(1)} disabled={indexInPage === page!.scenes.length - 1} title="Geser ke kanan" aria-label="Geser ke kanan">
+                <button onClick={() => sceneActions.move(1)} disabled={locked || indexInPage === page!.scenes.length - 1} title="Geser ke kanan" aria-label="Geser ke kanan">
                   <ChevronRight size={14} aria-hidden />
                 </button>
-                <button onClick={sceneActions.add} disabled={full} title={full ? 'Page sudah 3 scene — tambah page baru' : 'Tambah scene di page ini'}>
+                <button onClick={sceneActions.add} disabled={locked || full} title={full ? 'Page sudah 3 scene — tambah page baru' : 'Tambah scene di page ini'}>
                   <Plus size={14} aria-hidden /> Scene
                 </button>
-                <button onClick={sceneActions.duplicate} disabled={full} title="Duplikat scene" aria-label="Duplikat scene">
+                <button onClick={sceneActions.duplicate} disabled={locked || full} title="Duplikat scene" aria-label="Duplikat scene">
                   <Copy size={14} aria-hidden />
                 </button>
-                <button onClick={sceneActions.remove} className="danger" disabled={!canRemoveScene(project, scene.id)} title={canRemoveScene(project, scene.id) ? 'Hapus scene' : 'Scene terakhir di page tidak bisa dihapus — hapus page-nya'} aria-label="Hapus scene">
+                <button onClick={sceneActions.remove} className="danger" disabled={locked || !canRemoveScene(project, scene.id)} title={canRemoveScene(project, scene.id) ? 'Hapus scene' : 'Scene terakhir di page tidak bisa dihapus — hapus page-nya'} aria-label="Hapus scene">
                   <Trash2 size={14} aria-hidden />
                 </button>
               </>
@@ -395,6 +403,7 @@ export function Editor({ slug }: { slug: string }) {
                     if (e.dataTransfer.types.includes(ASSET_MIME)) e.preventDefault();
                   }}
                   onDrop={(e) => {
+                    if (locked) return;
                     const rect = (e.currentTarget as HTMLElement).querySelector('.konvajs-content')!.getBoundingClientRect();
                     it.onDropAsset!(scene.id, e, rect);
                   }}
@@ -403,7 +412,7 @@ export function Editor({ slug }: { slug: string }) {
                     scene={scene}
                     slug={slug}
                     width={zoomW}
-                    interactive
+                    interactive={!locked}
                     activePanelId={s.activePanelId}
                     selectedLayerId={s.selectedLayerId}
                     onSelectLayer={it.onSelectLayer}
@@ -430,7 +439,9 @@ export function Editor({ slug }: { slug: string }) {
               <PanelHead name="props">
                 <span className="panel-title">Properti</span>
               </PanelHead>
-              <PropsPanel scene={scene} number={number} pageIndex={pageIndex} assets={assets} />
+              <fieldset className="lockable" disabled={locked}>
+                <PropsPanel scene={scene} number={number} pageIndex={pageIndex} assets={assets} />
+              </fieldset>
             </>
           ) : (
             <Collapsed name="props" label="Properti" />

@@ -39,6 +39,8 @@ export interface SheetInteraction {
   /** asset dropped onto a frame; `rect` is the frame canvas box in client px */
   onDropAsset?(sceneId: string, e: React.DragEvent, rect: DOMRect): void;
   onOpenScene?(sceneId: string): void;
+  /** false = frames still selectable but layers locked (AI working) */
+  editable?: boolean;
 }
 
 interface SheetProps extends SheetInteraction {
@@ -63,7 +65,7 @@ function Frame({ scene, x, y, slug, scale, pixelRatio, interactive, it }: { scen
         if (interactive && it.onDropAsset && e.dataTransfer.types.includes('application/x-storyboard-asset')) e.preventDefault();
       }}
       onDrop={(e) => {
-        if (!interactive || !it.onDropAsset) return;
+        if (!interactive || !it.onDropAsset || it.editable === false) return;
         const canvas = (e.currentTarget as HTMLElement).querySelector('.konvajs-content');
         if (canvas) it.onDropAsset(scene.id, e, canvas.getBoundingClientRect());
       }}
@@ -72,7 +74,7 @@ function Frame({ scene, x, y, slug, scale, pixelRatio, interactive, it }: { scen
         scene={scene}
         slug={slug}
         width={FRAME.w * PT_TO_PX * scale}
-        interactive={interactive}
+        interactive={interactive && it.editable !== false}
         pixelRatio={pixelRatio}
         activePanelId={active ? it.activePanelId : null}
         selectedLayerId={active ? it.selectedLayerId : null}

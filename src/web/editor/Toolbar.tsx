@@ -7,6 +7,7 @@ import { panelSpace } from '../../shared/layout';
 import type { Layer } from '../../shared/types';
 import { api } from '../api';
 import { navigate } from '../router';
+import { AgentBadge } from './AgentBadge';
 import { useEditor } from '../state/editorStore';
 import { toast } from '../state/uiStore';
 
@@ -61,17 +62,17 @@ export function Toolbar({ slug }: { slug: string }) {
       <button onClick={async () => { await s.flush(); navigate('/'); }}><ArrowLeft size={14} aria-hidden /> Projects</button>
       <span className="project-name">{s.project?.name}</span>
       <span className="sep" />
-      <button onClick={s.undo} disabled={!s.past.length} title="Undo (Ctrl+Z)">
+      <button onClick={s.undo} disabled={s.agentActive || !s.past.length} title="Undo (Ctrl+Z)">
         <Undo2 size={14} aria-hidden /> Undo
       </button>
-      <button onClick={s.redo} disabled={!s.future.length} title="Redo (Ctrl+Shift+Z)">
+      <button onClick={s.redo} disabled={s.agentActive || !s.future.length} title="Redo (Ctrl+Shift+Z)">
         <Redo2 size={14} aria-hidden /> Redo
       </button>
       <span className="sep" />
-      <button onClick={() => insert(defaultText(space))} title="Tambah teks">
+      <button onClick={() => insert(defaultText(space))} disabled={s.agentActive} title="Tambah teks">
         <Type size={14} aria-hidden /> Teks
       </button>
-      <button ref={shape.ref} className={shape.open ? 'on' : ''} onClick={shape.toggle} title="Tambah shape">
+      <button ref={shape.ref} className={shape.open ? 'on' : ''} onClick={shape.toggle} disabled={s.agentActive} title="Tambah shape">
         <Shapes size={14} aria-hidden /> Shape
       </button>
       <Popover anchor={shape.el} open={shape.open} onClose={shape.close} width={280} height={260}>
@@ -82,7 +83,7 @@ export function Toolbar({ slug }: { slug: string }) {
           }}
         />
       </Popover>
-      <button ref={emoji.ref} className={emoji.open ? 'on' : ''} onClick={emoji.toggle} title="Tambah emoji">
+      <button ref={emoji.ref} className={emoji.open ? 'on' : ''} onClick={emoji.toggle} disabled={s.agentActive} title="Tambah emoji">
         <Smile size={14} aria-hidden /> Emoji
       </button>
       <Popover anchor={emoji.el} open={emoji.open} onClose={emoji.close} width={232} height={160}>
@@ -101,6 +102,7 @@ export function Toolbar({ slug }: { slug: string }) {
         </div>
       </Popover>
       <div className="grow" />
+      <AgentBadge />
       <span className={`save-status ${s.saveStatus}`} title={s.saveError ?? ''}>
         {s.saveStatus === 'saved' ? <Check size={13} aria-hidden /> : s.saveStatus === 'error' ? <AlertTriangle size={13} aria-hidden /> : <Loader2 size={13} className="spin" aria-hidden />}
         {STATUS[s.saveStatus]}

@@ -17,6 +17,7 @@ function sceneRange(p: Project, pi: number): string {
 
 export function SlidesPanel({ slug }: { slug: string }) {
   const s = useEditor();
+  const locked = s.agentActive;
   const project = s.project!;
   const current = s.currentPageIndex();
   const [menu, setMenu] = useState<{ pi: number; el: HTMLElement } | null>(null);
@@ -83,6 +84,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
               <button
                 className="slide-more"
                 title="Hapus cover"
+                disabled={locked}
                 aria-label="Hapus cover"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -137,6 +139,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
               <button
                 className="slide-more"
                 title="Menu page"
+                disabled={locked}
                 aria-label="Menu page"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -163,7 +166,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
           </div>
         ))}
       </div>
-      <div className="slides-actions">
+      <fieldset className="slides-actions lockable" disabled={locked}>
         <button onClick={addPageAfterCurrent}><Plus size={14} aria-hidden /> Page</button>
         {!project.cover && (
           <button
@@ -175,7 +178,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
             <Plus size={14} aria-hidden /> Cover
           </button>
         )}
-      </div>
+      </fieldset>
     </div>
   );
 }

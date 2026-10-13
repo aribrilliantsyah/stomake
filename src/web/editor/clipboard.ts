@@ -25,6 +25,7 @@ export function handleCopy(e: ClipboardEvent): void {
 }
 
 export function handleCut(e: ClipboardEvent): void {
+  if (useEditor.getState().agentActive) return;
   if (isTypingTarget(e.target)) return;
   const sel = selectedLayer();
   if (!sel) return;
@@ -42,6 +43,7 @@ function isSplitPanel(panelId: string): boolean {
 export async function handlePaste(e: ClipboardEvent): Promise<void> {
   if (isTypingTarget(e.target)) return;
   const st = useEditor.getState();
+  if (st.agentActive) return;
   const panelId = st.activePanelId;
   if (!st.project || !st.slug || !panelId) return;
   const images = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));

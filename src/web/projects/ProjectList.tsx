@@ -324,6 +324,7 @@ export function ProjectList() {
                 </div>
                 <div className="pmeta">
                   <span className="mono">{p.scenes} scene · {p.pages} page</span>
+                  {p.agentActive && <span className="badge ai">AI</span>}
                   {p.archived && <span className="badge">ARSIP</span>}
                   {p.broken && <span className="badge err">RUSAK</span>}
                   <span className="spacer" />
@@ -378,7 +379,7 @@ export function ProjectList() {
                 <td className="num mono" title={fullTime(p.updatedAt)}>
                   {relativeTime(p.updatedAt)}
                 </td>
-                <td>{p.broken ? <span className="badge err">RUSAK</span> : p.archived ? <span className="badge">ARSIP</span> : <span className="dim-text">Aktif</span>}</td>
+                <td>{p.agentActive && <span className="badge ai">AI</span>} {p.broken ? <span className="badge err">RUSAK</span> : p.archived ? <span className="badge">ARSIP</span> : <span className="dim-text">Aktif</span>}</td>
                 <td className="act" onClick={(e) => e.stopPropagation()}>
                   <ProjectMenu p={p} actions={actions} />
                 </td>
