@@ -1,90 +1,191 @@
-# Storyboard Maker
+<div align="center">
 
-Aplikasi web lokal untuk membuat storyboard video 9:16 dari storyline lalu export PDF bergaya template Canva (untuk dikirim ke video editor).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/storyboard-maker-lockup-dark.svg">
+  <img src="docs/images/storyboard-maker-lockup.svg" alt="Storyboard Maker" width="480">
+</picture>
 
-- Editor gaya PowerPoint: panel Slides (Cover opsional + page), page aktif tampil seperti PDF dan frame-nya bisa diedit langsung.
-- Page berisi 1–3 scene; "+ Page" dan "+ Scene" diatur sendiri (tidak ada pemindahan otomatis). Nomor scene berlanjut antar page.
-- Cover "VISUAL ASLI" opsional: satu frame di tengah, tidak dihitung sebagai scene.
-- Per scene: catatan efek (atas), frame 9:16, subtitle/narasi (bawah). Opsional split atas-bawah (kondisi awal → akhir).
-- Storyline viewer di samping (paste / import `.docx`) untuk copy-paste ke scene.
-- Asset per project + global, drag & drop ke canvas; background per scene/panel dan per page (warna atau asset).
-- Layer: gambar (geser, resize, rotate, flip, opacity, urutan), teks (15 font bawaan + font laptop via Chrome), 10 shape (kotak, elips, garis, panah, panah 2 arah, target, silang, bintang, balon kata), emoji. Duplikat scene/page.
-- Ctrl+C / Ctrl+X / Ctrl+V layer antar scene; paste gambar (screenshot) langsung jadi asset project.
-- Autosave, undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y), zoom page 25–400% di footer, opacity per layer.
+<p align="center">
+  <strong>Aplikasi desktop web lokal untuk merancang storyboard video vertikal 9:16 dari storyline dan export PDF bergaya template Canva untuk video editor.</strong>
+</p>
 
-Dokumen: [docs/SPEC.md](docs/SPEC.md), [docs/SPEC-V2.md](docs/SPEC-V2.md), [docs/PLAN.md](docs/PLAN.md), [docs/PLAN-V2.md](docs/PLAN-V2.md).
+<p align="center">
+  <img src="https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React">
+  <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Playwright-1.x-45BA4B?logo=playwright&logoColor=white" alt="Playwright">
+  <img src="https://img.shields.io/badge/MCP-Enabled-2563EB" alt="Model Context Protocol">
+</p>
 
-## Pakai
+</div>
+
+---
+
+## 📸 Antarmuka Aplikasi
+
+### Editor Storyboard (Dark Mode — 3 Scene per Halaman)
+Tampilan lembar kerja utama dengan thumbnail navigasi slide di kiri, naskah storyline di tengah-kiri, kanvas 9:16 di tengah, dan inspektor layer di kanan.
+
+![Editor Storyboard Dark Mode](docs/images/editor-page-3scenes-dark.png)
+
+### Dashboard Proyek
+Manajemen proyek dengan filter status, pencarian instan, pengurutan, dan pergantian tema terang/gelap.
+
+| Tampilan Terang (Light Mode) | Tampilan Gelap (Dark Mode) |
+|---|---|
+| ![Dashboard Light](docs/images/dashboard-light.png) | ![Dashboard Dark](docs/images/dashboard-dark.png) |
+
+### Manajemen Aset & Pengaturan Integrasi AI (MCP)
+
+| Panel Aset Drag & Drop | Dialog Pengaturan & MCP Server |
+|---|---|
+| ![Panel Asset](docs/images/editor-assets-light.png) | ![Pengaturan MCP](docs/images/settings-modal.png) |
+
+---
+
+## ✨ Fitur Utama
+
+- **Navigasi Slides Gaya PowerPoint**: Panel slides di sebelah kiri untuk berpindah halaman dengan cepat. Mendukung Cover *"VISUAL ASLI"* opsional dan halaman isi.
+- **Rasio Asli 9:16 Vertikal**: Didesain khusus untuk produksi konten vertikal (TikTok, Instagram Reels, YouTube Shorts).
+- **Layout Fleksibel 1–3 Scene per Halaman**: Setiap halaman menampung 1 hingga 3 frame scene tanpa pemindahan otomatis antar halaman.
+- **Struktur Scene Lengkap**: Catatan pengarah/efek di atas frame, frame visual 9:16 di tengah, dan subtitle/narasi di bawah frame. Mendukung split atas-bawah (kondisi awal → akhir).
+- **Integrasi Storyline & Import Word (`.docx`)**: Baca naskah cerita di panel samping dengan penghitung kata otomatis dan kemudahan copy-paste ke scene.
+- **Manajemen Aset Komprehensif**: Asset per proyek dan asset global perpustakaan, drag & drop ke canvas, serta copy-paste screenshot clipboard langsung jadi file asset.
+- **Manipulasi Layer Kaya**:
+  - Transformasi: geser, ubah ukuran, putar, flip horizontal/vertikal, opacity.
+  - Tipe layer: Gambar (PNG/JPG/GIF/WebP), Teks (15 font bawaan + font lokal sistem di Chrome), 10 bentuk shape (kotak, elips, garis, panah, target, silang, bintang, balon kata), dan Emoji picker.
+- **Autosave & Undo/Redo Penuh**: Riwayat aksi tersimpan otomatis (`Ctrl+Z`, `Ctrl+Shift+Z`, `Ctrl+Y`), dengan indikator status sinkronisasi.
+- **Zoom Kanvas Presisi**: Rentang zoom 25%–400% dengan slider, tombol pintas, dan mode fokus *"Pas layar"*.
+- **Export PDF Berkualitas Tinggi**: Render PDF bergaya Canva secara otomatis via browser Chromium bawaan (Playwright).
+- **Protokol AI Agent (MCP)**: Server Model Context Protocol bawaan dengan 19 tools untuk automasi pembuatan storyboard melalui AI agent (Hermes, Claude Code, Cursor).
+
+---
+
+## 🚀 Memulai
+
+### Prasyarat
+- **Node.js** v20 atau lebih baru
+- **pnpm** (direkomendasikan)
+- Browser Chromium untuk export PDF (Playwright)
+
+### Instalasi & Menjalankan
 
 ```bash
+# Clone repository
+git clone https://github.com/aribrilliantsyah/storyboard-maker.git
+cd storyboard-maker
+
+# Install dependensi
 pnpm install
-pnpm start            # build + server di http://127.0.0.1:5178
+
+# Jalankan server aplikasi
+pnpm start
 ```
 
-Export PDF memakai Chromium lewat Playwright. Bila belum ada browser yang cocok, aplikasi mencoba Google Chrome/Chromium sistem; kalau gagal jalankan sekali:
+Aplikasi web dapat langsung diakses melalui peramban di:
+👉 **`http://127.0.0.1:5178`**
 
+Untuk export PDF, pastikan Chromium Playwright telah terpasang:
 ```bash
 pnpm exec playwright install chromium
 ```
 
-Data disimpan di `~/Storyboard` (ubah dengan env `STORYBOARD_HOME`):
+---
 
+## 📂 Struktur Penyimpanan Data
+
+Seluruh data proyek dan aset disimpan secara lokal di direktori `~/Storyboard` (dapat dikustomisasi melalui variabel environment `STORYBOARD_HOME`):
+
+```text
+~/Storyboard/
+├── library/                           # Aset global perpustakaan
+├── settings.json                      # Pengaturan global & konfigurasi MCP
+└── projects/
+    └── <slug-proyek>/
+        ├── project.json               # Struktur data storyboard & layer
+        ├── storyline.txt              # Naskah cerita proyek
+        ├── assets/                    # File aset gambar proyek
+        ├── clips/                     # Gambar clipboard sementara
+        └── exports/
+            └── storyboard.pdf         # Hasil export PDF
 ```
-~/Storyboard/library/                  asset global
-~/Storyboard/projects/<slug>/project.json
-                            storyline.txt
-                            assets/
-                            exports/storyboard.pdf
-```
 
-## Shortcut editor
+---
 
-| Tombol | Aksi |
+## ⌨️ Pintasan Keyboard (Shortcuts)
+
+| Tombol | Fungsi |
 |---|---|
-| Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Undo / Redo (juga saat mengetik di catatan/subtitle) |
-| Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+scroll | Zoom page in / out / pas layar |
-| Delete | Hapus layer terpilih |
-| Ctrl+D | Duplikat layer |
-| `]` / `[` | Layer naik / turun (Shift = paling depan / belakang) |
-| Panah | Geser layer 5px (Shift = 50px) |
-| Esc | Batal pilih / keluar zoom |
-| Ctrl+C / Ctrl+X / Ctrl+V | Copy / potong / tempel layer (atau gambar dari clipboard) |
-| Z / double-click frame | Zoom satu scene |
-| Ctrl+1 / Ctrl+2 / Ctrl+3 | Lipat panel Slides / Storyline-Asset / Properti |
+| `Ctrl + Z` / `Ctrl + Y` | Undo / Redo aksi |
+| `Ctrl + Shift + Z` | Alternatif Redo |
+| `Ctrl + =` / `Ctrl + -` | Perbesar / Perkecil kanvas (Zoom in / out) |
+| `Ctrl + 0` | Sesuaikan ukuran kanvas ke layar (Fit to screen) |
+| `Delete` / `Backspace` | Hapus layer yang sedang dipilih |
+| `Ctrl + D` | Duplikat layer terpilih |
+| `]` / `[` | Naikkan / turunkan urutan layer (`Shift` = paling depan/belakang) |
+| `Panah (Arrow keys)` | Geser posisi layer 5px (`Shift` = 50px) |
+| `Ctrl + C` / `Ctrl + V` | Salin dan tempel layer antar scene |
+| `Ctrl + X` | Potong (cut) layer |
+| `Z` / Double-click frame | Zoom fokus ke satu scene tertentu |
+| `Esc` | Batalkan seleksi / keluar dari mode zoom |
+| `Ctrl + 1` / `2` / `3` | Toggle sembunyikan/tampilkan panel Slides, Storyline, Properti |
 
-## Agent AI (MCP)
+---
 
-1. Buka ⚙ **Pengaturan** → nyalakan **MCP**. Default mati; selama mati `/mcp` membalas 404.
-2. Daftarkan URL ke agent (Hermes, Claude Code, Cursor, …). Contoh konfigurasi (tombol Salin ada di dialog):
+## 🤖 Integrasi AI Agent (MCP Server)
 
-   ```json
-   { "mcpServers": { "storyboard-maker": { "type": "http", "url": "http://127.0.0.1:5178/mcp" } } }
-   ```
+Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk integrasi langsung dengan AI coding agent.
 
-   Claude Code: `claude mcp add --transport http storyboard-maker http://127.0.0.1:5178/mcp`
+### Mengaktifkan MCP
+1. Buka ⚙ **Pengaturan** di kanan atas aplikasi.
+2. Aktifkan opsi **Model Context Protocol (MCP)**.
+3. Konfigurasikan pada client agent pilihan Anda:
 
-3. Ada 19 tool: `list_projects`, `create_project`, `get_project`, `get/set_storyline`, `list_assets`, `add_page`, `add_scene`, `remove_scene`, `remove_page`, `update_scene`, `set_cover`, `set_background`, `add_layer`, `update_layer`, `remove_layer`, `reorder_layer`, `export_pdf`, `finish_editing`.
-   - Agent tidak bisa menghapus, mengarsipkan, atau mengganti nama project.
-   - Agent tidak bisa meng-upload file.
+```json
+{
+  "mcpServers": {
+    "storyboard-maker": {
+      "type": "http",
+      "url": "http://127.0.0.1:5178/mcp"
+    }
+  }
+}
+```
 
-Saat agent mengedit project yang sedang dibuka:
-- Editor menampilkan perubahan secara live dan menjadi read-only, dengan badge **AI sedang bekerja…**.
-- Kunci terbuka saat agent memanggil `finish_editing`, atau 10 detik setelah aksi terakhirnya.
-- Setelah itu, perubahan agent bisa dibatalkan satu per satu dengan Ctrl+Z.
+*Contoh Claude Code:*
+```bash
+claude mcp add --transport http storyboard-maker http://127.0.0.1:5178/mcp
+```
 
-Server hanya mendengarkan di 127.0.0.1. Permintaan dari host atau origin lain ditolak.
+### 19 Tools yang Tersedia untuk AI:
+- **Proyek**: `list_projects`, `create_project`, `get_project`, `get_storyline`, `set_storyline`, `list_assets`
+- **Halaman & Scene**: `add_page`, `remove_page`, `add_scene`, `remove_scene`, `update_scene`, `set_cover`, `set_background`
+- **Manipulasi Layer**: `add_layer`, `update_layer`, `remove_layer`, `reorder_layer`
+- **Output & Sesi**: `export_pdf`, `finish_editing`
 
-## Tema
+*Catatan Keamanan*: Server MCP hanya mendengarkan pada antarmuka lokal `127.0.0.1` dan menolak akses dari host eksternal.
 
-Tombol ☾/☀ di header untuk beralih terang/gelap. Pilihan "Ikuti sistem" ada di Pengaturan. Isi storyboard dan PDF tidak ikut berubah warna.
+---
 
-## Development
+## 🛠️ Pengembangan (Development)
 
 ```bash
-pnpm dev              # server :5178 + vite :5173 (buka http://localhost:5173)
-pnpm test             # unit + api + export pdf (butuh pdftotext/pdfinfo dari poppler)
-pnpm e2e              # playwright end-to-end
+# Menjalankan mode pengembangan (Server :5178 + Vite HMR :5173)
+pnpm dev
+
+# Menjalankan unit test & test export PDF
+pnpm test
+
+# Menjalankan pengujian End-to-End Playwright
+pnpm e2e
+
+# Validasi tipe TypeScript
 pnpm typecheck
 ```
 
-Konstanta layout PDF (posisi kolom, ukuran frame, font) ada di `src/shared/layout.ts`.
+---
+
+## 📄 Lisensi
+
+Didistribusikan di bawah lisensi MIT.

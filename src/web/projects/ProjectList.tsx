@@ -203,7 +203,10 @@ export function ProjectList() {
     <div className="home-scroll">
     <div className="home">
       <header className="home-head">
-        <h1>Storyboard Maker</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/logo.svg" alt="" width="22" height="22" style={{ display: 'block' }} />
+          <h1>Storyboard Maker</h1>
+        </div>
         <div className="home-search">
           <Search size={14} aria-hidden />
           <input
