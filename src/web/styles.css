@@ -649,3 +649,9 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .layer-list li.drop-into { box-shadow: inset 0 0 0 2px var(--accent); }
 .layer-list li.member .grip { margin-left: 0; }
 .layer-actions.top { margin: 0 0 8px; padding: 0 0 8px; border-top: 0; border-bottom: 1px solid var(--line); }
+
+/* asset delete */
+.menu-sep { height: 1px; background: var(--line); margin: 3px 0; }
+.del-asset { display: grid; gap: 8px; min-width: 300px; }
+.del-asset p { margin: 0; line-height: 1.45; }
+.warn-text { color: var(--warn); }

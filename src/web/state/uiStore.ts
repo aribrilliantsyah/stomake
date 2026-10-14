@@ -118,4 +118,4 @@ export const useUi = create<UiState>((set, get) => ({
 }));
 
 /** Shorthand for non-React callers. */
-export const toast = (kind: ToastKind, text: string, link?: Toast['link']) => useUi.getState().toast(kind, text, link);
+export const toast = (kind: ToastKind, text: string, link?: Toast['link'], action?: Toast['action']) => useUi.getState().toast(kind, text, link, action);

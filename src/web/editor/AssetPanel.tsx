@@ -1,4 +1,5 @@
-import { Folder, Globe, Image as ImageIcon, Loader2, MoreHorizontal, Upload, Wallpaper } from 'lucide-react';
+import { Folder, Globe, Image as ImageIcon, Loader2, MoreHorizontal, Trash2, Upload, Wallpaper } from 'lucide-react';
+import { ConfirmDialog } from '../ui/Dialog';
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from '../ui/Popover';
 import { setPageBackground, updatePanel } from '../../shared/model';
@@ -19,6 +20,40 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
   const [menu, setMenu] = useState<{ ref: string; el: HTMLElement } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const s = useEditor();
+  const [confirmDel, setConfirmDel] = useState<{ asset: AssetInfo; usage: { slug: string; name: string; count: number }[] } | null>(null);
+
+  async function askDelete(a: AssetInfo) {
+    setMenu(null);
+    let usage: { slug: string; name: string; count: number }[] = [];
+    try {
+      usage = await api.assetUsage(a.ref, slug);
+    } catch {
+      /* show the dialog anyway */
+    }
+    setConfirmDel({ asset: a, usage });
+  }
+
+  async function doDelete(a: AssetInfo) {
+    try {
+      const { trashId } = await api.deleteAsset(a.ref, slug);
+      if (picked === a.ref) setPicked(null);
+      onUploaded();
+      toast('ok', `"${a.name}" dihapus`, undefined, {
+        label: 'Urungkan',
+        run: async () => {
+          try {
+            const back = await api.restoreAsset(trashId);
+            onUploaded();
+            toast('ok', back.name === a.name ? `"${a.name}" dipulihkan` : `Dipulihkan sebagai "${back.name}"`);
+          } catch (e) {
+            toast('err', `Gagal memulihkan: ${(e as Error).message}`);
+          }
+        },
+      });
+    } catch (e) {
+      toast('err', `Gagal menghapus: ${(e as Error).message}`);
+    }
+  }
 
   const list = assets[scope].filter((a) => a.name.toLowerCase().includes(q.toLowerCase()));
   // infinite list: render a batch, add more when the sentinel scrolls into view
@@ -47,8 +82,22 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
       useEditor.getState().copyAsset(a);
       toast('info', `${a.name} disalin — Ctrl+V untuk menaruh di scene`);
     };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' || !picked) return;
+      const t = e.target as HTMLElement | null;
+      if (!t?.closest?.('.asset[data-asset-tile]')) return;
+      const a = [...assets.project, ...assets.global].find((x) => x.ref === picked);
+      if (!a) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      void askDelete(a);
+    };
     document.addEventListener('copy', copy, true);
-    return () => document.removeEventListener('copy', copy, true);
+    window.addEventListener('keydown', key, true);
+    return () => {
+      document.removeEventListener('copy', copy, true);
+      window.removeEventListener('keydown', key, true);
+    };
   }, [picked, assets]);
 
   async function upload(files: File[]) {
@@ -154,7 +203,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
             <button
               className={`ib sm asset-more${menu?.ref === a.ref ? ' open' : ''}`}
               onClick={(e) => setMenu(menu?.ref === a.ref ? null : { ref: a.ref, el: e.currentTarget })}
-              title="Jadikan background"
+              title="Menu asset"
               aria-label="Menu asset"
             >
               <MoreHorizontal size={14} aria-hidden />
@@ -176,6 +225,10 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
                 <button onClick={() => setPageBg(a)} disabled={s.selectedCover} title={s.selectedCover ? 'Cover memakai background default project (atur di panel Properti)' : ''}>
                   <Wallpaper size={14} aria-hidden /> Jadikan background page
                 </button>
+                <div className="menu-sep" />
+                <button className="danger" onClick={() => void askDelete(a)} disabled={s.agentActive}>
+                  <Trash2 size={14} aria-hidden /> Hapus asset…
+                </button>
               </Popover>
             )}
           </div>
@@ -188,6 +241,45 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
         </div>
       )}
       </div>
+      {confirmDel && (
+        <ConfirmDialog
+          title="Hapus asset?"
+          danger
+          confirmLabel="Hapus"
+          onClose={() => setConfirmDel(null)}
+          onConfirm={() => void doDelete(confirmDel.asset)}
+          message={
+            <div className="del-asset">
+              <div className="asset-menu-head">
+                <span className="thumb">
+                  <img src={confirmDel.asset.url} alt="" draggable={false} />
+                </span>
+                <div className="asset-menu-meta">
+                  <div className="ellipsis">{confirmDel.asset.name}</div>
+                  <div className="muted mono small">
+                    {confirmDel.asset.ref.startsWith('global:') ? 'Global' : 'Project'} · {confirmDel.asset.width}×{confirmDel.asset.height}
+                  </div>
+                </div>
+              </div>
+              {confirmDel.usage.length ? (
+                <p className="warn-text">
+                  Masih dipakai di{' '}
+                  {confirmDel.usage.map((u, i) => (
+                    <span key={u.slug}>
+                      {i ? ', ' : ''}
+                      <b>{u.name}</b> <span className="mono">({u.count}×)</span>
+                    </span>
+                  ))}
+                  . Layer itu akan tampil sebagai &quot;hilang&quot; sampai asset dipulihkan.
+                </p>
+              ) : (
+                <p className="muted">Tidak dipakai di scene mana pun.</p>
+              )}
+              <p className="muted small">File dipindah ke Sampah dan bisa diurungkan dari notifikasi.</p>
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }

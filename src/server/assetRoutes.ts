@@ -4,6 +4,8 @@ import { extname, join } from 'node:path';
 import { Hono } from 'hono';
 import { publish } from './live';
 import mammoth from 'mammoth';
+import { assetUsage, isValidAssetTrashId, restoreAsset, trashAsset } from './assetTrash';
+import type { AssetRef } from '../shared/types';
 import { AssetError, listAssets, MIME, promoteClip, saveAssets } from './assets';
 import { badRequest, checkSlug, type Ctx } from './http';
 import { isSafeName, isValidSlug, libraryDir, projectAssetsDir, projectClipsDir } from './paths';
@@ -62,6 +64,34 @@ export function assetRoutes(): Hono {
     const type = MIME[extname(name).toLowerCase()] ?? 'application/octet-stream';
     return c.body(new Uint8Array(await readFile(file)), 200, { 'content-type': type, 'cache-control': 'no-cache' });
   };
+  r.delete('/api/assets/global/:name', async (c) => {
+    const name = c.req.param('name');
+    if (!isSafeName(name)) return badRequest(c, 'invalid name');
+    const id = await trashAsset('global', name);
+    return id ? c.json({ trashId: id }) : c.json({ error: 'not found' }, 404);
+  });
+  r.delete('/api/assets/project/:slug/:name', async (c) => {
+    const err = checkSlug(c);
+    if (err) return err;
+    const name = c.req.param('name');
+    if (!isSafeName(name)) return badRequest(c, 'invalid name');
+    const id = await trashAsset('project', name, c.req.param('slug'));
+    return id ? c.json({ trashId: id }) : c.json({ error: 'not found' }, 404);
+  });
+  r.post('/api/assets/trash/:id/restore', async (c) => {
+    const id = c.req.param('id');
+    if (!isValidAssetTrashId(id)) return badRequest(c, 'invalid trash id');
+    const info = await restoreAsset(id);
+    return info ? c.json(info) : c.json({ error: 'not found' }, 404);
+  });
+  r.get('/api/assets/usage', async (c) => {
+    const ref = c.req.query('ref') ?? '';
+    const slug = c.req.query('project');
+    if (!/^(global|project):[^/\\]+$/.test(ref)) return badRequest(c, 'invalid ref');
+    if (slug && !isValidSlug(slug)) return badRequest(c, 'invalid project');
+    return c.json(await assetUsage(ref as AssetRef, slug || undefined));
+  });
+
   r.get('/files/global/:name', (c) => serveFile(c, libraryDir(), c.req.param('name')));
   r.get('/files/clip/:slug/:name', async (c) => {
     const slug = c.req.param('slug');

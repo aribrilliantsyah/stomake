@@ -46,6 +46,13 @@ export const api = {
     fd.append('file', file);
     return req<{ text: string }>(`/api/projects/${slug}/storyline/import`, { method: 'POST', body: fd });
   },
+  deleteAsset: (ref: string, slug: string) => {
+    const [scope, name] = [ref.slice(0, ref.indexOf(':')), ref.slice(ref.indexOf(':') + 1)];
+    const url = scope === 'global' ? `/api/assets/global/${encodeURIComponent(name)}` : `/api/assets/project/${slug}/${encodeURIComponent(name)}`;
+    return req<{ trashId: string }>(url, { method: 'DELETE' });
+  },
+  restoreAsset: (trashId: string) => req<AssetInfo>(`/api/assets/trash/${trashId}/restore`, { method: 'POST' }),
+  assetUsage: (ref: string, slug: string) => req<{ slug: string; name: string; count: number }[]>(`/api/assets/usage?project=${slug}&ref=${encodeURIComponent(ref)}`),
   listAssets: (slug: string) => req<AssetLists>(`/api/assets?project=${slug}`),
   uploadAssets: (scope: 'global' | 'project', files: File[], slug: string) => {
     const fd = new FormData();

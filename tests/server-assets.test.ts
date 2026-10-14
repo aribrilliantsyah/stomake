@@ -107,3 +107,53 @@ test('schema menerima ref clip:', async () => {
   p.pages[0].scenes[0].panels[0].background = { kind: 'asset', ref: 'clip:x.png', fit: 'cover' };
   expect(() => parseProject(p)).not.toThrow();
 });
+
+async function json(path: string, init?: RequestInit) {
+  const res = await app.request(path, init);
+  return { status: res.status, body: await res.json().catch(() => null) };
+}
+
+test('hapus asset project → pindah ke trash, hilang dari daftar, bisa dipulihkan', async () => {
+  await upload('/api/assets/project/selimut-darurat', [['kipas.png', red]]);
+  const del = await json('/api/assets/project/selimut-darurat/kipas.png', { method: 'DELETE' });
+  expect(del.status).toBe(200);
+  expect(del.body.trashId).toMatch(/^\d{13}-[a-z0-9]{6}$/);
+  expect(existsSync(join(home, 'projects', 'selimut-darurat', 'assets', 'kipas.png'))).toBe(false);
+  expect((await json('/api/assets?project=selimut-darurat')).body.project).toEqual([]);
+  const back = await json(`/api/assets/trash/${del.body.trashId}/restore`, { method: 'POST' });
+  expect(back.status).toBe(200);
+  expect(back.body.ref).toBe('project:kipas.png');
+  expect((await json('/api/assets?project=selimut-darurat')).body.project).toHaveLength(1);
+  // restored once only
+  expect((await json(`/api/assets/trash/${del.body.trashId}/restore`, { method: 'POST' })).status).toBe(404);
+});
+
+test('hapus asset global; pulihkan saat nama sudah dipakai lagi → nama unik', async () => {
+  await upload('/api/assets/global', [['api.png', red]]);
+  const del = await json('/api/assets/global/api.png', { method: 'DELETE' });
+  expect(del.status).toBe(200);
+  await upload('/api/assets/global', [['api.png', red]]);
+  const back = await json(`/api/assets/trash/${del.body.trashId}/restore`, { method: 'POST' });
+  expect(back.body.ref).toBe('global:api (2).png');
+});
+
+test('hapus asset: 404 bila tidak ada, 400 untuk nama/slug/trash id tidak valid', async () => {
+  expect((await app.request('/api/assets/global/tidak-ada.png', { method: 'DELETE' })).status).toBe(404);
+  expect((await app.request('/api/assets/global/..%2Fsettings.json', { method: 'DELETE' })).status).toBe(400);
+  expect((await app.request('/api/assets/project/BAD!/x.png', { method: 'DELETE' })).status).toBe(400);
+  expect((await app.request('/api/assets/trash/..%2F..%2Fx/restore', { method: 'POST' })).status).toBe(400);
+});
+
+test('pemakaian asset: global dihitung di semua project, project hanya di project itu', async () => {
+  await upload('/api/assets/global', [['api.png', red]]);
+  const pj = await json('/api/projects/selimut-darurat');
+  const p = pj.body;
+  p.pages[0].scenes[0].panels[0].layers.push({ id: 'a', type: 'image', ref: 'global:api.png', x: 1, y: 1, width: 1, height: 1, rotation: 0, opacity: 1, flipX: false, flipY: false });
+  p.pages[0].background = { kind: 'asset', ref: 'global:api.png', fit: 'cover' };
+  await app.request('/api/projects/selimut-darurat', { method: 'PUT', body: JSON.stringify(p), headers: { 'content-type': 'application/json' } });
+  const u = await json('/api/assets/usage?ref=' + encodeURIComponent('global:api.png'));
+  expect((await json('/api/assets/usage?project=selimut-darurat&ref=' + encodeURIComponent('project:api.png'))).body).toEqual([]);
+  expect(u.body).toEqual([{ slug: 'selimut-darurat', name: 'Selimut Darurat', count: 2 }]);
+  expect((await json('/api/assets/usage?ref=' + encodeURIComponent('global:lain.png'))).body).toEqual([]);
+  expect((await app.request('/api/assets/usage?ref=bad')).status).toBe(400);
+});
