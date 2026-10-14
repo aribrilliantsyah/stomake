@@ -28,14 +28,27 @@ function setup() {
 }
 const layersOf = (panelIndex: number) => useEditor.getState().project!.pages[0].scenes[panelIndex].panels[0].layers;
 
+/** a fake system clipboard shared by copy → paste events (like the real one) */
+let sys: Record<string, string> = {};
 function clipEvent(type: string, target: EventTarget = document.body, files: File[] = []) {
   const e = new Event(type, { bubbles: true, cancelable: true }) as ClipboardEvent;
   Object.defineProperty(e, 'target', { value: target });
-  Object.defineProperty(e, 'clipboardData', { value: { files, types: files.length ? ['Files'] : [], setData: vi.fn(), getData: () => '' } });
+  const data = {
+    files,
+    get types() {
+      return [...Object.keys(sys), ...(files.length ? ['Files'] : [])];
+    },
+    setData: (k: string, v: string) => {
+      if (type !== 'paste') sys[k] = v;
+    },
+    getData: (k: string) => sys[k] ?? '',
+  };
+  Object.defineProperty(e, 'clipboardData', { value: data });
   return e;
 }
 
 beforeEach(() => {
+  sys = {};
   uploadAssets.mockReset();
   uploadClips.mockReset();
   useEditor.setState({ copiedAsset: null });
@@ -152,4 +165,26 @@ test('cut beberapa layer menghapus semuanya', () => {
   handleCut(clipEvent('cut'));
   expect(layersOf(0)).toHaveLength(0);
   expect(useEditor.getState().selectedLayerIds).toEqual([]);
+});
+
+test('Ctrl+C layer lalu Ctrl+V: layer yang ditempel walau clipboard sistem masih berisi gambar lama', async () => {
+  setup();
+  const old = new File([new Uint8Array([1, 2])], 'screenshot.png', { type: 'image/png' });
+  handleCopy(clipEvent('copy'));
+  // OS keeps offering the old screenshot as a file alongside our marker
+  await handlePaste(clipEvent('paste', document.body, [old]));
+  expect(uploadClips).not.toHaveBeenCalled();
+  expect(layersOf(0)).toHaveLength(2);
+  expect(layersOf(0)[1]).toMatchObject({ char: '🔥', x: 140, y: 240 });
+});
+
+test('setelah menyalin sesuatu di luar aplikasi (marker hilang), Ctrl+V menempel gambar sistem', async () => {
+  setup();
+  handleCopy(clipEvent('copy'));
+  sys = {}; // user copied a screenshot elsewhere: our marker is gone
+  uploadClips.mockResolvedValue([{ ref: 'clip:p.png', name: 'p.png', width: 10, height: 10, url: '' }]);
+  const shot = new File([new Uint8Array([1])], 'image.png', { type: 'image/png' });
+  await handlePaste(clipEvent('paste', document.body, [shot]));
+  expect(uploadClips).toHaveBeenCalledTimes(1);
+  expect(layersOf(0).at(-1)).toMatchObject({ ref: 'clip:p.png' });
 });

@@ -155,3 +155,29 @@ test('daftar Layer: drag & drop mengubah urutan, grup ikut utuh', async ({ page,
   await saved(page);
   expect((await layers(page, slug)).map((l) => l.id)).toEqual([a, b, c]);
 });
+
+test('Ctrl+C / Ctrl+V layer di scene menduplikasi walau clipboard sistem berisi gambar', async ({ page, request, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { slug } = (await (await request.post('/api/projects', { data: { name: `Copy ${Date.now()}` }, headers: { origin: BASE } })).json()) as { slug: string };
+  await page.goto(`/p/${slug}`);
+  await expect(page.locator('.stage-box .sheet canvas')).toHaveCount(1);
+  // an old screenshot sitting on the OS clipboard
+  await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 20;
+    c.height = 20;
+    c.getContext('2d')!.fillRect(0, 0, 20, 20);
+    const b = await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]);
+  });
+  await page.getByRole('button', { name: 'Emoji', exact: true }).click();
+  await page.locator('.emoji-menu button').first().click();
+  await saved(page);
+  await page.keyboard.press('Control+c');
+  await page.keyboard.press('Control+v');
+  await saved(page);
+  const ls = await layers(page, slug);
+  expect(ls).toHaveLength(2);
+  expect((ls[1] as unknown as { type: string }).type).toBe('emoji');
+  expect(ls[1].x).toBe(ls[0].x + 40);
+});

@@ -18,12 +18,40 @@ function selectedLayers() {
   return layers.length ? { layers, panelId: st.activePanelId } : null;
 }
 
+/**
+ * Marker written to the system clipboard on Ctrl+C of layers / an asset tile. While it is still there,
+ * Ctrl+V pastes our copy even if the OS also offers an older image (Wayland/GNOME keep the last
+ * screenshot as a file). Copying anything else outside the app replaces the marker.
+ */
+export const LAYER_CLIP_MIME = 'text/x-storyboard-clip';
+let clipToken = '';
+
+function markClipboard(e: ClipboardEvent): void {
+  clipToken = crypto.randomUUID();
+  try {
+    e.clipboardData?.setData(LAYER_CLIP_MIME, clipToken);
+    e.clipboardData?.setData('text/plain', 'storyboard-maker');
+  } catch {
+    /* some browsers refuse custom types: fall back to the in-app clipboard only */
+  }
+}
+
+/** our marker is the newest thing on the system clipboard */
+function ownsClipboard(e: ClipboardEvent): boolean {
+  const d = e.clipboardData;
+  if (!d || !clipToken) return false;
+  if (d.types.includes(LAYER_CLIP_MIME)) return d.getData(LAYER_CLIP_MIME) === clipToken;
+  // custom types can be stripped by the OS clipboard; the plain-text fallback still identifies us
+  return d.getData('text/plain') === 'storyboard-maker';
+}
+
 export function handleCopy(e: ClipboardEvent): void {
   if (isTypingTarget(e.target)) return;
   if (getSelection()?.toString()) return; // copying visible page text
   const sel = selectedLayers();
   if (!sel) return;
   e.preventDefault();
+  markClipboard(e);
   useEditor.getState().setClipboard({ layers: structuredClone(sel.layers), panelId: sel.panelId });
 }
 
@@ -49,7 +77,8 @@ export async function handlePaste(e: ClipboardEvent): Promise<void> {
   if (st.agentActive) return;
   const panelId = st.activePanelId;
   if (!st.project || !st.slug || !panelId) return;
-  const images = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+  const ours = ownsClipboard(e) && (!!st.clipboard || !!st.copiedAsset);
+  const images = ours ? [] : Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
   if (images.length) {
     e.preventDefault();
     const slug = st.slug;
@@ -90,6 +119,9 @@ export async function handlePaste(e: ClipboardEvent): Promise<void> {
 let onAssetsChanged: (() => void) | null = null;
 
 /** Installs document copy/cut/paste handlers. Returns an uninstall function. */
+/** asset panel Ctrl+C uses the same marker */
+export { markClipboard };
+
 export function installClipboard(_slug: string, assetsChanged: () => void): () => void {
   onAssetsChanged = assetsChanged;
   const paste = (e: ClipboardEvent) => void handlePaste(e);

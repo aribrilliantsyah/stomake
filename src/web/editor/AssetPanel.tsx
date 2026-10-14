@@ -2,6 +2,7 @@ import { Folder, Globe, Image as ImageIcon, Loader2, MoreHorizontal, Trash2, Upl
 import { ConfirmDialog } from '../ui/Dialog';
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from '../ui/Popover';
+import { markClipboard } from './clipboard';
 import { ASSET_MIME, endAssetDrag, isFileDrag, startAssetDrag } from './assetDrag';
 export { ASSET_MIME };
 import { setPageBackground, updatePanel } from '../../shared/model';
@@ -100,6 +101,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
       if (!a) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      markClipboard(e);
       useEditor.getState().copyAsset(a);
       toast('info', `${a.name} disalin — Ctrl+V untuk menaruh di scene`);
     };
