@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { BRUSH, columnXs, COVER, FRAME, LABEL_SIZE, LABEL_Y, NOTE, PAGE, SUB, TITLE, fitText } from '../../shared/layout';
 import type { Background, Cover, Layer, Project, Scene } from '../../shared/types';
 import { SceneCanvas, type LayerEditing } from '../editor/SceneCanvas';
+import { isAssetDrag } from '../editor/assetDrag';
 import { assetUrl } from '../state/imageCache';
 import { BrushFrame, BrushLine } from './BrushLine';
 
@@ -59,7 +60,7 @@ function Frame({ scene, x, y, slug, scale, pixelRatio, interactive, it }: { scen
       onMouseDownCapture={() => interactive && it.activeSceneId !== scene.id && it.onSelectScene?.(scene.id)}
       onDoubleClick={() => interactive && it.onOpenScene?.(scene.id)}
       onDragOver={(e) => {
-        if (interactive && it.onDropAsset && e.dataTransfer.types.includes('application/x-storyboard-asset')) e.preventDefault();
+        if (interactive && it.onDropAsset && isAssetDrag(e.dataTransfer)) e.preventDefault();
       }}
       onDrop={(e) => {
         if (!interactive || !it.onDropAsset || it.editable === false) return;

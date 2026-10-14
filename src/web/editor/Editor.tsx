@@ -23,7 +23,8 @@ import { navigate } from '../router';
 import { EditorSkeleton } from '../ui/Loading';
 import { trackLoading } from '../state/progress';
 import { connectLive } from '../state/live';
-import { AssetPanel, ASSET_MIME } from './AssetPanel';
+import { AssetPanel } from './AssetPanel';
+import { draggedAsset, isAssetDrag } from './assetDrag';
 import { installClipboard } from './clipboard';
 import { groupLayers, moveLayers, pasteLayers, patchLayers, removeLayers, reorderLayers, ungroupLayers } from '../../shared/multi';
 import { ZoomBar } from './ZoomBar';
@@ -54,10 +55,9 @@ function useSize(): [(el: HTMLElement | null) => void, { w: number; h: number }]
 
 /** Map a drop on a scene canvas to a new image layer in the right panel. */
 function dropToLayer(scene: Scene, e: React.DragEvent, rect: DOMRect): { panelId: string; layer: Layer } | null {
-  const raw = e.dataTransfer.getData(ASSET_MIME);
-  if (!raw) return null;
+  const info = draggedAsset(e.dataTransfer);
+  if (!info) return null;
   e.preventDefault();
-  const info = JSON.parse(raw) as AssetInfo;
   const px = e.clientX - rect.left;
   const py = e.clientY - rect.top;
   if (px < 0 || py < 0 || px > rect.width || py > rect.height) return null;
@@ -435,7 +435,7 @@ export function Editor({ slug }: { slug: string }) {
                   className="stage-frame"
                   style={{ width: zoomW, height: (zoomW * 16) / 9 }}
                   onDragOver={(e) => {
-                    if (e.dataTransfer.types.includes(ASSET_MIME)) e.preventDefault();
+                    if (isAssetDrag(e.dataTransfer)) e.preventDefault();
                   }}
                   onDrop={(e) => {
                     if (locked) return;

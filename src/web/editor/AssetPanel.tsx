@@ -2,13 +2,14 @@ import { Folder, Globe, Image as ImageIcon, Loader2, MoreHorizontal, Trash2, Upl
 import { ConfirmDialog } from '../ui/Dialog';
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from '../ui/Popover';
+import { ASSET_MIME, endAssetDrag, isFileDrag, startAssetDrag } from './assetDrag';
+export { ASSET_MIME };
 import { setPageBackground, updatePanel } from '../../shared/model';
 import type { AssetInfo } from '../../shared/types';
 import { api, type AssetLists } from '../api';
 import { useEditor } from '../state/editorStore';
 import { toast } from '../state/uiStore';
 
-export const ASSET_MIME = 'application/x-storyboard-asset';
 export const ASSET_BATCH = 30;
 
 export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets: AssetLists; onUploaded: () => void }) {
@@ -17,6 +18,26 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  // dragenter/leave fire for every child; count them so the drop zone doesn't flicker or stick
+  const depth = useRef(0);
+  // watchdog: dragover fires every ~50 ms while a file hovers; if it stops (Esc, drop elsewhere,
+  // pointer left the window) without a dragleave reaching us, hide the drop zone anyway
+  const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideZone = () => {
+    depth.current = 0;
+    if (idle.current) clearTimeout(idle.current);
+    idle.current = null;
+    setOver(false);
+  };
+  useEffect(() => {
+    window.addEventListener('dragend', hideZone, true);
+    window.addEventListener('drop', hideZone, true);
+    return () => {
+      window.removeEventListener('dragend', hideZone, true);
+      window.removeEventListener('drop', hideZone, true);
+      if (idle.current) clearTimeout(idle.current);
+    };
+  }, []);
   const [menu, setMenu] = useState<{ ref: string; el: HTMLElement } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const s = useEditor();
@@ -137,21 +158,39 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
 
   return (
     <div
-      className={`asset-panel ${over ? 'drop-over' : ''}`}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('Files')) {
-          e.preventDefault();
-          setOver(true);
-        }
+      className={`asset-panel${over ? ' drop-over' : ''}`}
+      onDragEnter={(e) => {
+        if (!isFileDrag(e.dataTransfer)) return;
+        depth.current++;
+        setOver(true);
       }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        if (!e.dataTransfer.files.length) return;
+      onDragOver={(e) => {
+        // only OS files are an upload; our own tiles dragged over the panel are ignored (no drop here)
+        if (!isFileDrag(e.dataTransfer)) return;
         e.preventDefault();
-        setOver(false);
+        e.dataTransfer.dropEffect = 'copy';
+        if (!over) setOver(true);
+        if (idle.current) clearTimeout(idle.current);
+        idle.current = setTimeout(hideZone, 400);
+      }}
+      onDragLeave={(e) => {
+        if (!isFileDrag(e.dataTransfer)) return;
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) hideZone();
+      }}
+      onDrop={(e) => {
+        hideZone();
+        if (!isFileDrag(e.dataTransfer) || !e.dataTransfer.files.length) return;
+        e.preventDefault();
         upload(Array.from(e.dataTransfer.files));
       }}
     >
+      {over && (
+        <div className="drop-zone" aria-hidden>
+          <Upload size={18} aria-hidden />
+          <span>Lepas untuk upload ke {scope === 'project' ? 'Project' : 'Global'}</span>
+        </div>
+      )}
       <div className="seg full">
         <button className={scope === 'project' ? 'on' : ''} onClick={() => setScope('project')}>
           <Folder size={14} aria-hidden /> Project <span className="mono muted">{assets.project.length}</span>
@@ -190,10 +229,8 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
             onClick={() => setPicked(a.ref)}
             onFocus={() => setPicked(a.ref)}
             draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData(ASSET_MIME, JSON.stringify(a));
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
+            onDragStart={(e) => startAssetDrag(a, e.dataTransfer)}
+            onDragEnd={endAssetDrag}
             title={`${a.name} · ${a.width}×${a.height}`}
           >
             <div className="thumb">

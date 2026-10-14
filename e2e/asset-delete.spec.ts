@@ -39,3 +39,32 @@ test('asset: menu ⋯ → Hapus asset, peringatan dipakai, Urungkan memulihkan',
   await page.locator('.dialog').getByRole('button', { name: 'Batal' }).click();
   await expect(page.locator('.asset', { hasText: 'kipas.png' })).toHaveCount(1);
 });
+
+test('upload lewat drag file lalu drag tile ke scene tetap berfungsi; drop zone 4 sisi lalu hilang', async ({ page, request }) => {
+  const { slug } = (await (await request.post('/api/projects', { data: { name: `Dnd ${Date.now()}` }, headers: { origin: BASE } })).json()) as { slug: string };
+  await page.goto(`/p/${slug}`);
+  await page.getByRole('button', { name: 'Asset' }).click();
+  // OS file drag onto the panel (DataTransfer with a File, like Dolphin/Nautilus)
+  const dt = await page.evaluateHandle((b64) => {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const d = new DataTransfer();
+    d.items.add(new File([bin], 'kipas.png', { type: 'image/png' }));
+    return d;
+  }, png.toString('base64'));
+  const panel = page.locator('.asset-panel');
+  await panel.dispatchEvent('dragenter', { dataTransfer: dt });
+  await panel.dispatchEvent('dragover', { dataTransfer: dt });
+  const zone = page.locator('.drop-zone');
+  await expect(zone).toBeVisible();
+  const [z, p] = [(await zone.boundingBox())!, (await panel.boundingBox())!];
+  expect(Math.round(z.x + z.width)).toBeLessThanOrEqual(Math.round(p.x + p.width));
+  await expect(zone).toHaveCSS('border-right-style', 'dashed');
+  await panel.dispatchEvent('drop', { dataTransfer: dt });
+  await expect(zone).toHaveCount(0);
+  await expect(page.locator('.asset', { hasText: 'kipas.png' })).toHaveCount(1);
+
+  // then a tile → scene drag still adds a layer
+  const frame = page.locator('.stage-box .sheet-frame').first();
+  await page.locator('.asset', { hasText: 'kipas.png' }).dragTo(frame, { targetPosition: { x: 60, y: 140 } });
+  await expect.poll(async () => (await (await request.get(`/api/projects/${slug}`)).json()).pages[0].scenes[0].panels[0].layers.length, { timeout: 8000 }).toBe(1);
+});
