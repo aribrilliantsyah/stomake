@@ -155,12 +155,58 @@ export interface ProjectPage {
   size: number;
 }
 
+export interface McpSettings {
+  enabled: boolean;
+  /** own listener on 127.0.0.1 */
+  port: number;
+  /** extra Host names accepted besides 127.0.0.1 / localhost */
+  allowedHosts: string[];
+  /** false = tool not registered (absent from tools/list) */
+  tools: Record<string, boolean>;
+  lock: { idleSeconds: number; ackSeconds: number };
+  log: { enabled: boolean; payloads: boolean; maxEntries: number };
+}
+
 export interface Settings {
-  mcp: { enabled: boolean };
+  mcp: McpSettings;
 }
 
 export interface SettingsView {
-  mcp: { enabled: boolean; url: string; lastCallAt: string | null };
+  mcp: McpSettings & {
+    url: string;
+    listening: boolean;
+    listenError: string | null;
+    lastCallAt: string | null;
+    /** STORYBOARD_MCP_PORT fixes the port */
+    portFromEnv: boolean;
+    /** every tool name with its group, in display order */
+    toolList: { name: string; group: McpToolGroup; description: string }[];
+  };
   /** data folder: projects/, library/, trash/, settings.json */
   storage: { dataRoot: string; defaultRoot: string; fixedByEnv: boolean };
+}
+
+export type McpToolGroup = 'read' | 'edit' | 'asset' | 'output';
+
+export interface McpLogEntry {
+  id: number;
+  at: string;
+  kind: 'call' | 'list' | 'init' | 'rejected' | 'other';
+  tool: string | null;
+  slug: string | null;
+  status: 'ok' | 'error';
+  ms: number;
+  client: string | null;
+  input?: unknown;
+  output?: unknown;
+  error?: string;
+}
+
+export interface McpLogPage {
+  items: McpLogEntry[];
+  total: number;
+  /** tool names seen in the log (for the filter) */
+  tools: string[];
+  /** project slugs seen in the log */
+  slugs: string[];
 }

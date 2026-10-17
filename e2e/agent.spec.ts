@@ -3,10 +3,11 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { expect, test } from '@playwright/test';
 
 const BASE = 'http://127.0.0.1:5197';
+const MCP = 'http://127.0.0.1:5198/mcp';
 
 async function mcp() {
   const c = new Client({ name: 'e2e-agent', version: '1' });
-  await c.connect(new StreamableHTTPClientTransport(new URL(`${BASE}/mcp`)));
+  await c.connect(new StreamableHTTPClientTransport(new URL(MCP)));
   const call = async <T = Record<string, unknown>>(name: string, args: Record<string, unknown>) => {
     const r = (await c.callTool({ name, arguments: args })) as unknown as { isError?: boolean; structuredContent: T; content: { text: string }[] };
     if (r.isError) throw new Error(r.content[0].text);

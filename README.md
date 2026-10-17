@@ -134,6 +134,7 @@ Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. De
 ~/Storyboard/
 ├── library/                           # Aset global perpustakaan
 ├── settings.json                      # Pengaturan global & konfigurasi MCP
+├── logs/mcp.jsonl                     # Log panggilan MCP
 └── projects/
     └── <slug-proyek>/
         ├── project.json               # Struktur data storyboard & layer
@@ -187,7 +188,7 @@ Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk
   "mcpServers": {
     "storyboard-maker": {
       "type": "http",
-      "url": "http://127.0.0.1:5178/mcp"
+      "url": "http://127.0.0.1:5179/mcp"
     }
   }
 }
@@ -195,8 +196,32 @@ Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk
 
 *Contoh Claude Code:*
 ```bash
-claude mcp add --transport http storyboard-maker http://127.0.0.1:5178/mcp
+claude mcp add --transport http storyboard-maker http://127.0.0.1:5179/mcp
 ```
+
+> MCP punya port sendiri (default **5179**), terpisah dari aplikasi (5178). Agent yang dulu didaftarkan ke `:5178/mcp` perlu diganti ke URL di Pengaturan.
+
+### Konfigurasi
+
+Semua ada di ⚙ **Pengaturan → MCP**, berlaku langsung tanpa restart:
+
+| Bagian | Isi |
+|---|---|
+| Koneksi | Port (1024–65535). Bila port dipakai program lain, setelan lama tetap dan muncul pesan. Host tambahan selain `127.0.0.1`/`localhost` (mis. `storyboard.local`). |
+| Kunci editor | Berapa detik setelah panggilan terakhir editor dibuka lagi (default 10), dan berapa lama agent menunggu editor menyimpan sebelum mulai (default 3). |
+| Izin tool | Matikan tool per tool atau per kelompok (Membaca, Mengubah project, Membuat gambar, Export & sesi). Tool yang dimatikan tidak terlihat oleh agent. |
+| Log | Catat panggilan, simpan isi input/hasil atau tidak, dan jumlah entri maksimum (default 2000). |
+
+Variabel `STORYBOARD_MCP_PORT` mengunci port dari luar aplikasi.
+
+### Log MCP
+
+**Pengaturan → MCP → Buka log MCP** (atau `/mcp-logs`) menampilkan setiap koneksi, daftar tool, dan panggilan tool beserta status, durasi, nama client agent, input, dan hasilnya. Panggilan yang ditolak (MCP mati, host asing, tool dimatikan) ikut tercatat.
+
+- Filter: cari teks (termasuk isi input/hasil), status Berhasil/Gagal, tool, jenis, project, dan rentang waktu. Filter tersimpan di URL.
+- **Live** memperbarui tabel saat agent bekerja. Klik baris untuk melihat detail; `↑`/`↓` pindah baris, `Esc` menutup detail.
+- **Export** mengunduh hasil filter sebagai `.jsonl`; **Hapus log** mengosongkan semuanya.
+- Log disimpan di `<folder penyimpanan>/logs/mcp.jsonl`. Teks panjang (mis. kode SVG) dipotong 2000 karakter.
 
 ### 20 Tools yang Tersedia untuk AI:
 - **Proyek**: `list_projects`, `create_project`, `get_project`, `get_storyline`, `set_storyline`

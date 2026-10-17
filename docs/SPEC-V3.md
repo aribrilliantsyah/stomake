@@ -23,7 +23,7 @@ Di luar cakupan: agentic mode dengan model OpenAI-compatible di dalam aplikasi, 
 ## 3. Endpoint MCP
 
 - `ALL /mcp`: Streamable HTTP, **stateless**. Tiap request membuat McpServer + `WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })` baru.
-- Saat MCP mati: `/mcp` → **404** `{ error: "MCP nonaktif. Nyalakan di Pengaturan." }`. Perubahan setelan berlaku tanpa restart.
+- Saat MCP mati: `/mcp` → **404** `{ error: "MCP nonaktif. Nyalakan di Pengaturan." }`. Perubahan setelan berlaku tanpa restart. (V4: `/mcp` pindah ke listener sendiri, default port 5179, lihat `SPEC-V4-MCP.md`.)
 - Proteksi DNS-rebinding: header `Host` harus `127.0.0.1:<port>` atau `localhost:<port>`, selain itu 403. Header `Origin`, jika ada, harus lokal (sama dengan guard yang sudah ada).
 - Nama server MCP `storyboard-maker`, versi dari package.json.
 - Semua tool memakai fungsi `src/shared/model.ts` yang sama dengan editor, dan tiap perubahan divalidasi `parseProject` sebelum ditulis.

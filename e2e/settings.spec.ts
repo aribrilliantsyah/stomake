@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const BASE = 'http://127.0.0.1:5197';
+const MCP = 'http://127.0.0.1:5198/mcp';
 const init = { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }), headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' } };
 
 test('Pengaturan: switch MCP, URL, tema gelap tersimpan, toggle tema', async ({ page, request }) => {
@@ -12,12 +13,12 @@ test('Pengaturan: switch MCP, URL, tema gelap tersimpan, toggle tema', async ({ 
   await expect(dialog).toContainText('MCP');
   const sw = dialog.getByRole('switch', { name: 'Aktifkan MCP' });
   await expect(sw).toHaveAttribute('aria-checked', 'false');
-  expect((await page.request.fetch(`${BASE}/mcp`, { method: 'POST', data: init.body, headers: init.headers })).status()).toBe(404);
+  expect((await page.request.fetch(MCP, { method: 'POST', data: init.body, headers: init.headers })).status()).toBe(404);
 
   await sw.click();
   await expect(sw).toHaveAttribute('aria-checked', 'true');
-  expect((await page.request.fetch(`${BASE}/mcp`, { method: 'POST', data: init.body, headers: init.headers })).status()).toBe(200);
-  await expect(dialog.locator('.mcp-url')).toHaveText(`${BASE}/mcp`);
+  expect((await page.request.fetch(MCP, { method: 'POST', data: init.body, headers: init.headers })).status()).toBe(200);
+  await expect(dialog.locator('.mcp-url')).toHaveText(MCP);
   await expect(dialog.locator('.mcp-config')).toContainText('"storyboard-maker"');
 
   await dialog.getByRole('radio', { name: 'Gelap' }).check();

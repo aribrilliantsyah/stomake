@@ -7,7 +7,7 @@ export default defineConfig({
   timeout: 120_000,
   use: { baseURL: 'http://127.0.0.1:5197', channel: 'chrome' },
   webServer: {
-    command: `rm -rf ${home} && pnpm build && STORYBOARD_HOME=${home} NODE_ENV=production PORT=5197 pnpm exec tsx src/server/main.ts`,
+    command: `rm -rf ${home} && pnpm build && STORYBOARD_HOME=${home} STORYBOARD_MCP_PORT=5198 NODE_ENV=production PORT=5197 pnpm exec tsx src/server/main.ts`,
     url: 'http://127.0.0.1:5197/api/projects',
     reuseExistingServer: false,
     timeout: 120_000,

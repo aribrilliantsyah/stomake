@@ -23,9 +23,11 @@ import {
 import { dataRoot, defaultDataRoot, isValidSlug, isValidTrashId, setDataRoot } from './paths';
 import type { ProjectSort, ProjectStatus, SettingsView } from '../shared/types';
 import { agentLock, LOCKED_MESSAGE, subscribe } from './live';
-import { mcpRoute } from './mcp/route';
+import { applyRuntime, envMcpPort, mcpLogRoutes, startMcp } from './mcp/control';
+import type { McpListener } from './mcp/route';
+import { TOOLS } from './mcp/server';
 import { streamSSE } from 'hono/streaming';
-import { lastMcpCallAt, readSettings, settingsSchema, writeSettings } from './settings';
+import { lastMcpCallAt, mergeSettings, readSettings, settingsPatchSchema, writeSettings } from './settings';
 
 const SORTS: ProjectSort[] = ['updated', 'name', 'created', 'scenes'];
 const STATUSES: ProjectStatus[] = ['active', 'archived', 'all'];
@@ -209,21 +211,53 @@ export interface AppOptions {
   webUrl?: string;
   /** Serve built web app from this folder (production). */
   staticDir?: string;
-  /** Port the server listens on (for the MCP url shown in settings). */
+  /** Port the app itself listens on (PDF links returned to agents). */
   port?: number;
+  /** The MCP listener; settings changes move it. Absent in tests that don't open sockets. */
+  mcp?: McpListener;
 }
 
-function settingsRoutes(port: number): Hono {
+function settingsRoutes(opts: AppOptions): Hono {
   const r = new Hono();
-  const view = async (): Promise<SettingsView> => ({
-    mcp: { enabled: (await readSettings()).mcp.enabled, url: `http://127.0.0.1:${port}/mcp`, lastCallAt: lastMcpCallAt() },
-    storage: { dataRoot: dataRoot(), defaultRoot: defaultDataRoot(), fixedByEnv: process.env.STORYBOARD_HOME !== undefined },
-  });
+  const view = async (): Promise<SettingsView> => {
+    const s = (await readSettings()).mcp;
+    const st = opts.mcp?.status();
+    const port = envMcpPort() ?? (st?.listening ? st.port : s.port);
+    return {
+      mcp: {
+        ...s,
+        url: `http://127.0.0.1:${port}/mcp`,
+        listening: !!st?.listening,
+        listenError: st?.error ?? null,
+        lastCallAt: lastMcpCallAt(),
+        portFromEnv: envMcpPort() !== null,
+        toolList: TOOLS,
+      },
+      storage: { dataRoot: dataRoot(), defaultRoot: defaultDataRoot(), fixedByEnv: process.env.STORYBOARD_HOME !== undefined },
+    };
+  };
   r.get('/api/settings', async (c) => c.json(await view()));
   r.put('/api/settings', async (c) => {
-    const parsed = settingsSchema.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return badRequest(c, 'settings tidak valid');
-    await writeSettings(parsed.data);
+    const patch = settingsPatchSchema.safeParse(await c.req.json().catch(() => null));
+    if (!patch.success) return badRequest(c, 'settings tidak valid');
+    if (patch.data.mcp.tools && Object.keys(patch.data.mcp.tools).some((t) => !TOOLS.some((x) => x.name === t))) return badRequest(c, 'nama tool tidak dikenal');
+    let next;
+    try {
+      next = mergeSettings(await readSettings(), patch.data);
+    } catch (e) {
+      if (e instanceof ZodError) return badRequest(c, e.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '));
+      throw e;
+    }
+    // move the listener first: a taken port must not end up saved
+    if (opts.mcp && envMcpPort() === null && next.mcp.port !== opts.mcp.status().port) {
+      try {
+        await opts.mcp.listen(next.mcp.port);
+      } catch (e) {
+        return c.json({ error: (e as Error).message }, 409);
+      }
+    }
+    await writeSettings(next);
+    applyRuntime(next);
     return c.json(await view());
   });
   r.put('/api/settings/storage', async (c) => {
@@ -236,6 +270,9 @@ function settingsRoutes(port: number): Hono {
     } catch (e) {
       return badRequest(c, (e as Error).message);
     }
+    // settings.json lives in the data folder: the new folder may configure MCP differently
+    if (opts.mcp) await startMcp(opts.mcp);
+    else applyRuntime(await readSettings());
     return c.json(await view());
   });
   return r;
@@ -243,13 +280,13 @@ function settingsRoutes(port: number): Hono {
 
 export function createApp(opts: AppOptions = {}): Hono {
   const app = new Hono();
-  // MCP has its own host/origin checks and speaks JSON-RPC with its own Accept rules
-  app.route('/', mcpRoute(opts.port ?? 5178, () => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173'));
+  const webUrl = () => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173';
   app.use('*', guardWrites);
-  app.route('/', settingsRoutes(opts.port ?? 5178));
+  app.route('/', settingsRoutes(opts));
+  app.route('/', mcpLogRoutes());
   app.route('/', projectRoutes());
   app.route('/', assetRoutes());
-  app.route('/', exportRoutes(() => opts.webUrl || process.env.STORYBOARD_WEB_URL || 'http://localhost:5173'));
+  app.route('/', exportRoutes(webUrl));
   if (opts.staticDir) app.route('/', staticRoutes(opts.staticDir));
   app.onError((e, c) => {
     if (e instanceof LockedError) return c.json({ error: e.message }, 423);

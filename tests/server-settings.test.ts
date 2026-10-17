@@ -16,9 +16,18 @@ beforeEach(() => {
 const put = (body: unknown, headers: Record<string, string> = {}) =>
   app.request('/api/settings', { method: 'PUT', body: JSON.stringify(body), headers: { 'content-type': 'application/json', ...headers } });
 
-test('default: MCP mati, url port 5178, belum pernah dipanggil; folder dari STORYBOARD_HOME', async () => {
+test('default: MCP mati, port 5179, semua tool aktif, log lengkap; folder dari STORYBOARD_HOME', async () => {
   const s = await (await app.request('/api/settings')).json();
-  expect(s.mcp).toEqual({ enabled: false, url: 'http://127.0.0.1:5178/mcp', lastCallAt: null });
+  expect(s.mcp).toMatchObject({
+    enabled: false,
+    port: 5179,
+    url: 'http://127.0.0.1:5179/mcp',
+    lastCallAt: null,
+    tools: {},
+    lock: { idleSeconds: 10, ackSeconds: 3 },
+    log: { enabled: true, payloads: true, maxEntries: 2000 },
+  });
+  expect(s.mcp.toolList).toHaveLength(20);
   expect(s.storage).toMatchObject({ dataRoot: home, fixedByEnv: true });
 });
 
@@ -27,17 +36,26 @@ test('folder diatur STORYBOARD_HOME → ganti folder ditolak 409', async () => {
   expect(r.status).toBe(409);
 });
 
-test('url mengikuti port yang diberikan ke createApp', async () => {
-  const a = createApp({ port: 5199 });
-  expect((await (await a.request('/api/settings')).json()).mcp.url).toBe('http://127.0.0.1:5199/mcp');
+test('settings.json lama {mcp:{enabled}} tetap terbaca, sisanya default', async () => {
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ mcp: { enabled: true } }));
+  const s = (await (await createApp().request('/api/settings')).json()).mcp;
+  expect(s).toMatchObject({ enabled: true, port: 5179, lock: { idleSeconds: 10 } });
 });
 
-test('PUT menyalakan MCP dan tersimpan di settings.json', async () => {
-  const r = await put({ mcp: { enabled: true } });
+test('PUT parsial digabung dan tersimpan', async () => {
+  expect((await put({ mcp: { enabled: true } })).status).toBe(200);
+  const r = await put({ mcp: { lock: { idleSeconds: 30 }, tools: { export_pdf: false }, allowedHosts: ['Storyboard.Local'] } });
   expect(r.status).toBe(200);
-  expect((await r.json()).mcp.enabled).toBe(true);
-  expect(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'))).toEqual({ mcp: { enabled: true } });
-  expect((await (await app.request('/api/settings')).json()).mcp.enabled).toBe(true);
+  const saved = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')).mcp;
+  expect(saved).toMatchObject({ enabled: true, lock: { idleSeconds: 30, ackSeconds: 3 }, tools: { export_pdf: false }, allowedHosts: ['storyboard.local'] });
+});
+
+test('PUT di luar batas / tool tak dikenal / field asing → 400, file tidak berubah', async () => {
+  await put({ mcp: { enabled: true } });
+  const before = readFileSync(join(home, 'settings.json'), 'utf8');
+  for (const bad of [{ mcp: { port: 80 } }, { mcp: { lock: { idleSeconds: 1 } } }, { mcp: { tools: { hapus_semua: false } } }, { mcp: { allowedHosts: ['evil.com/x'] } }, { mcp: { rahasia: 1 } }])
+    expect((await put(bad)).status).toBe(400);
+  expect(readFileSync(join(home, 'settings.json'), 'utf8')).toBe(before);
 });
 
 test('PUT body tidak valid → 400', async () => {

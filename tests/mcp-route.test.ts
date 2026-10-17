@@ -3,15 +3,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { Hono } from 'hono';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
 import { agentLock, resetLive, setLiveTimings } from '../src/server/live';
+import { mcpRoute } from '../src/server/mcp/route';
 
-let app: ReturnType<typeof createApp>;
+/** the MCP listener's port the Host header must match */
+const PORT = 5179;
+const URL_ = `http://127.0.0.1:${PORT}/mcp`;
+let app: Hono;
+let mcp: Hono;
 
 beforeEach(() => {
   process.env.STORYBOARD_HOME = mkdtempSync(join(tmpdir(), 'sb-mcp-'));
   app = createApp();
+  mcp = mcpRoute(() => PORT, () => 'http://localhost:5173', () => 'http://127.0.0.1:5178');
   setLiveTimings({ ack: 50, idle: 300 });
 });
 afterEach(() => {
@@ -24,8 +31,8 @@ const enable = (on: boolean) =>
 
 async function client() {
   const c = new Client({ name: 'test', version: '1' });
-  const fetchViaApp = (u: string | URL | Request, init?: RequestInit) => app.request(new Request(u, init));
-  await c.connect(new StreamableHTTPClientTransport(new URL('http://127.0.0.1:5178/mcp'), { fetch: fetchViaApp as typeof fetch }));
+  const fetchViaApp = (u: string | URL | Request, init?: RequestInit) => mcp.request(new Request(u, init));
+  await c.connect(new StreamableHTTPClientTransport(new URL(URL_), { fetch: fetchViaApp as typeof fetch }));
   return c;
 }
 
@@ -41,7 +48,7 @@ const TOOLS = [
 ];
 
 test('MCP mati → 404 dengan pesan', async () => {
-  const r = await app.request('http://127.0.0.1:5178/mcp', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } });
+  const r = await mcp.request(URL_, { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } });
   expect(r.status).toBe(404);
   expect(await r.json()).toEqual({ error: 'MCP nonaktif. Nyalakan di Pengaturan.' });
   await expect(client()).rejects.toThrow();
@@ -77,11 +84,11 @@ test('callTool: create_project, add_scene sampai penuh → isError dengan pesan'
 test('Host/Origin asing → 403', async () => {
   await enable(true);
   const init = { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } };
-  expect((await app.request('http://evil.com:5178/mcp', init)).status).toBe(403);
-  expect((await app.request('http://127.0.0.1:5178/mcp', { ...init, headers: { ...init.headers, origin: 'http://evil.com' } })).status).toBe(403);
+  expect((await mcp.request(`http://evil.com:${PORT}/mcp`, init)).status).toBe(403);
+  expect((await mcp.request(URL_, { ...init, headers: { ...init.headers, origin: 'http://evil.com' } })).status).toBe(403);
 });
 
-test('MCP dimatikan saat agent bekerja → 404, kunci tetap lepas sendiri', async () => {
+test('MCP dimatikan saat agent bekerja → panggilan berikutnya 404 (lepas kunci otomatis: mcp-config.test)', async () => {
   await enable(true);
   const c = await client();
   const { structuredContent } = await call<{ slug: string }>(c, 'create_project', { name: 'Mati' });
@@ -90,10 +97,8 @@ test('MCP dimatikan saat agent bekerja → 404, kunci tetap lepas sendiri', asyn
   await c.callTool({ name: 'add_scene', arguments: { slug, pageId: p.structuredContent.pages[0].id } });
   expect(agentLock.state(slug)).toBe('active');
   await enable(false);
-  const r = await app.request('http://127.0.0.1:5178/mcp', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } });
+  const r = await mcp.request(URL_, { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } });
   expect(r.status).toBe(404);
-  await new Promise((res) => setTimeout(res, 400));
-  expect(agentLock.state(slug)).toBe('none');
 });
 
 test('versi server MCP dari package.json; error tak terduga tetap isError berbahasa Indonesia', async () => {

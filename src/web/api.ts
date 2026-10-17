@@ -1,4 +1,4 @@
-import type { AssetInfo, Project, ProjectPage, ProjectQuery, SettingsView } from '../shared/types';
+import type { AssetInfo, McpLogPage, McpSettings, Project, ProjectPage, ProjectQuery, SettingsView } from '../shared/types';
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init);
@@ -22,7 +22,11 @@ export interface AssetLists {
 
 export const api = {
   getSettings: () => req<SettingsView>('/api/settings'),
-  putSettings: (s: { mcp: { enabled: boolean } }) => req<SettingsView>('/api/settings', jsonInit('PUT', s)),
+  /** partial: only the fields given change (nested lock/log/tools merge too) */
+  putSettings: (s: { mcp: Partial<Omit<McpSettings, 'lock' | 'log'>> & { lock?: Partial<McpSettings['lock']>; log?: Partial<McpSettings['log']> } }) =>
+    req<SettingsView>('/api/settings', jsonInit('PUT', s)),
+  mcpLogs: (q: Record<string, string>) => req<McpLogPage>(`/api/mcp/logs?${new URLSearchParams(q)}`),
+  clearMcpLogs: () => req<{ ok: true }>('/api/mcp/logs', { method: 'DELETE' }),
   setDataRoot: (dataRoot: string) => req<SettingsView>('/api/settings/storage', jsonInit('PUT', { dataRoot })),
   queryProjects: (q: ProjectQuery) => {
     const p = new URLSearchParams();
