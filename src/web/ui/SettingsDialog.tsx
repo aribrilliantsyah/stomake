@@ -1,7 +1,8 @@
-import { Check, Copy, Monitor, Moon, Plug, Settings, Sun } from 'lucide-react';
+import { Check, Copy, FolderOpen, HardDrive, Monitor, Moon, Plug, Settings, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { SettingsView } from '../../shared/types';
 import { api } from '../api';
+import { isDesktop, pickFolder, revealFolder } from '../desktop';
 import { relativeTime } from '../projects/homeState';
 import { useTheme, type ThemePref } from '../state/theme';
 import { useUi } from '../state/uiStore';
@@ -65,6 +66,23 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
     }
   }
 
+  async function changeFolder() {
+    if (!s || busy) return;
+    const dir = await pickFolder(s.storage.dataRoot);
+    if (!dir || dir === s.storage.dataRoot) return;
+    setBusy(true);
+    try {
+      setS(await api.setDataRoot(dir));
+      toast('ok', `Folder penyimpanan: ${dir}`);
+      // every open list/editor reads from the old folder: start fresh on Home
+      location.assign('/');
+    } catch (e) {
+      toast('err', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Dialog title="Pengaturan" onClose={onClose} footer={<button onClick={onClose}>Tutup</button>}>
       <section className="set-section">
@@ -77,6 +95,36 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             </label>
           ))}
         </div>
+      </section>
+
+      <section className="set-section">
+        <h3>
+          <HardDrive size={14} aria-hidden /> Folder penyimpanan
+        </h3>
+        {s === null ? (
+          <Spinner />
+        ) : (
+          <>
+            <div className="copy-row">
+              <code className="mcp-url mono" data-testid="data-root">{s.storage.dataRoot}</code>
+              {isDesktop && (
+                <button className="ib" onClick={() => void revealFolder(s.storage.dataRoot)} title="Buka di file manager" aria-label="Buka folder">
+                  <FolderOpen size={14} aria-hidden />
+                </button>
+              )}
+            </div>
+            <div className="row">
+              <button onClick={changeFolder} disabled={busy || s.storage.fixedByEnv}>
+                Ganti folder…
+              </button>
+            </div>
+            <p className="hint">
+              {s.storage.fixedByEnv
+                ? 'Diatur oleh variabel STORYBOARD_HOME.'
+                : 'Project ada di subfolder projects/. Folder project yang di-copy ke sana langsung muncul di Home. Data di folder lama tidak dipindah.'}
+            </p>
+          </>
+        )}
       </section>
 
       <section className="set-section">

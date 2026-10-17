@@ -1,11 +1,60 @@
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import type { AssetRef } from '../shared/types';
 
 export const ASSET_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'] as const;
 
+export function defaultDataRoot(): string {
+  return join(homedir(), 'Storyboard');
+}
+
+/**
+ * Per-OS app config folder. Holds only the pointer to the data folder: settings.json lives inside
+ * the data folder, so it can't say where that folder is.
+ */
+export function configDir(): string {
+  if (process.env.STORYBOARD_CONFIG_DIR) return process.env.STORYBOARD_CONFIG_DIR;
+  if (process.platform === 'win32') return join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'storyboard-maker');
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'storyboard-maker');
+  return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'storyboard-maker');
+}
+
+const locationFile = () => join(configDir(), 'location.json');
+
+/** chosen folder, cached per pointer file (tests swap STORYBOARD_CONFIG_DIR) */
+let chosen: { file: string; root: string | null } | null = null;
+
+function chosenRoot(): string | null {
+  const file = locationFile();
+  if (chosen?.file === file) return chosen.root;
+  let root: string | null = null;
+  try {
+    const v = JSON.parse(readFileSync(file, 'utf8')) as { dataRoot?: unknown };
+    if (typeof v.dataRoot === 'string' && isAbsolute(v.dataRoot)) root = v.dataRoot;
+  } catch {
+    /* missing or corrupt → default folder */
+  }
+  chosen = { file, root };
+  return root;
+}
+
+/** STORYBOARD_HOME (fixed by the environment) > folder chosen in Pengaturan > ~/Storyboard */
 export function dataRoot(): string {
-  return process.env.STORYBOARD_HOME ?? join(homedir(), 'Storyboard');
+  return process.env.STORYBOARD_HOME ?? chosenRoot() ?? defaultDataRoot();
+}
+
+/** Switch the data folder (created when missing). Existing data is not moved. */
+export function setDataRoot(dir: string): string {
+  if (!isAbsolute(dir)) throw new Error('Folder harus path lengkap (absolut)');
+  const root = resolve(dir);
+  mkdirSync(root, { recursive: true });
+  const file = locationFile();
+  mkdirSync(configDir(), { recursive: true });
+  writeFileSync(`${file}.tmp`, JSON.stringify({ dataRoot: root }, null, 2), 'utf8');
+  renameSync(`${file}.tmp`, file);
+  chosen = { file, root };
+  return root;
 }
 
 export function settingsFile(): string {

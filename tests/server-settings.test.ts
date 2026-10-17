@@ -16,10 +16,15 @@ beforeEach(() => {
 const put = (body: unknown, headers: Record<string, string> = {}) =>
   app.request('/api/settings', { method: 'PUT', body: JSON.stringify(body), headers: { 'content-type': 'application/json', ...headers } });
 
-test('default: MCP mati, url port 5178, belum pernah dipanggil', async () => {
-  expect(await (await app.request('/api/settings')).json()).toEqual({
-    mcp: { enabled: false, url: 'http://127.0.0.1:5178/mcp', lastCallAt: null },
-  });
+test('default: MCP mati, url port 5178, belum pernah dipanggil; folder dari STORYBOARD_HOME', async () => {
+  const s = await (await app.request('/api/settings')).json();
+  expect(s.mcp).toEqual({ enabled: false, url: 'http://127.0.0.1:5178/mcp', lastCallAt: null });
+  expect(s.storage).toMatchObject({ dataRoot: home, fixedByEnv: true });
+});
+
+test('folder diatur STORYBOARD_HOME → ganti folder ditolak 409', async () => {
+  const r = await app.request('/api/settings/storage', { method: 'PUT', body: JSON.stringify({ dataRoot: '/tmp/x' }), headers: { 'content-type': 'application/json' } });
+  expect(r.status).toBe(409);
 });
 
 test('url mengikuti port yang diberikan ke createApp', async () => {

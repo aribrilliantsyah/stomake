@@ -379,3 +379,17 @@ export function replaceRef(p: Project, from: AssetRef, to: AssetRef): Project {
     pages: p.pages.map((pg) => ({ ...pg, background: pg.background ? bg(pg.background) : null, scenes: pg.scenes.map((s) => ({ ...s, panels: s.panels.map(panel) })) })),
   };
 }
+
+/** Every asset ref used by a project (layers and backgrounds), unique. */
+export function assetRefs(p: Project): AssetRef[] {
+  const out = new Set<AssetRef>();
+  const bg = (b: Background | null) => b?.kind === 'asset' && out.add(b.ref);
+  const panels = [...(p.cover ? [p.cover.panel] : []), ...p.pages.flatMap((pg) => pg.scenes.flatMap((s) => s.panels))];
+  bg(p.pageBackground);
+  for (const pg of p.pages) bg(pg.background);
+  for (const pn of panels) {
+    bg(pn.background);
+    for (const l of pn.layers) if (l.type === 'image') out.add(l.ref);
+  }
+  return [...out];
+}

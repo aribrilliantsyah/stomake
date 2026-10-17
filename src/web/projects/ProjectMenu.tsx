@@ -1,4 +1,4 @@
-import { Archive, ArchiveRestore, Copy, FolderOpen, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Copy, Download, FolderOpen, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ProjectSummary } from '../../shared/types';
 import { Popover, useAnchor } from '../ui/Popover';
@@ -8,6 +8,7 @@ export interface ProjectActions {
   rename(p: ProjectSummary): void;
   duplicate(p: ProjectSummary): void;
   archive(p: ProjectSummary, archived: boolean): void;
+  exportZip(p: ProjectSummary): void;
   remove(p: ProjectSummary): void;
 }
 
@@ -31,7 +32,7 @@ export function ProjectMenu({ p, actions }: { p: ProjectSummary; actions: Projec
       >
         <MoreHorizontal size={15} aria-hidden />
       </button>
-      <Popover anchor={a.el} open={a.open} onClose={a.close} width={180} height={240} align="end" className="menu-list">
+      <Popover anchor={a.el} open={a.open} onClose={a.close} width={200} height={270} align="end" className="menu-list">
         <button onClick={run(() => actions.open(p))} disabled={p.broken}>
           <FolderOpen size={14} aria-hidden /> Buka
         </button>
@@ -40,6 +41,9 @@ export function ProjectMenu({ p, actions }: { p: ProjectSummary; actions: Projec
         </button>
         <button onClick={run(() => actions.duplicate(p))} disabled={p.broken}>
           <Copy size={14} aria-hidden /> Duplikat
+        </button>
+        <button onClick={run(() => actions.exportZip(p))} disabled={p.broken}>
+          <Download size={14} aria-hidden /> Export (.zip)…
         </button>
         <button onClick={run(() => actions.archive(p, !p.archived))} disabled={p.broken}>
           {p.archived ? <><ArchiveRestore size={14} aria-hidden /> Pulihkan dari arsip</> : <><Archive size={14} aria-hidden /> Arsipkan</>}

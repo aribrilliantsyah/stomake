@@ -20,7 +20,7 @@ import {
   LockedError,
   ConflictError,
 } from './store';
-import { isValidSlug, isValidTrashId } from './paths';
+import { dataRoot, defaultDataRoot, isValidSlug, isValidTrashId, setDataRoot } from './paths';
 import type { ProjectSort, ProjectStatus, SettingsView } from '../shared/types';
 import { agentLock, LOCKED_MESSAGE, subscribe } from './live';
 import { mcpRoute } from './mcp/route';
@@ -217,12 +217,25 @@ function settingsRoutes(port: number): Hono {
   const r = new Hono();
   const view = async (): Promise<SettingsView> => ({
     mcp: { enabled: (await readSettings()).mcp.enabled, url: `http://127.0.0.1:${port}/mcp`, lastCallAt: lastMcpCallAt() },
+    storage: { dataRoot: dataRoot(), defaultRoot: defaultDataRoot(), fixedByEnv: process.env.STORYBOARD_HOME !== undefined },
   });
   r.get('/api/settings', async (c) => c.json(await view()));
   r.put('/api/settings', async (c) => {
     const parsed = settingsSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return badRequest(c, 'settings tidak valid');
     await writeSettings(parsed.data);
+    return c.json(await view());
+  });
+  r.put('/api/settings/storage', async (c) => {
+    if (process.env.STORYBOARD_HOME !== undefined) return c.json({ error: 'Folder diatur oleh STORYBOARD_HOME' }, 409);
+    const body = (await c.req.json().catch(() => ({}))) as { dataRoot?: unknown };
+    if (typeof body.dataRoot !== 'string' || !body.dataRoot.trim()) return badRequest(c, 'dataRoot wajib diisi');
+    if (agentLock.anyActive()) return c.json({ error: LOCKED_MESSAGE }, 423);
+    try {
+      setDataRoot(body.dataRoot.trim());
+    } catch (e) {
+      return badRequest(c, (e as Error).message);
+    }
     return c.json(await view());
   });
   return r;

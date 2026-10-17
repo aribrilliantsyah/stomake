@@ -80,7 +80,7 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   return (await queryProjects({ status: 'all', size: 100 })).items;
 }
 
-function uniqueSlug(base: string): string {
+export function uniqueSlug(base: string): string {
   let slug = base;
   for (let n = 2; existsSync(projectDir(slug)); n++) slug = `${base}-${n}`;
   return slug;

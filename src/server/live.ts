@@ -152,6 +152,11 @@ export const agentLock = {
   blocksEditor(slug: string): boolean {
     return locks.get(slug)?.state === 'active';
   },
+
+  /** some project is being edited by an agent (switching the data folder would pull it away) */
+  anyActive(): boolean {
+    return locks.size > 0;
+  },
 };
 
 export const LOCKED_MESSAGE = 'AI sedang mengedit project ini';

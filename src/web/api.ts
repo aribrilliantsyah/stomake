@@ -23,6 +23,7 @@ export interface AssetLists {
 export const api = {
   getSettings: () => req<SettingsView>('/api/settings'),
   putSettings: (s: { mcp: { enabled: boolean } }) => req<SettingsView>('/api/settings', jsonInit('PUT', s)),
+  setDataRoot: (dataRoot: string) => req<SettingsView>('/api/settings/storage', jsonInit('PUT', { dataRoot })),
   queryProjects: (q: ProjectQuery) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(q)) if (v !== undefined && v !== '' && v !== 0) p.set(k, String(v));
@@ -36,6 +37,13 @@ export const api = {
   bulk: (action: 'archive' | 'unarchive' | 'delete', slugs: string[]) =>
     req<{ ok: string[]; failed: string[]; trashIds?: string[] }>('/api/projects/bulk', jsonInit('POST', { action, slugs })),
   createProject: (name: string) => req<{ slug: string }>('/api/projects', jsonInit('POST', { name })),
+  importProjectZip: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return req<{ slug: string }>('/api/projects/import', { method: 'POST', body: fd });
+  },
+  /** desktop only: the server writes the archive to a path from the native save dialog */
+  exportProjectZipTo: (slug: string, path: string) => req<{ path: string }>(`/api/projects/${slug}/export.zip`, jsonInit('POST', { path })),
   getProject: (slug: string) => req<Project>(`/api/projects/${slug}`),
   saveProject: (slug: string, p: Project) => req<{ updatedAt: string }>(`/api/projects/${slug}`, jsonInit('PUT', p)),
   agentAck: (slug: string, clientId: string) => req<{ ok: true }>(`/api/projects/${slug}/agent-ack`, jsonInit('POST', { clientId })),

@@ -1,7 +1,8 @@
-import { Archive, ArchiveRestore, LayoutGrid, List, Plus, Search, Trash2, X } from 'lucide-react';
+import { Archive, ArchiveRestore, LayoutGrid, List, Plus, Search, Trash2, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectPage, ProjectSort, ProjectSummary } from '../../shared/types';
 import { api } from '../api';
+import { pickZip, saveZip } from '../desktop';
 import { navigate } from '../router';
 import { useUi } from '../state/uiStore';
 import { ConfirmDialog, PromptDialog } from '../ui/Dialog';
@@ -182,8 +183,28 @@ export function ProjectList() {
       }
     },
     archive: (p, a) => archiveMany([p], a),
+    exportZip: async (p) => {
+      try {
+        const path = await saveZip(p.slug);
+        if (path) toast('ok', `Project diexport: ${path}`);
+      } catch (e) {
+        fail(e);
+      }
+    },
     remove: (p) => setModal({ kind: 'delete', ps: [p] }),
   };
+
+  async function importZip() {
+    const file = await pickZip();
+    if (!file) return;
+    try {
+      const { slug } = await api.importProjectZip(file);
+      toast('ok', `Project diimport: ${slug}`);
+      refresh();
+    } catch (e) {
+      fail(e);
+    }
+  }
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -227,6 +248,9 @@ export function ProjectList() {
         </div>
         <ThemeToggle />
         <SettingsButton />
+        <button onClick={importZip} title="Import project dari .zip">
+          <Upload size={14} aria-hidden /> Import
+        </button>
         <button className="primary" onClick={() => setModal({ kind: 'new' })} title="Project baru (N)">
           <Plus size={14} aria-hidden /> Project Baru
         </button>

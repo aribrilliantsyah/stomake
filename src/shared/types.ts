@@ -161,4 +161,6 @@ export interface Settings {
 
 export interface SettingsView {
   mcp: { enabled: boolean; url: string; lastCallAt: string | null };
+  /** data folder: projects/, library/, trash/, settings.json */
+  storage: { dataRoot: string; defaultRoot: string; fixedByEnv: boolean };
 }
