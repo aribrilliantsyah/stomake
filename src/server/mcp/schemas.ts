@@ -70,6 +70,12 @@ export const schemas = {
   get_storyline: z.object({ slug }),
   set_storyline: z.object({ slug, text: z.string() }),
   list_assets: z.object({ slug }),
+  add_svg_asset: z.object({
+    slug,
+    name: z.string().trim().min(1).max(120).describe('nama file, mis. "gelas air" (.png ditambahkan otomatis)'),
+    svg: z.string().min(1).describe('kode SVG lengkap dengan <svg ...>; pakai viewBox. Tanpa gambar/font eksternal'),
+    width: z.number().int().min(16).max(2048).optional().describe('lebar PNG dalam px; default atribut width SVG atau 1024'),
+  }),
   add_page: z.object({ slug, afterPageId: id.optional().describe('default: setelah page terakhir'), scenes: z.number().int().min(1).max(3).optional() }),
   add_scene: z.object({ slug, pageId: id, afterSceneId: id.optional() }),
   remove_scene: z.object({ slug, sceneId: id }),

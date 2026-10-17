@@ -4,7 +4,9 @@ export type LiveEvent =
   | { type: 'hello'; clientId: string; updatedAt?: string | null; agent: { active: boolean; since: string | null } }
   | { type: 'agent'; active: boolean; since: string | null }
   | { type: 'project'; project: Project }
-  | { type: 'storyline'; text: string };
+  | { type: 'storyline'; text: string }
+  /** the project's asset list changed (agent added an image) */
+  | { type: 'assets' };
 
 export let ACK_TIMEOUT_MS = 3000;
 export let IDLE_RELEASE_MS = 10000;

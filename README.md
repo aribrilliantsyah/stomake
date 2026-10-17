@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Playwright-1.x-45BA4B?logo=playwright&logoColor=white" alt="Playwright">
-  <img src="https://img.shields.io/badge/MCP-19_tools-AE4F2C" alt="Model Context Protocol">
+  <img src="https://img.shields.io/badge/MCP-20_tools-AE4F2C" alt="Model Context Protocol">
 </p>
 
 </div>
@@ -67,7 +67,7 @@ Daftar project dengan pencarian, filter Aktif/Arsip, urutan, tampilan grid atau 
 - **Export / Import `.zip`**: pindahkan project antar laptop atau OS, termasuk gambar yang dipakai.
 - **Autosave, undo/redo, zoom 25–400%**.
 - **Export PDF**: dirender Chromium, teks tetap bisa dipilih dan dicari.
-- **MCP untuk AI agent**: 19 tool agar Claude Code, Cursor, atau Hermes bisa menyusun storyboard. Editor terkunci dan menampilkan perubahan secara live selama agent bekerja.
+- **MCP untuk AI agent**: 20 tool agar Claude Code, Cursor, atau Hermes bisa menyusun storyboard, termasuk menggambar ilustrasi sendiri dengan SVG yang langsung jadi asset. Editor terkunci dan menampilkan perubahan secara live selama agent bekerja.
 
 ---
 
@@ -198,11 +198,22 @@ Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk
 claude mcp add --transport http storyboard-maker http://127.0.0.1:5178/mcp
 ```
 
-### 19 Tools yang Tersedia untuk AI:
-- **Proyek**: `list_projects`, `create_project`, `get_project`, `get_storyline`, `set_storyline`, `list_assets`
+### 20 Tools yang Tersedia untuk AI:
+- **Proyek**: `list_projects`, `create_project`, `get_project`, `get_storyline`, `set_storyline`
+- **Asset**: `list_assets`, `add_svg_asset`
 - **Halaman & Scene**: `add_page`, `remove_page`, `add_scene`, `remove_scene`, `update_scene`, `set_cover`, `set_background`
 - **Manipulasi Layer**: `add_layer`, `update_layer`, `remove_layer`, `reorder_layer`
 - **Output & Sesi**: `export_pdf`, `finish_editing`
+
+### Agent menggambar ilustrasi sendiri
+
+Dengan `add_svg_asset`, agent menulis kode SVG (gelas, es batu, gunung es, latar kotak-kotak, diagram), lalu server mengubahnya jadi PNG transparan dan menyimpannya di tab **Asset** project. Gambar langsung muncul di editor yang sedang terbuka, dan `assetRef` hasilnya bisa dipakai di `add_layer` atau `set_background`. Cocok untuk ilustrasi flat, ikon, dan diagram; untuk foto atau karakter realistis tetap pakai gambar asli.
+
+Contoh perintah ke agent:
+
+> Buat project "Kenapa Es Batu Mengapung?", gambar sendiri gelas berisi air, es batu, dan gunung es dengan SVG, lalu susun 3 scene yang menjelaskannya.
+
+Proses render berjalan di Chromium tanpa JavaScript dan tanpa akses jaringan: script, gambar dari URL, dan font eksternal di dalam SVG diabaikan. Batasnya SVG maks 1 MB dan PNG maks 2048 px.
 
 *Catatan Keamanan*: Server MCP hanya mendengarkan pada antarmuka lokal `127.0.0.1` dan menolak akses dari host eksternal.
 

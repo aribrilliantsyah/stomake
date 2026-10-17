@@ -126,6 +126,12 @@ export function Editor({ slug }: { slug: string }) {
   }
 
   useEffect(() => installClipboard(slug, refreshAssets), [slug]);
+  // an agent added an image (add_svg_asset): show it in the Asset tab right away
+  const assetsVersion = s.assetsVersion;
+  useEffect(() => {
+    if (assetsVersion) refreshAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetsVersion]);
   useEffect(() => {
     setPropsAssetsChanged(refreshAssets);
     return () => setPropsAssetsChanged(null);

@@ -47,7 +47,7 @@ async function launch(): Promise<Browser> {
   return b;
 }
 
-function getBrowser(): Promise<Browser> {
+export function getBrowser(): Promise<Browser> {
   browser ??= launch().catch((e) => {
     browser = null;
     throw e;

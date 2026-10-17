@@ -10,7 +10,8 @@ export type LiveEvent =
   | { type: 'hello'; clientId: string; updatedAt?: string | null; agent: { active: boolean; since: string | null } }
   | { type: 'agent'; active: boolean; since: string | null }
   | { type: 'project'; project: Project }
-  | { type: 'storyline'; text: string };
+  | { type: 'storyline'; text: string }
+  | { type: 'assets' };
 
 export const HISTORY_LIMIT = 100;
 export const COALESCE_MS = 500;
@@ -69,6 +70,8 @@ interface EditorState {
   remoteProject(p: Project): void;
   /** latest storyline pushed by the agent (StorylinePanel listens) */
   remoteStoryline: { text: string; seq: number } | null;
+  /** bumped when the server says the asset list changed (Editor refetches) */
+  assetsVersion: number;
   onLive(e: LiveEvent): void;
   /** StorylinePanel registers how to save its pending text immediately (flushed before agent-ack). */
   setStorylineFlusher(fn: (() => Promise<void>) | null): void;
@@ -212,6 +215,7 @@ export const useEditor = create<EditorState>((set, get) => {
     agentSince: null,
     clientId: null,
     remoteStoryline: null,
+    assetsVersion: 0,
     setClientId(id) {
       set({ clientId: id });
     },
@@ -289,6 +293,9 @@ export const useEditor = create<EditorState>((set, get) => {
         case 'storyline':
           set({ remoteStoryline: { text: e.text, seq: (get().remoteStoryline?.seq ?? 0) + 1 } });
           break;
+        case 'assets':
+          set({ assetsVersion: get().assetsVersion + 1 });
+          break;
       }
     },
     setClipboard(c) {
@@ -306,7 +313,7 @@ export const useEditor = create<EditorState>((set, get) => {
       pendingAfterSave = false;
       baseVersion = null;
       early = [];
-      set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null, selectedLayerIds: [], agentActive: false, agentSince: null, clientId: null, remoteStoryline: null });
+      set({ slug: null, project: null, past: [], future: [], saveStatus: 'saved', saveError: null, currentSceneId: null, selectedCover: false, activePanelId: null, selectedLayerId: null, selectedLayerIds: [], agentActive: false, agentSince: null, clientId: null, remoteStoryline: null, assetsVersion: 0 });
     },
 
     async load(slug) {

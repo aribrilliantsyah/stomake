@@ -24,13 +24,14 @@ import {
 } from '../../shared/model';
 import type { AssetInfo, Background, Layer, Project, ProjectSummary, ShapeKind } from '../../shared/types';
 import { newId } from '../../shared/ids';
-import { listAssets as listAssetsOnDisk } from '../assets';
+import { AssetError, listAssets as listAssetsOnDisk, saveAssets } from '../assets';
 import { exportPdf as exportPdfOnDisk } from '../export';
 import { agentLock, publish } from '../live';
-import { isValidSlug } from '../paths';
+import { isSafeName, isValidSlug } from '../paths';
 import { noteMcpCall } from '../settings';
 import { createProjectOnDisk, projectExists, queryProjects, readProject, readStoryline, updateProjectOnDisk, writeStoryline } from '../store';
 import { ZodError } from 'zod';
+import { svgToPng, SvgError } from '../svgAsset';
 import type { LayerPatch, LayerSpec, ToolInput } from './schemas';
 
 /** An error whose message is meant for the agent (returned as isError, project untouched). */
@@ -256,6 +257,35 @@ export const ops = {
     need(i.slug);
     noteMcpCall();
     return listAssetsOnDisk(i.slug);
+  },
+
+  /**
+   * Agent-drawn illustration: SVG → PNG, saved as a project asset. Not a project.json write,
+   * so the editor isn't locked; open editors get an `assets` event and refresh the Asset tab.
+   */
+  async addSvgAsset(i: ToolInput<'add_svg_asset'>): Promise<{ assetRef: string; name: string; width: number; height: number }> {
+    need(i.slug);
+    noteMcpCall();
+    const base = i.name.replace(/\.(png|svg)$/i, '').trim();
+    const name = `${base}.png`;
+    if (!isSafeName(name)) throw new ToolError(`Nama tidak valid: ${i.name} (tanpa / \\ .. dan tidak diawali titik)`);
+    let r;
+    try {
+      r = await svgToPng(i.svg, i.width);
+    } catch (e) {
+      if (e instanceof SvgError) throw new ToolError(e.message);
+      throw e;
+    }
+    let saved;
+    try {
+      [saved] = await saveAssets('project', [{ name, data: r.png }], i.slug);
+    } catch (e) {
+      if (e instanceof AssetError) throw new ToolError(e.message);
+      throw e;
+    }
+    if (!saved) throw new ToolError('Gambar gagal disimpan');
+    publish(i.slug, { type: 'assets' });
+    return { assetRef: saved.ref, name: saved.name, width: saved.width, height: saved.height };
   },
 
   async addPage(i: ToolInput<'add_page'>): Promise<{ pageId: string; sceneIds: string[] }> {

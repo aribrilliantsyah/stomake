@@ -39,8 +39,7 @@ Semua id adalah id yang dikembalikan `get_project`. Satuan posisi/ukuran = panel
 | `get_project` | `{ slug }` | ringkasan: `{ slug, name, cover: {id,title,panelId}\|null, pages: [{ id, index, background, scenes: [{ id, number, note, subtitle, split, panels: [{ id, background, layers: [{id,type,...ringkas}] }] }] }] }` |
 | `get_storyline` / `set_storyline` | `{ slug }` / `{ slug, text }` | `{ text }` / `{ ok }` |
 | `list_assets` | `{ slug }` | `{ project: AssetInfo[], global: AssetInfo[] }` (`ref`, `name`, `width`, `height`) |
-
-Total 19 tool.
+| `add_svg_asset` | `{ slug, name, svg, width?: 16..2048 }` | `{ assetRef, name, width, height }`: SVG dirender Chromium jadi PNG transparan di `assets/` project (§3.2) |
 | `add_page` | `{ slug, afterPageId?, scenes?: 1..3 }` | `{ pageId, sceneIds }` |
 | `add_scene` | `{ slug, pageId, afterSceneId? }` | `{ sceneId, number }` |
 | `remove_scene` / `remove_page` | `{ slug, sceneId }` / `{ slug, pageId }` | `{ ok }` (aturan V2: minimal 1 scene per page, minimal 1 page) |
@@ -54,13 +53,22 @@ Total 19 tool.
 | `export_pdf` | `{ slug }` | `{ path, url, missingAssets, missingFonts }` |
 | `finish_editing` | `{ slug }` | `{ ok }`: melepas kunci agent (§4) |
 
+Total 20 tool.
+
 Default posisi = tengah panel. Default ukuran image = 60% lebar panel (sama dengan paste). Default teks/shape/emoji sama dengan tombol toolbar.
 
-**Agent tidak bisa** menghapus, mengarsipkan, mengganti nama, atau menduplikat project, dan tidak bisa meng-upload file.
+**Agent tidak bisa** menghapus, mengarsipkan, mengganti nama, atau menduplikat project, dan tidak bisa meng-upload file dari luar. Satu-satunya cara agent menambah gambar adalah menggambarnya sendiri lewat `add_svg_asset`.
+
+### 3.2 `add_svg_asset` (revisi 6)
+
+- SVG dimuat sebagai `<img>` data URL di context Chromium dengan JavaScript mati, mode offline, dan semua request selain `data:` diblok. Jadi `<script>`, `<image href="http…">`, `<foreignObject>`, dan font eksternal tidak pernah dijalankan atau diambil.
+- Batas: SVG maks 1 MB, sisi terpanjang PNG maks 2048 px. Lebar output: `width`, lalu atribut `width` SVG, lalu 1024 px. Rasio dari `viewBox`.
+- Nama file: `name` + `.png` (akhiran `.png`/`.svg` di `name` dibuang), aturan nama aman dan akhiran ` (2)` sama dengan upload.
+- Tidak menulis `project.json`, jadi tidak memegang kunci agent. Server mengirim event `assets` ke editor yang terbuka; tab Asset memuat ulang daftarnya.
 
 ## 4. Live + kunci agent
 
-- Setiap tool yang mengubah project (semua kecuali `list_*`, `get_*`, `export_pdf`, `finish_editing`) memegang **kunci agent** project tersebut.
+- Setiap tool yang mengubah project (semua kecuali `list_*`, `get_*`, `add_svg_asset`, `export_pdf`, `finish_editing`) memegang **kunci agent** project tersebut.
 - Kunci dilepas lewat `finish_editing`, atau otomatis **10 detik** setelah tool terakhir.
 - Mulai kunci (pertama kali, atau setelah kunci lepas):
   1. Server mengirim event `agent` `{ active: true }` ke editor yang membuka project itu.
@@ -72,7 +80,7 @@ Default posisi = tengah panel. Default ukuran image = 60% lebar panel (sama deng
 - Perubahan project oleh server dikirim ke editor sebagai event `project` (project lengkap). Perubahan storyline dikirim sebagai event `storyline` `{ text }`.
 - Penulisan project.json di server diserialkan per slug: PUT editor dan tool agent tidak pernah saling timpa.
 - Event dikirim lewat SSE `GET /api/projects/:slug/events`:
-  - Data JSON per baris `data:`, jenis di field `type`: `hello` | `agent` | `project` | `storyline`.
+  - Data JSON per baris `data:`, jenis di field `type`: `hello` | `agent` | `project` | `storyline` | `assets`.
   - `hello` dikirim saat tersambung: `{ type:"hello", agent: { active, since } }`.
   - Keep-alive komentar tiap 15 detik.
 

@@ -24,6 +24,8 @@ const DESCRIPTIONS: Record<ToolName, string> = {
   get_storyline: 'Teks storyline/naskah project.',
   set_storyline: 'Ganti seluruh teks storyline project.',
   list_assets: 'Asset gambar yang bisa dipakai (project: dan global:), dengan ukuran px.',
+  add_svg_asset:
+    'Gambar ilustrasi sendiri dengan kode SVG (bentuk, path, gradien; tanpa gambar/font eksternal). Disimpan sebagai PNG transparan di Asset project; pakai assetRef hasilnya di add_layer atau set_background.',
   add_page: 'Tambah page baru (1–3 scene kosong) setelah page tertentu (default di akhir).',
   add_scene: 'Tambah scene kosong ke page (maks 3 scene per page).',
   remove_scene: 'Hapus scene (minimal 1 scene per page).',
@@ -46,6 +48,7 @@ const OPS: Record<ToolName, (i: never) => Promise<unknown>> = {
   get_storyline: ops.getStoryline,
   set_storyline: ops.setStoryline,
   list_assets: ops.listAssets,
+  add_svg_asset: ops.addSvgAsset,
   add_page: ops.addPage,
   add_scene: ops.addScene,
   remove_scene: ops.removeScene,
