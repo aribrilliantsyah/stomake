@@ -10,6 +10,7 @@ import { Toasts } from '../ui/Toasts';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { SettingsButton } from '../ui/SettingsDialog';
 import { GridSkeleton } from '../ui/Loading';
+import { Logo } from '../ui/Logo';
 import { trackLoading } from '../state/progress';
 import { fullTime, homeStateFromSearch, homeStateToSearch, PAGE_SIZE, relativeTime, type HomeState, type HomeView } from './homeState';
 import { Pager } from './Pager';
@@ -225,7 +226,7 @@ export function ProjectList() {
     <div className="home">
       <header className="home-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img src="/logo.svg" alt="" width="22" height="22" style={{ display: 'block' }} />
+          <Logo />
           <h1>Storyboard Maker</h1>
         </div>
         <div className="home-search">
