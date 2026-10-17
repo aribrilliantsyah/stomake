@@ -106,7 +106,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
         ) : (
           <>
             <div className="copy-row">
-              <code className="mcp-url mono" data-testid="data-root">{s.storage.dataRoot}</code>
+              <code className="path-box mono" data-testid="data-root">{s.storage.dataRoot}</code>
               {isDesktop && (
                 <button className="ib" onClick={() => void revealFolder(s.storage.dataRoot)} title="Buka di file manager" aria-label="Buka folder">
                   <FolderOpen size={14} aria-hidden />

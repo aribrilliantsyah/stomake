@@ -237,10 +237,11 @@ th.sortable:hover, th.sortable.on { color: var(--text); }
 .pager button { min-width: 28px; }
 
 /* dialogs */
-.dialog-backdrop { position: fixed; inset: 0; z-index: 900; background: var(--backdrop); display: grid; place-items: start center; padding-top: 14vh; }
-.dialog { width: 400px; max-width: calc(100vw - 32px); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 10px 30px var(--shadow); }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 900; background: var(--backdrop); display: grid; place-items: start center; padding-top: min(14vh, 96px); }
+/* tall dialogs (Pengaturan) scroll inside; header and footer stay on screen on small displays */
+.dialog { width: 400px; max-width: calc(100vw - 32px); max-height: calc(100vh - min(14vh, 96px) - 24px); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 10px 30px var(--shadow); }
 .dialog-head { padding: 10px 14px; font-weight: 600; border-bottom: 1px solid var(--line); }
-.dialog-body { padding: 12px 14px; }
+.dialog-body { padding: 12px 14px; overflow: auto; min-height: 0; }
 .dialog-body p { margin: 0 0 8px; }
 .dialog-body .hint { color: var(--muted); font-size: 12px; }
 .field.col { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -525,7 +526,7 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .switch.on .knob { left: 18px; }
 .copy-row { display: flex; align-items: center; gap: 6px; }
 .copy-row.top { align-items: flex-start; }
-.mcp-url { flex: 1; padding: 4px 6px; border: 1px solid var(--line); background: var(--panel-2); font-size: 12px; overflow: auto; white-space: nowrap; }
+.mcp-url, .path-box { flex: 1; padding: 4px 6px; border: 1px solid var(--line); background: var(--panel-2); font-size: 12px; overflow: auto; white-space: nowrap; }
 .mcp-config { flex: 1; margin: 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel-2); font-size: 11px; line-height: 1.45; overflow: auto; }
 .dialog { width: 460px; }
 

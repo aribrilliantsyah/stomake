@@ -1,0 +1,23 @@
+[package]
+name = "storyboard-maker"
+version = "0.1.0"
+description = "Storyboard Maker desktop"
+edition = "2021"
+
+[lib]
+name = "storyboard_maker_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+parking_lot = "0.12"
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

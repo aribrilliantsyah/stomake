@@ -1,6 +1,9 @@
+import { execFile } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { mkdir, rename } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { promisify } from 'node:util';
 import { chromium, type Browser } from 'playwright';
 import { PAGE } from '../shared/layout';
 import { projectDir } from './paths';
@@ -8,22 +11,40 @@ import { projectDir } from './paths';
 export const EXPORT_TIMEOUT_MS = 120_000;
 
 let browser: Promise<Browser> | null = null;
-/** Try Playwright's headless shell, then full Chromium, then the system Chrome. */
-async function launch(): Promise<Browser> {
-  const attempts: (string | undefined)[] = [undefined, 'chromium', 'chrome'];
-  const errors: string[] = [];
-  for (const channel of attempts) {
+
+async function tryLaunch(errors: string[]): Promise<Browser | null> {
+  // Playwright's own headless shell / Chromium, then whatever the OS has (Edge ships with Windows)
+  for (const channel of [undefined, 'chromium', 'chrome', 'msedge']) {
     try {
-      const b = await chromium.launch({ headless: true, channel });
-      b.on('disconnected', () => {
-        browser = null;
-      });
-      return b;
+      return await chromium.launch({ headless: true, channel });
     } catch (e) {
       errors.push(`${channel ?? 'default'}: ${(e as Error).message.split('\n')[0]}`);
     }
   }
-  throw new Error(`Chromium tidak bisa dijalankan. Jalankan: pnpm exec playwright install chromium (${errors.join(' | ')})`);
+  return null;
+}
+
+/** Downloads Playwright's headless shell once, with the Node running this server (desktop has no pnpm). */
+async function installShell(): Promise<void> {
+  // playwright-core is playwright's own dependency (not hoisted): resolve it from there
+  const fromPlaywright = createRequire(createRequire(import.meta.url).resolve('playwright/package.json'));
+  const cli = join(dirname(fromPlaywright.resolve('playwright-core/package.json')), 'cli.js');
+  await promisify(execFile)(process.execPath, [cli, 'install', '--only-shell', 'chromium'], { timeout: 10 * 60_000 });
+}
+
+async function launch(): Promise<Browser> {
+  const errors: string[] = [];
+  let b = await tryLaunch(errors);
+  if (!b) {
+    console.log('Chromium tidak ditemukan, mengunduh sekali…');
+    await installShell().catch((e) => errors.push(`install: ${(e as Error).message.split('\n')[0]}`));
+    b = await tryLaunch(errors);
+  }
+  if (!b) throw new Error(`Chromium tidak bisa dijalankan. Pasang Google Chrome, atau periksa koneksi internet untuk unduhan otomatis. (${errors.join(' | ')})`);
+  b.on('disconnected', () => {
+    browser = null;
+  });
+  return b;
 }
 
 function getBrowser(): Promise<Browser> {

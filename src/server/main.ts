@@ -6,7 +6,8 @@ import { closeBrowser } from './export';
 import { dataRoot } from './paths';
 
 const port = Number(process.env.PORT ?? 5178);
-const dist = join(process.cwd(), 'dist');
+// the desktop bundle ships the built web app next to the server; dev/start use ./dist
+const dist = process.env.STORYBOARD_DIST ?? join(process.cwd(), 'dist');
 const production = process.env.NODE_ENV === 'production' || process.argv.includes('--serve-dist');
 const staticDir = production && existsSync(join(dist, 'index.html')) ? dist : undefined;
 const webUrl = process.env.STORYBOARD_WEB_URL ?? (staticDir ? `http://127.0.0.1:${port}` : 'http://localhost:5173');

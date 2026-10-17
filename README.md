@@ -91,11 +91,24 @@ Untuk export PDF, pastikan Chromium Playwright telah terpasang:
 pnpm exec playwright install chromium
 ```
 
+### Aplikasi Desktop (Tauri)
+
+Aplikasi desktop membungkus web app yang sama dalam jendela native (Windows, macOS, Linux). Installer membawa Node dan Playwright sendiri, jadi pengguna tidak perlu memasang apa pun. Export PDF memakai Chrome/Edge yang sudah ada di laptop; bila tidak ada, Chromium headless diunduh sekali saat export pertama.
+
+Prasyarat build: [Rust](https://rustup.rs) dan [prasyarat Tauri](https://v2.tauri.app/start/prerequisites/) untuk OS tersebut (Linux: `webkit2gtk-4.1`).
+
+```bash
+pnpm desktop:dev     # jendela desktop dengan build lokal
+pnpm desktop:build   # installer di src-tauri/target/release/bundle/
+```
+
+Installer dibuat per OS: jalankan `pnpm desktop:build` di Windows untuk `.msi`/`.exe`, di macOS untuk `.dmg`, di Linux untuk `.deb`/`.rpm`/`.AppImage`. Binary Node yang ikut dibundel diambil dari Node yang menjalankan build.
+
 ---
 
 ## 📂 Struktur Penyimpanan Data
 
-Seluruh data proyek dan aset disimpan secara lokal di direktori `~/Storyboard` (dapat dikustomisasi melalui variabel environment `STORYBOARD_HOME`):
+Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. Default `~/Storyboard` (Windows: `C:\Users\<nama>\Storyboard`). Ganti lewat ⚙ **Pengaturan → Folder penyimpanan → Ganti folder…** (misalnya ke `Documents` atau folder yang disinkron cloud). Pilihan disimpan per OS di folder konfigurasi aplikasi (`%APPDATA%\storyboard-maker`, `~/Library/Application Support/storyboard-maker`, atau `~/.config/storyboard-maker`). Data di folder lama tidak dipindah. Variabel environment `STORYBOARD_HOME`, bila diisi, selalu menang atas pilihan ini.
 
 ```text
 ~/Storyboard/
@@ -110,6 +123,9 @@ Seluruh data proyek dan aset disimpan secara lokal di direktori `~/Storyboard` (
         └── exports/
             └── storyboard.pdf         # Hasil export PDF
 ```
+
+- **Copy folder**: salin folder `projects/<slug>/` ke `projects/` di folder penyimpanan lain, dan project langsung muncul di Home. Nama folder harus huruf kecil, angka, dan `-`.
+- **Export / Import .zip**: menu ⋯ project → **Export (.zip)…**, lalu di laptop lain klik **Import** di Home. Zip berisi `project.json`, storyline, `assets/`, dan `clips/`. Asset global (library) yang dipakai project ikut disalin ke `assets/` agar tidak hilang di laptop lain. Import tidak pernah menimpa project yang sudah ada; slug bentrok diberi akhiran `-2`.
 
 ---
 

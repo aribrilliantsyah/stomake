@@ -3,3 +3,6 @@ dist
 test-results
 playwright-report
 .superpowers
+src-tauri/target
+src-tauri/gen
+src-tauri/resources

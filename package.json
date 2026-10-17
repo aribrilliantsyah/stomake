@@ -10,7 +10,10 @@
     "start": "pnpm build && NODE_ENV=production tsx src/server/main.ts",
     "test": "vitest run",
     "e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "desktop:stage": "node scripts/stage-desktop.mjs",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
@@ -55,6 +58,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
+    "esbuild": "^0.28.2",
     "jsdom": "^30.1.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

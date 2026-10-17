@@ -6,7 +6,10 @@ import { schemas, type ToolName } from './schemas';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+// inlined by the bundler for the desktop build (no package.json next to it there)
+declare const __APP_VERSION__: string | undefined;
 const VERSION: string = (() => {
+  if (typeof __APP_VERSION__ === 'string') return __APP_VERSION__;
   try {
     return JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')).version ?? '0.0.0';
   } catch {
