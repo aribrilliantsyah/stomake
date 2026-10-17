@@ -45,8 +45,22 @@ fn spawn_server(resources: &Path, port: u16) -> std::io::Result<Child> {
         .env("STORYBOARD_DIST", resources.join("dist"))
         // the headless shell downloaded on first export lives in the user's cache, not the app bundle
         .env_remove("PLAYWRIGHT_BROWSERS_PATH")
+        .env("STORYBOARD_PARENT_PIPE", "1")
+        // the server exits when this pipe closes, i.e. whenever the app dies (crash, kill, logout)
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::process::CommandExt;
+        // also let the kernel SIGTERM the server if the app is killed outright
+        unsafe {
+            cmd.pre_exec(|| {
+                libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+                Ok(())
+            });
+        }
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

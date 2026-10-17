@@ -26,10 +26,16 @@ const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port }, () => {
   });
 });
 
-for (const sig of ['SIGINT', 'SIGTERM'] as const)
-  process.on(sig, async () => {
-    await closeBrowser();
-    await mcp.close();
-    server.close();
-    process.exit(0);
-  });
+async function shutdown() {
+  await closeBrowser();
+  await mcp.close();
+  server.close();
+  process.exit(0);
+}
+for (const sig of ['SIGINT', 'SIGTERM'] as const) process.on(sig, () => void shutdown());
+// desktop: the app holds our stdin; when it goes away (quit, crash, kill) so do we, freeing the ports
+if (process.env.STORYBOARD_PARENT_PIPE === '1') {
+  process.stdin.on('end', () => void shutdown());
+  process.stdin.on('error', () => void shutdown());
+  process.stdin.resume();
+}
