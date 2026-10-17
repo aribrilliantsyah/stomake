@@ -23,6 +23,8 @@ interface Props {
   /** drag / transform started (parent hides stale outlines) */
   onGestureStart?: () => void;
   registerNode?: (id: string, node: Konva.Node | null) => void;
+  /** panel space; a drag keeps the layer's centre inside it so it can always be grabbed again */
+  bounds?: { w: number; h: number };
 }
 
 function MissingBox({ w, h, label }: { w: number; h: number; label: string }) {
@@ -52,7 +54,7 @@ function ImageBody({ layer, slug }: { layer: Extract<Layer, { type: 'image' }>; 
   );
 }
 
-export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, onChange, onGestureStart, registerNode }: Props) {
+export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, onChange, onGestureStart, registerNode, bounds }: Props) {
   const ref = useRef<Konva.Group>(null);
   useEffect(() => {
     registerNode?.(layer.id, ref.current);
@@ -134,6 +136,12 @@ export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, 
         onSelectSingle?.(layer.id);
       }}
       onDragStart={() => onGestureStart?.()}
+      onDragMove={(e) => {
+        if (!bounds) return;
+        const n = e.target;
+        n.x(Math.min(bounds.w, Math.max(0, n.x())));
+        n.y(Math.min(bounds.h, Math.max(0, n.y())));
+      }}
       onTransformStart={() => onGestureStart?.()}
       onDragEnd={(e) => onChange?.(layer.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) })}
       onTransformEnd={() => {

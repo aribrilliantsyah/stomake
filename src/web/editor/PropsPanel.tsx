@@ -6,6 +6,7 @@ import { FontPicker } from './FontPicker';
 import { api, type AssetLists } from '../api';
 import { toast } from '../state/uiStore';
 import { useState } from 'react';
+import { useDragReset } from './useDragReset';
 import { SHAPES } from './ShapeMenu';
 import { groupLayers, moveLayersTo, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers } from '../../shared/multi';
 import { ColorField } from '../ui/ColorField';
@@ -281,6 +282,10 @@ function LayerList({ panelId, layers }: { panelId: string; layers: Layer[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [drag, setDrag] = useState<string[] | null>(null);
   const [drop, setDrop] = useState<Drop | null>(null);
+  useDragReset(() => {
+    setDrag(null);
+    setDrop(null);
+  });
   const sel = new Set(s.selectedLayerIds);
   const pick = (e: React.MouseEvent, id: string, single = false) => {
     if (e.shiftKey || e.ctrlKey || e.metaKey) s.toggleLayer(id);

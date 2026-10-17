@@ -117,6 +117,38 @@ test('multi-select: Shift+klik & drag bareng, Ctrl+G grup, copy-paste grup', asy
   expect(ls[3].groupId).toBeUndefined();
 });
 
+test('drag layer keluar frame: berhenti di tepi panel, masih bisa digeser lagi', async ({ page, request }) => {
+  const { slug } = (await (await request.post('/api/projects', { data: { name: `Edge ${Date.now()}` }, headers: { origin: BASE } })).json()) as { slug: string };
+  await page.goto(`/p/${slug}`);
+  await expect(page.locator('.stage-box .sheet canvas')).toHaveCount(1);
+  await page.keyboard.press('z');
+  await expect(page.locator('.stage-frame canvas').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Emoji', exact: true }).click();
+  await page.locator('.emoji-menu button').first().click();
+  await saved(page);
+  let [l] = await layers(page, slug);
+  let p = await at(page, l);
+  // release far outside the browser window
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  await page.mouse.move(-400, -400, { steps: 8 });
+  await page.mouse.up();
+  await saved(page);
+  [l] = await layers(page, slug);
+  expect(l).toMatchObject({ x: 0, y: 0 });
+
+  // its visible quarter is still grabbable
+  p = await at(page, l);
+  await page.mouse.move(p.x + 15, p.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(p.x + 15 + 100, p.y + 15 + 100, { steps: 8 });
+  await page.mouse.up();
+  await saved(page);
+  [l] = await layers(page, slug);
+  expect(l.x).toBeGreaterThan(50);
+  expect(l.y).toBeGreaterThan(50);
+});
+
 test('daftar Layer: drag & drop mengubah urutan, grup ikut utuh', async ({ page, request }) => {
   const { slug } = (await (await request.post('/api/projects', { data: { name: `Dnd ${Date.now()}` }, headers: { origin: BASE } })).json()) as { slug: string };
   await page.goto(`/p/${slug}`);

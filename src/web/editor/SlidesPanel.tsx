@@ -5,6 +5,7 @@ import type { Project } from '../../shared/types';
 import { SheetThumb } from '../print/PageSheet';
 import { Popover } from '../ui/Popover';
 import { useEditor } from '../state/editorStore';
+import { useDragReset } from './useDragReset';
 
 /** 708.75pt page (945px) into the 132px thumbnail box: 132 / 945 */
 const THUMB_SCALE = 0.139;
@@ -23,6 +24,10 @@ export function SlidesPanel({ slug }: { slug: string }) {
   const [menu, setMenu] = useState<{ pi: number; el: HTMLElement } | null>(null);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  useDragReset(() => {
+    setDragFrom(null);
+    setDragOver(null);
+  });
 
   const selectPage = (pi: number) => s.selectScene(project.pages[pi].scenes[0].id);
 
@@ -100,7 +105,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
           <div
             key={pg.id}
             className={`slide ${current === pi ? 'on' : ''} ${dragOver === pi ? 'drag-over' : ''}`}
-            draggable
+            draggable={!locked}
             onDragStart={(e) => {
               setDragFrom(pi);
               e.dataTransfer.effectAllowed = 'move';
@@ -112,7 +117,7 @@ export function SlidesPanel({ slug }: { slug: string }) {
                 setDragOver(pi);
               }
             }}
-            onDragLeave={() => setDragOver(null)}
+            onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDragOver(null)}
             onDrop={(e) => {
               e.preventDefault();
               drop(pi);

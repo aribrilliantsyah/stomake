@@ -141,6 +141,7 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerIds
           slug={slug}
           interactive={interactive}
           registerNode={register}
+          bounds={space}
           onSelect={(id, mode) => onSelectLayer?.(panel.id, id, mode)}
           onSelectSingle={(id) => onSelectLayer?.(panel.id, id, 'single')}
           onGestureStart={() => setOutlinesIfChanged([])}
