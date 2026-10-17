@@ -7,6 +7,7 @@ import { panelSpace } from '../../shared/layout';
 import type { Layer } from '../../shared/types';
 import { api } from '../api';
 import { navigate } from '../router';
+import { openUrl } from '../desktop';
 import { AgentBadge } from './AgentBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { SettingsButton } from '../ui/SettingsDialog';
@@ -111,7 +112,7 @@ export function Toolbar({ slug }: { slug: string }) {
         {s.saveStatus === 'saved' ? <Check size={13} aria-hidden /> : s.saveStatus === 'error' ? <AlertTriangle size={13} aria-hidden /> : <Loader2 size={13} className="spin" aria-hidden />}
         {STATUS[s.saveStatus]}
       </span>
-      <button onClick={async () => { await s.settle(); window.open(`/print/${slug}?page=${pageOfCurrent()}`, '_blank'); }}>
+      <button onClick={async () => { await s.settle(); await openUrl(`/print/${slug}?page=${pageOfCurrent()}`); }}>
         <Eye size={14} aria-hidden /> Preview Page
       </button>
       <button className="primary" onClick={doExport} disabled={exporting}>

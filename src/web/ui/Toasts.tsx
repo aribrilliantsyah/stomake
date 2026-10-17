@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { openUrl } from '../desktop';
 import { useUi } from '../state/uiStore';
 
 export function Toasts() {
@@ -12,7 +13,14 @@ export function Toasts() {
         <div key={t.id} className={`toast ${t.kind}`}>
           <span>{t.text}</span>
           {t.link && (
-            <a href={t.link.href} target="_blank" rel="noreferrer">
+            <a
+              href={t.link.href}
+              onClick={(e) => {
+                // the desktop webview has no tabs: open PDFs / previews in the OS default app
+                e.preventDefault();
+                void openUrl(t.link!.href);
+              }}
+            >
               {t.link.label}
             </a>
           )}
