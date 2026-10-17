@@ -300,7 +300,7 @@ table.list tr.empty td { color: var(--muted); cursor: default; }
 .editor-body { flex: 1; display: grid; min-height: 0; }
 .side.slides-col { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
 .panel-head { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); min-height: 31px; }
-.panel-head .tabs { border-bottom: 0; flex: 1; }
+.panel-head:has(> .tabs) { background: var(--panel-2); }
 .panel-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; padding: 8px 8px 0; }
 .fold { align-self: center; margin-right: 4px; }
 .collapsed { height: 100%; width: 100%; border: 0; border-radius: 0; justify-content: flex-start; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; color: var(--muted); background: var(--panel); }
@@ -324,9 +324,25 @@ table.list tr.empty td { color: var(--muted); cursor: default; }
 .side { background: var(--panel); min-height: 0; overflow: auto; }
 .side.left { border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
 .side.right { border-left: 1px solid var(--line); }
-.tabs { display: flex; border-bottom: 1px solid var(--line); }
-.tabs button { flex: 1; border: 0; border-radius: 0; border-bottom: 2px solid transparent; padding: 6px; }
-.tabs button.on { background: transparent; color: var(--text); border-bottom-color: var(--text); }
+/* desktop document tabs: a recessed strip; the active tab is the same sheet as the panel below it */
+.tabs { display: flex; align-self: stretch; align-items: flex-end; gap: 2px; padding: 5px 4px 0; }
+.tabs > button {
+  position: relative;
+  height: 100%;
+  padding: 0 12px;
+  margin-bottom: -1px; /* sits on the strip's bottom line; the active tab covers it */
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+  color: var(--muted);
+  transition: none;
+}
+.tabs > button:hover:not(:disabled) { background: var(--hover); border-color: transparent; color: var(--text); }
+.tabs > button.on,
+.tabs > button.on:hover:not(:disabled) { background: var(--panel); border-color: var(--line); color: var(--text); font-weight: 500; }
+.tabs > button.on::before { content: ''; position: absolute; inset: -1px -1px auto; height: 2px; background: var(--accent); border-radius: var(--radius) var(--radius) 0 0; }
+.tabs > button:focus-visible { outline-offset: -2px; }
 .tab-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px; overflow: hidden; }
 .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
 .row input:not([type]) { flex: 1; }
@@ -541,9 +557,6 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .layer-btns { display: inline-flex; gap: 1px; }
 .zoom-pct { min-width: 56px; justify-content: flex-end; font-size: 12px; }
 .panel-head { align-items: center; }
-.tabs button { height: 32px; border: 0; border-radius: 0; border-bottom: 2px solid transparent; }
-.tabs button:hover:not(:disabled) { background: var(--hover); border: 0; border-bottom: 2px solid transparent; }
-.tabs button.on, .tabs button.on:hover:not(:disabled) { background: transparent; color: var(--text); border: 0; border-bottom: 2px solid var(--accent); }
 .popover.menu-list > button, .popover .menu-list > button { justify-content: flex-start; height: 28px; border-color: transparent; background: transparent; }
 .shape-menu button, .emoji-menu button { border-color: transparent; background: transparent; justify-content: flex-start; height: 30px; }
 .emoji-menu button { justify-content: center; height: 32px; }
@@ -589,8 +602,6 @@ fieldset.slides-actions.lockable:disabled { opacity: 0.6; }
 .panel-head, .scene-head { min-height: 38px; }
 .scene-head { padding: 0 8px; flex-wrap: nowrap; }
 .panel-title { padding: 0 10px; align-self: center; }
-.panel-head .tabs { align-self: stretch; }
-.tabs button { height: 37px; }
 :root[data-theme="dark"] button:disabled { opacity: 0.38; }
 :root[data-theme="dark"] input[type='checkbox'] { outline: 1px solid var(--line-strong); outline-offset: -1px; border-radius: 2px; }
 

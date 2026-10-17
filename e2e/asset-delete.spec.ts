@@ -15,7 +15,7 @@ test('asset: menu ⋯ → Hapus asset, peringatan dipakai, Urungkan memulihkan',
   await request.put(`/api/projects/${slug}`, { data: p, headers: { origin: BASE } });
 
   await page.goto(`/p/${slug}`);
-  await page.getByRole('button', { name: 'Asset' }).click();
+  await page.getByRole('tab', { name: 'Asset' }).click();
   const tile = page.locator('.asset', { hasText: 'kipas.png' });
   await expect(tile).toHaveCount(1);
   await tile.hover();
@@ -43,7 +43,7 @@ test('asset: menu ⋯ → Hapus asset, peringatan dipakai, Urungkan memulihkan',
 test('upload lewat drag file lalu drag tile ke scene tetap berfungsi; drop zone 4 sisi lalu hilang', async ({ page, request }) => {
   const { slug } = (await (await request.post('/api/projects', { data: { name: `Dnd ${Date.now()}` }, headers: { origin: BASE } })).json()) as { slug: string };
   await page.goto(`/p/${slug}`);
-  await page.getByRole('button', { name: 'Asset' }).click();
+  await page.getByRole('tab', { name: 'Asset' }).click();
   // OS file drag onto the panel (DataTransfer with a File, like Dolphin/Nautilus)
   const dt = await page.evaluateHandle((b64) => {
     const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));

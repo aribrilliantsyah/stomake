@@ -363,19 +363,45 @@ export function Editor({ slug }: { slug: string }) {
           {ui.panels.library ? (
             <>
               <PanelHead name="library">
-                <div className="tabs">
-                  <button className={tab === 'storyline' ? 'on' : ''} onClick={() => setTab('storyline')}>
-                    <ScrollText size={14} aria-hidden /> Storyline
-                  </button>
-                  <button className={tab === 'assets' ? 'on' : ''} onClick={() => setTab('assets')}>
-                    <Images size={14} aria-hidden /> Asset
-                  </button>
+                <div
+                  className="tabs"
+                  role="tablist"
+                  aria-label="Panel kiri"
+                  onKeyDown={(e) => {
+                    // desktop tab strip: arrows / Home / End move between tabs and focus the new one
+                    const order = ['storyline', 'assets'] as const;
+                    const i = order.indexOf(tab);
+                    const next = { ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: order.length - 1 }[e.key];
+                    if (next === undefined) return;
+                    e.preventDefault();
+                    const t = order[(next + order.length) % order.length];
+                    setTab(t);
+                    document.getElementById(`tab-${t}`)?.focus();
+                  }}
+                >
+                  {([
+                    ['storyline', 'Storyline', ScrollText],
+                    ['assets', 'Asset', Images],
+                  ] as const).map(([id, label, Icon]) => (
+                    <button
+                      key={id}
+                      id={`tab-${id}`}
+                      role="tab"
+                      aria-selected={tab === id}
+                      aria-controls={`tabpanel-${id}`}
+                      tabIndex={tab === id ? 0 : -1}
+                      className={tab === id ? 'on' : ''}
+                      onClick={() => setTab(id)}
+                    >
+                      <Icon size={14} aria-hidden /> {label}
+                    </button>
+                  ))}
                 </div>
               </PanelHead>
-              <div className="tab-body" hidden={tab !== 'storyline'}>
+              <div className="tab-body" role="tabpanel" id="tabpanel-storyline" aria-labelledby="tab-storyline" hidden={tab !== 'storyline'}>
                 <StorylinePanel slug={slug} />
               </div>
-              <div className="tab-body" hidden={tab !== 'assets'}>
+              <div className="tab-body" role="tabpanel" id="tabpanel-assets" aria-labelledby="tab-assets" hidden={tab !== 'assets'}>
                 <AssetPanel slug={slug} assets={assets} onUploaded={refreshAssets} />
               </div>
             </>
