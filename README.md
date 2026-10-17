@@ -6,16 +6,16 @@
 </picture>
 
 <p align="center">
-  <strong>Aplikasi desktop web lokal untuk merancang storyboard video vertikal 9:16 dari storyline dan export PDF bergaya template Canva untuk video editor.</strong>
+  <strong>Bikin storyboard video vertikal 9:16 dari naskah, lalu export PDF siap kirim ke video editor. Jalan lokal di laptop, sebagai aplikasi desktop atau di browser.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white" alt="Node.js">
-  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Node.js-22+-339933?logo=node.js&logoColor=white" alt="Node.js 22+">
+  <img src="https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React">
-  <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Playwright-1.x-45BA4B?logo=playwright&logoColor=white" alt="Playwright">
-  <img src="https://img.shields.io/badge/MCP-Enabled-2563EB" alt="Model Context Protocol">
+  <img src="https://img.shields.io/badge/MCP-19_tools-AE4F2C" alt="Model Context Protocol">
 </p>
 
 </div>
@@ -24,50 +24,59 @@
 
 ## 📸 Antarmuka Aplikasi
 
-### Editor Storyboard (Dark Mode — 3 Scene per Halaman)
-Tampilan lembar kerja utama dengan thumbnail navigasi slide di kiri, naskah storyline di tengah-kiri, kanvas 9:16 di tengah, dan inspektor layer di kanan.
+Semua contoh editor di bawah memakai storyboard contoh *"Kenapa Es Batu Mengapung?"* dengan ilustrasi yang dibuat khusus untuk dokumentasi ini.
 
-![Editor Storyboard Dark Mode](docs/images/editor-page-3scenes-dark.png)
+### Editor
+Kiri ke kanan: daftar slide (page), naskah storyline, page aktif yang tampil persis seperti PDF, dan properti scene serta layer. Di sini Scene 2 memakai split atas-bawah, dan layer teks "BENDA LAIN" sedang dipilih.
 
-### Dashboard Proyek
-Manajemen proyek dengan filter status, pencarian instan, pengurutan, dan pergantian tema terang/gelap.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/editor-dark.png">
+  <img src="docs/images/editor-light.png" alt="Editor storyboard: slides, storyline, page dengan 3 scene, panel properti">
+</picture>
 
-| Tampilan Terang (Light Mode) | Tampilan Gelap (Dark Mode) |
+### Asset dan zoom scene
+
+| Tab Asset: tarik gambar ke frame scene | Zoom satu scene (`Z`), shape bintang dipilih |
 |---|---|
-| ![Dashboard Light](docs/images/dashboard-light.png) | ![Dashboard Dark](docs/images/dashboard-dark.png) |
+| ![Tab Asset dengan gambar project](docs/images/editor-assets-light.png) | ![Scene diperbesar dengan shape terpilih](docs/images/scene-editor-detail.png) |
 
-### Manajemen Aset & Pengaturan Integrasi AI (MCP)
+### Cover dan Pengaturan
 
-| Panel Aset Drag & Drop | Dialog Pengaturan & MCP Server |
+| Cover "VISUAL ASLI" (opsional, tidak dihitung sebagai scene) | Pengaturan: tema, folder penyimpanan, MCP |
 |---|---|
-| ![Panel Asset](docs/images/editor-assets-light.png) | ![Pengaturan MCP](docs/images/settings-modal.png) |
+| ![Halaman cover](docs/images/cover-slide.png) | ![Dialog Pengaturan](docs/images/settings-modal.png) |
+
+### Home
+Daftar project dengan pencarian, filter Aktif/Arsip, urutan, tampilan grid atau list, serta Import project dari `.zip`.
+
+| Terang | Gelap |
+|---|---|
+| ![Home tema terang](docs/images/dashboard-light.png) | ![Home tema gelap](docs/images/dashboard-dark.png) |
 
 ---
 
 ## ✨ Fitur Utama
 
-- **Navigasi Slides Gaya PowerPoint**: Panel slides di sebelah kiri untuk berpindah halaman dengan cepat. Mendukung Cover *"VISUAL ASLI"* opsional dan halaman isi.
-- **Rasio Asli 9:16 Vertikal**: Didesain khusus untuk produksi konten vertikal (TikTok, Instagram Reels, YouTube Shorts).
-- **Layout Fleksibel 1–3 Scene per Halaman**: Setiap halaman menampung 1 hingga 3 frame scene tanpa pemindahan otomatis antar halaman.
-- **Struktur Scene Lengkap**: Catatan pengarah/efek di atas frame, frame visual 9:16 di tengah, dan subtitle/narasi di bawah frame. Mendukung split atas-bawah (kondisi awal → akhir).
-- **Integrasi Storyline & Import Word (`.docx`)**: Baca naskah cerita di panel samping dengan penghitung kata otomatis dan kemudahan copy-paste ke scene.
-- **Manajemen Aset Komprehensif**: Asset per proyek dan asset global perpustakaan, drag & drop ke canvas, serta copy-paste screenshot clipboard langsung jadi file asset.
-- **Manipulasi Layer Kaya**:
-  - Transformasi: geser, ubah ukuran, putar, flip horizontal/vertikal, opacity.
-  - Tipe layer: Gambar (PNG/JPG/GIF/WebP), Teks (15 font bawaan + font lokal sistem di Chrome), 10 bentuk shape (kotak, elips, garis, panah, target, silang, bintang, balon kata), dan Emoji picker.
-- **Autosave & Undo/Redo Penuh**: Riwayat aksi tersimpan otomatis (`Ctrl+Z`, `Ctrl+Shift+Z`, `Ctrl+Y`), dengan indikator status sinkronisasi.
-- **Zoom Kanvas Presisi**: Rentang zoom 25%–400% dengan slider, tombol pintas, dan mode fokus *"Pas layar"*.
-- **Export PDF Berkualitas Tinggi**: Render PDF bergaya Canva secara otomatis via browser Chromium bawaan (Playwright).
-- **Protokol AI Agent (MCP)**: Server Model Context Protocol bawaan dengan 19 tools untuk automasi pembuatan storyboard melalui AI agent (Hermes, Claude Code, Cursor).
+- **Aplikasi desktop (Tauri)**: jendela native untuk Windows, macOS, dan Linux, tanpa perlu memasang Node. Versi browser tetap tersedia lewat `pnpm start`.
+- **Slide gaya PowerPoint**: tiap page berisi 1–3 scene, ditambah Cover *"VISUAL ASLI"* opsional. Nomor scene berlanjut antar page; tidak ada pemindahan scene otomatis.
+- **Frame 9:16 vertikal**: untuk TikTok, Reels, dan Shorts. Tiap scene punya catatan efek di atas, frame di tengah, dan subtitle di bawah. Frame bisa dibagi atas-bawah untuk kondisi awal → akhir.
+- **Storyline di samping**: tempel naskah atau import `.docx`, lengkap dengan hitungan kata, lalu salin ke subtitle scene.
+- **Asset per project dan global**: upload dengan drag file atau tombol, tarik thumbnail ke frame, atau tempel screenshot dari clipboard.
+- **Layer**: gambar (PNG/JPG/GIF/WebP), teks (15 font bawaan + font laptop), 12 shape (kotak, elips, garis, panah, target, silang, bintang, balon kata, panah putar), dan emoji. Geser, ubah ukuran, putar, flip, opacity, grup, serta urutkan dengan drag di daftar layer.
+- **Folder penyimpanan bebas**: pilih sendiri lokasinya, misalnya `Documents`. Folder project yang di-copy ke sana langsung terbaca.
+- **Export / Import `.zip`**: pindahkan project antar laptop atau OS, termasuk gambar yang dipakai.
+- **Autosave, undo/redo, zoom 25–400%**.
+- **Export PDF**: dirender Chromium, teks tetap bisa dipilih dan dicari.
+- **MCP untuk AI agent**: 19 tool agar Claude Code, Cursor, atau Hermes bisa menyusun storyboard. Editor terkunci dan menampilkan perubahan secara live selama agent bekerja.
 
 ---
 
 ## 🚀 Memulai
 
 ### Prasyarat
-- **Node.js** v20 atau lebih baru
-- **pnpm** (direkomendasikan)
-- Browser Chromium untuk export PDF (Playwright)
+- **Node.js** 22 atau lebih baru
+- **pnpm** 10
+- Untuk export PDF: Google Chrome, Chromium, atau Edge yang sudah terpasang. Bila tidak ada, jalankan `pnpm exec playwright install chromium`.
 
 ### Instalasi & Menjalankan
 
@@ -83,13 +92,7 @@ pnpm install
 pnpm start
 ```
 
-Aplikasi web dapat langsung diakses melalui peramban di:
-👉 **`http://127.0.0.1:5178`**
-
-Untuk export PDF, pastikan Chromium Playwright telah terpasang:
-```bash
-pnpm exec playwright install chromium
-```
+Buka **`http://127.0.0.1:5178`** di browser.
 
 ### Aplikasi Desktop (Tauri)
 
@@ -103,6 +106,23 @@ pnpm desktop:build   # installer di src-tauri/target/release/bundle/
 ```
 
 Installer dibuat per OS: jalankan `pnpm desktop:build` di Windows untuk `.msi`/`.exe`, di macOS untuk `.dmg`, di Linux untuk `.deb`/`.rpm`/`.AppImage`. Binary Node yang ikut dibundel diambil dari Node yang menjalankan build.
+
+#### Pasang di launcher Linux tanpa sudo
+
+Untuk distro tanpa `dpkg` (Arch, CachyOS, Fedora), isi `.deb` bisa dipasang per user di `~/.local`:
+
+```bash
+pnpm exec tauri build --bundles deb
+mkdir -p /tmp/sbm && cd /tmp/sbm
+bsdtar -xf "$OLDPWD/src-tauri/target/release/bundle/deb/Storyboard Maker_0.1.0_amd64.deb" && bsdtar -xf data.tar.*
+cp -a "usr/lib/Storyboard Maker" ~/.local/lib/
+install -m755 usr/bin/storyboard-maker ~/.local/bin/
+cp -a usr/share/icons/hicolor/. ~/.local/share/icons/hicolor/
+sed "s|^Exec=.*|Exec=$HOME/.local/bin/storyboard-maker|" "usr/share/applications/Storyboard Maker.desktop" > ~/.local/share/applications/storyboard-maker.desktop
+update-desktop-database ~/.local/share/applications
+```
+
+Aplikasi lalu muncul di menu aplikasi sebagai **Storyboard Maker**. Untuk menghapus, hapus keempat lokasi di atas.
 
 ---
 
@@ -139,6 +159,9 @@ Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. De
 | `Ctrl + 0` | Sesuaikan ukuran kanvas ke layar (Fit to screen) |
 | `Delete` / `Backspace` | Hapus layer yang sedang dipilih |
 | `Ctrl + D` | Duplikat layer terpilih |
+| `Ctrl + A` | Pilih semua layer di panel aktif |
+| `Shift` / `Ctrl` + klik, atau tarik kotak di area kosong | Pilih beberapa layer |
+| `Ctrl + G` / `Ctrl + Shift + G` | Grup / pisahkan grup layer |
 | `]` / `[` | Naikkan / turunkan urutan layer (`Shift` = paling depan/belakang) |
 | `Panah (Arrow keys)` | Geser posisi layer 5px (`Shift` = 50px) |
 | `Ctrl + C` / `Ctrl + V` | Salin dan tempel layer antar scene |
@@ -146,6 +169,7 @@ Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. De
 | `Z` / Double-click frame | Zoom fokus ke satu scene tertentu |
 | `Esc` | Batalkan seleksi / keluar dari mode zoom |
 | `Ctrl + 1` / `2` / `3` | Toggle sembunyikan/tampilkan panel Slides, Storyline, Properti |
+| `←` / `→` di tab Storyline/Asset | Pindah tab |
 
 ---
 
@@ -155,7 +179,7 @@ Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk
 
 ### Mengaktifkan MCP
 1. Buka ⚙ **Pengaturan** di kanan atas aplikasi.
-2. Aktifkan opsi **Model Context Protocol (MCP)**.
+2. Nyalakan switch **MCP (agent AI)**.
 3. Konfigurasikan pada client agent pilihan Anda:
 
 ```json
