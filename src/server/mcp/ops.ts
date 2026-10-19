@@ -22,16 +22,19 @@ import {
   updatePanel,
   updateScene as updateSceneIn,
 } from '../../shared/model';
-import type { AssetInfo, Background, Layer, Project, ProjectSummary, ShapeKind } from '../../shared/types';
+import type { AssetInfo, Background, Layer, Panel, Project, ProjectSummary, ShapeKind } from '../../shared/types';
+import { BUILTIN_FONTS } from '../../shared/fonts';
+import { groupLayers as groupLayersIn, ungroupLayers } from '../../shared/multi';
 import { newId } from '../../shared/ids';
 import { AssetError, listAssets as listAssetsOnDisk, saveAssets } from '../assets';
+import { PATTERN_DEFAULTS, patternSvg, type PatternKind } from '../patterns';
 import { exportPdf as exportPdfOnDisk } from '../export';
 import { agentLock, publish } from '../live';
 import { isSafeName, isValidSlug } from '../paths';
 import { noteMcpCall } from '../settings';
 import { createProjectOnDisk, projectExists, queryProjects, readProject, readStoryline, updateProjectOnDisk, writeStoryline } from '../store';
 import { ZodError } from 'zod';
-import { svgToPng, SvgError } from '../svgAsset';
+import { findTextElement, svgToPng, SvgError } from '../svgAsset';
 import type { LayerPatch, LayerSpec, ToolInput } from './schemas';
 
 /** An error whose message is meant for the agent (returned as isError, project untouched). */
@@ -133,6 +136,10 @@ export function layerFromSpec(spec: LayerSpec, space: { w: number; h: number }, 
         stroke: spec.stroke === undefined ? d.stroke : spec.stroke,
         strokeWidth: spec.strokeWidth ?? d.strokeWidth,
         opacity: toOpacity(spec.opacity, 1),
+        ...(spec.width === undefined ? null : { width: spec.width }),
+        // align/lineHeight only mean something inside a wrap box
+        ...(spec.width === undefined ? null : { align: spec.align ?? 'center' }),
+        ...(spec.lineHeight === undefined ? null : { lineHeight: spec.lineHeight }),
       };
     }
     case 'shape': {
@@ -157,18 +164,27 @@ export function layerFromSpec(spec: LayerSpec, space: { w: number; h: number }, 
 }
 
 const NULLABLE = new Set(['stroke', 'fill']);
+/** Text properties that are absent until the agent turns the layer into a wrap box. */
+const TEXT_BOX: Record<string, true> = { width: true, align: true, lineHeight: true };
 
 function applyPatch(l: Layer, patch: LayerPatch, assets: Map<string, AssetInfo> | null): Layer {
   const { opacity, assetRef, ...rest } = patch;
   const next: Record<string, unknown> = { ...l };
-  const wrong = Object.keys(rest).filter((k) => rest[k as keyof typeof rest] !== undefined && !(k in l));
+  const wrong = Object.keys(rest).filter((k) => rest[k as keyof typeof rest] !== undefined && !(k in l) && !(l.type === 'text' && TEXT_BOX[k]));
   if (wrong.length) throw new ToolError(`Properti tidak berlaku untuk layer ${l.type}: ${wrong.join(', ')}`);
   for (const [k, v] of Object.entries(rest)) {
     if (v === undefined) continue;
-    if (v === null && !(NULLABLE.has(k) && l.type === 'shape') && !(k === 'stroke' && l.type === 'text'))
+    if (v === null && !(NULLABLE.has(k) && l.type === 'shape') && !(k === 'stroke' && l.type === 'text') && !(k === 'width' && l.type === 'text'))
       throw new ToolError(`${k} tidak boleh kosong untuk layer ${l.type}`);
     if (k === 'text' && typeof v === 'string' && !v.trim()) throw new ToolError('Teks tidak boleh kosong');
     next[k] = v;
+  }
+  if (l.type === 'text') {
+    // width: null drops the wrap box; align/lineHeight only exist inside one
+    if (rest.width === null) for (const k of Object.keys(TEXT_BOX)) delete next[k];
+    else if (next.width === undefined && (rest.align !== undefined || rest.lineHeight !== undefined))
+      throw new ToolError('align/lineHeight butuh width (kotak lipat teks) pada layer ini');
+    else if (next.width !== undefined && next.align === undefined) next.align = 'center';
   }
   if (opacity !== undefined) next.opacity = toOpacity(opacity, l.opacity);
   if (assetRef !== undefined) {
@@ -186,12 +202,12 @@ function bgFrom(input: { color?: string; assetRef?: string; fit?: 'cover' | 'con
 
 /** Compact view of a layer for get_project. */
 function layerOutline(l: Layer) {
-  const base = { id: l.id, type: l.type, x: Math.round(l.x), y: Math.round(l.y), rotation: l.rotation, opacity: Math.round(l.opacity * 100) };
+  const base = { id: l.id, type: l.type, x: Math.round(l.x), y: Math.round(l.y), rotation: l.rotation, opacity: Math.round(l.opacity * 100), ...(l.groupId ? { groupId: l.groupId } : null) };
   switch (l.type) {
     case 'image':
       return { ...base, ref: l.ref, width: l.width, height: l.height };
     case 'text':
-      return { ...base, text: l.text, font: l.font, fontSize: l.fontSize, fill: l.fill };
+      return { ...base, text: l.text, font: l.font, fontSize: l.fontSize, fill: l.fill, width: l.width, align: l.align, lineHeight: l.lineHeight };
     case 'shape':
       return { ...base, shape: l.shape, width: l.width, height: l.height, fill: l.fill, stroke: l.stroke };
     case 'emoji':
@@ -199,6 +215,32 @@ function layerOutline(l: Layer) {
     case 'arrow':
       return { ...base, points: l.points, color: l.color };
   }
+}
+
+/**
+ * Render agent-supplied SVG to a PNG in the project's assets (shared by add_svg_asset and
+ * add_pattern_asset). Writes no project.json, so the user's editor keeps its lock-free state.
+ */
+async function saveSvgAsset(slug: string, rawName: string, svg: string, width?: number) {
+  const name = `${rawName.replace(/\.(png|svg)$/i, '').trim()}.png`;
+  if (!isSafeName(name)) throw new ToolError(`Nama tidak valid: ${rawName} (tanpa / \\ .. dan tidak diawali titik)`);
+  let r;
+  try {
+    r = await svgToPng(svg, width);
+  } catch (e) {
+    if (e instanceof SvgError) throw new ToolError(e.message);
+    throw e;
+  }
+  let saved;
+  try {
+    [saved] = await saveAssets('project', [{ name, data: r.png }], slug);
+  } catch (e) {
+    if (e instanceof AssetError) throw new ToolError(e.message);
+    throw e;
+  }
+  if (!saved) throw new ToolError('Gambar gagal disimpan');
+  publish(slug, { type: 'assets' });
+  return { assetRef: saved.ref, name: saved.name, width: saved.width, height: saved.height };
 }
 
 export const ops = {
@@ -259,6 +301,12 @@ export const ops = {
     return listAssetsOnDisk(i.slug);
   },
 
+  /** Font names the renderer and the PDF export can actually draw. */
+  async listFonts(): Promise<{ fonts: string[]; default: string }> {
+    noteMcpCall();
+    return { fonts: [...BUILTIN_FONTS], default: defaultText({ w: 1080, h: 1920 }).font };
+  },
+
   /**
    * Agent-drawn illustration: SVG → PNG, saved as a project asset. Not a project.json write,
    * so the editor isn't locked; open editors get an `assets` event and refresh the Asset tab.
@@ -266,26 +314,20 @@ export const ops = {
   async addSvgAsset(i: ToolInput<'add_svg_asset'>): Promise<{ assetRef: string; name: string; width: number; height: number }> {
     need(i.slug);
     noteMcpCall();
-    const base = i.name.replace(/\.(png|svg)$/i, '').trim();
-    const name = `${base}.png`;
-    if (!isSafeName(name)) throw new ToolError(`Nama tidak valid: ${i.name} (tanpa / \\ .. dan tidak diawali titik)`);
-    let r;
-    try {
-      r = await svgToPng(i.svg, i.width);
-    } catch (e) {
-      if (e instanceof SvgError) throw new ToolError(e.message);
-      throw e;
-    }
-    let saved;
-    try {
-      [saved] = await saveAssets('project', [{ name, data: r.png }], i.slug);
-    } catch (e) {
-      if (e instanceof AssetError) throw new ToolError(e.message);
-      throw e;
-    }
-    if (!saved) throw new ToolError('Gambar gagal disimpan');
-    publish(i.slug, { type: 'assets' });
-    return { assetRef: saved.ref, name: saved.name, width: saved.width, height: saved.height };
+    const el = findTextElement(i.svg);
+    if (el) throw new ToolError(`SVG berisi <${el}>: teks di dalam gambar tidak memakai font aplikasi dan tidak bisa diedit user. Gambar ilustrasinya saja, lalu tambahkan teks dengan add_layer type "text".`);
+    return saveSvgAsset(i.slug, i.name, i.svg, i.width);
+  },
+
+  /**
+   * Patterned background (grid, graph paper, dots, sunburst, …) rendered to a PNG asset,
+   * so a scene never has to sit on a flat colour. Same asset path as addSvgAsset.
+   */
+  async addPatternAsset(i: ToolInput<'add_pattern_asset'>): Promise<{ assetRef: string; name: string; width: number; height: number }> {
+    need(i.slug);
+    noteMcpCall();
+    const svg = patternSvg({ ...i, kind: i.kind as PatternKind });
+    return saveSvgAsset(i.slug, i.name, svg, i.width ?? PATTERN_DEFAULTS.width);
   },
 
   async addPage(i: ToolInput<'add_page'>): Promise<{ pageId: string; sceneIds: string[] }> {
@@ -382,6 +424,24 @@ export const ops = {
     });
   },
 
+  /** Several layers in one write: one lock cycle, one live event, one undo step for the user. */
+  async addLayers(i: ToolInput<'add_layers'>): Promise<{ layerIds: string[] }> {
+    need(i.slug);
+    const assets = i.layers.some((l) => l.type === 'image') ? await assetIndex(i.slug) : new Map<string, AssetInfo>();
+    return mutate(i.slug, (p) => {
+      const { scene } = panelOrThrow(p, i.panelId);
+      const space = panelSpace(scene?.split ?? false);
+      let project = p;
+      const layerIds: string[] = [];
+      for (const spec of i.layers) {
+        const layer = layerFromSpec(spec, space, assets);
+        project = addLayerTo(project, i.panelId, layer);
+        layerIds.push(layer.id);
+      }
+      return same(project, { layerIds });
+    });
+  },
+
   async updateLayer(i: ToolInput<'update_layer'>): Promise<{ ok: true }> {
     need(i.slug);
     const assets = i.patch.assetRef ? await assetIndex(i.slug) : null;
@@ -408,6 +468,61 @@ export const ops = {
       if (!panel.layers.some((x) => x.id === i.layerId)) throw new ToolError(`Layer tidak ditemukan: ${i.layerId}`);
       return same(reorderLayerIn(p, i.panelId, i.layerId, i.to), { ok: true as const });
     });
+  },
+
+  /** Lock several layers together (or release the group) so the user drags them as one object. */
+  async groupLayers(i: ToolInput<'group_layers'>): Promise<{ groupId: string | null }> {
+    return mutate<{ groupId: string | null }>(i.slug, (p) => {
+      const { panel } = panelOrThrow(p, i.panelId);
+      const missing = i.layerIds.filter((id) => !panel.layers.some((l) => l.id === id));
+      if (missing.length) throw new ToolError(`Layer tidak ditemukan: ${missing.join(', ')}`);
+      if (i.ungroup) return same(ungroupLayers(p, i.panelId, i.layerIds), { groupId: null });
+      const r = groupLayersIn(p, i.panelId, i.layerIds);
+      if (!r.groupId) throw new ToolError('Grup butuh minimal 2 layer berbeda');
+      return same(r.project, { groupId: r.groupId });
+    });
+  },
+
+  /**
+   * Read-only quality pass over a finished storyboard: catches the mistakes that only show up
+   * in the exported PDF (unreadable text, layers off-frame, missing assets, flat empty frames).
+   */
+  async checkStoryboard(i: ToolInput<'check_storyboard'>): Promise<{ ok: boolean; issues: { level: 'error' | 'warning'; where: string; message: string }[] }> {
+    need(i.slug);
+    noteMcpCall();
+    const p = await readProject(i.slug);
+    const assets = await assetIndex(i.slug);
+    const issues: { level: 'error' | 'warning'; where: string; message: string }[] = [];
+    const add = (level: 'error' | 'warning', where: string, message: string) => issues.push({ level, where, message });
+
+    const frames: { where: string; split: boolean; panels: Panel[]; subtitle: string | null; background: Background | null }[] = [];
+    if (p.cover) frames.push({ where: 'Cover', split: false, panels: [p.cover.panel], subtitle: null, background: null });
+    for (const f of flatScenes(p)) frames.push({ where: `Scene ${f.number}`, split: f.scene.split, panels: f.scene.panels, subtitle: f.scene.subtitle, background: p.pages[f.pageIndex].background ?? p.pageBackground });
+
+    let plainFrames = 0;
+    for (const f of frames) {
+      if (f.subtitle !== null && !f.subtitle.trim()) add('warning', f.where, 'Subtitle kosong — penonton tidak tahu kalimat yang dibacakan di scene ini');
+      const space = panelSpace(f.split);
+      for (const pn of f.panels) {
+        if (pn.background.kind === 'asset' && !assets.has(pn.background.ref)) add('error', f.where, `Background hilang: ${pn.background.ref}`);
+        if (pn.background.kind === 'color') plainFrames++;
+        if (!pn.layers.length) add('warning', f.where, 'Frame kosong — belum ada gambar, teks, atau shape');
+        for (const l of pn.layers) {
+          if (l.type === 'image' && !assets.has(l.ref)) add('error', f.where, `Asset hilang: ${l.ref}`);
+          if (l.x < 0 || l.x > space.w || l.y < 0 || l.y > space.h) add('warning', f.where, `Layer ${l.type} di luar frame (x ${Math.round(l.x)}, y ${Math.round(l.y)}; frame ${space.w}×${space.h})`);
+          if (l.type === 'text') {
+            // the frame is printed 198pt wide, so a panel unit is ~0.183pt: below 48 units text drops under 9pt
+            if (l.fontSize < 48) add('warning', f.where, `Teks "${l.text.slice(0, 24)}" fontSize ${l.fontSize} terlalu kecil untuk PDF (minimal 48)`);
+            if (!l.width && l.text.length > 24) add('warning', f.where, `Teks "${l.text.slice(0, 24)}…" panjang tanpa width — akan jadi satu baris yang keluar frame`);
+            if (l.width && l.width > space.w) add('warning', f.where, `Lebar kotak teks ${l.width} melebihi frame ${space.w}`);
+          }
+        }
+      }
+    }
+    if (frames.length >= 3 && plainFrames === frames.reduce((n, f) => n + f.panels.length, 0))
+      add('warning', 'Project', 'Semua frame memakai background warna polos — pakai add_pattern_asset (grid, graph, dots, rays) atau gambar agar tidak monoton');
+
+    return { ok: !issues.some((x) => x.level === 'error'), issues };
   },
 
   async exportPdf(i: ToolInput<'export_pdf'>) {

@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -190,4 +190,99 @@ test('finish_editing saat tool lain menunggu ack: tool itu tetap selesai di bawa
   expect(agentLock.state(slug)).toBe('none');
   expect(JSON.parse(raw(slug)).pages[0].scenes[0].subtitle).toBe('akhir');
   sub.close();
+});
+
+test('text wrap: width menyalakan kotak lipat dengan align default center; width null mematikannya', async () => {
+  const slug = await fresh();
+  const panelId = (await ops.getProject({ slug })).pages[0].scenes[0].panels[0].id;
+  const { layerId } = await ops.addLayer({ slug, panelId, layer: { type: 'text', text: 'kalimat panjang sekali', width: 860, lineHeight: 1.2 } });
+  const read = () => JSON.parse(raw(slug)).pages[0].scenes[0].panels[0].layers[0];
+  expect(read()).toMatchObject({ width: 860, align: 'center', lineHeight: 1.2 });
+
+  await ops.updateLayer({ slug, panelId, layerId, patch: { align: 'left' } });
+  expect(read().align).toBe('left');
+
+  await ops.updateLayer({ slug, panelId, layerId, patch: { width: null } });
+  const off = read();
+  expect(off.width).toBeUndefined();
+  expect(off.align).toBeUndefined();
+  expect(off.lineHeight).toBeUndefined();
+
+  await expect(ops.updateLayer({ slug, panelId, layerId, patch: { align: 'right' } })).rejects.toThrow('align/lineHeight butuh width');
+});
+
+test('add_layers menulis semua layer berurutan dalam satu penyimpanan', async () => {
+  const slug = await fresh();
+  const panelId = (await ops.getProject({ slug })).pages[0].scenes[0].panels[0].id;
+  const events: LiveEvent[] = [];
+  subscribe(slug, (e) => events.push(e));
+  const { layerIds } = await ops.addLayers({
+    slug,
+    panelId,
+    layers: [
+      { type: 'shape', shape: 'bubble', y: 400 },
+      { type: 'text', text: 'KOK BISA?', y: 400 },
+      { type: 'emoji', char: '🤔', y: 900 },
+    ],
+  });
+  expect(layerIds).toHaveLength(3);
+  const layers = JSON.parse(raw(slug)).pages[0].scenes[0].panels[0].layers;
+  expect(layers.map((l: { type: string }) => l.type)).toEqual(['shape', 'text', 'emoji']);
+  expect(events.filter((e) => e.type === 'project')).toHaveLength(1);
+});
+
+test('group_layers menandai anggota dengan groupId yang sama; ungroup melepasnya; <2 layer ditolak', async () => {
+  const slug = await fresh();
+  const panelId = (await ops.getProject({ slug })).pages[0].scenes[0].panels[0].id;
+  const { layerIds } = await ops.addLayers({ slug, panelId, layers: [{ type: 'text', text: 'A' }, { type: 'text', text: 'B' }] });
+  const { groupId } = await ops.groupLayers({ slug, panelId, layerIds });
+  const groups = () => JSON.parse(raw(slug)).pages[0].scenes[0].panels[0].layers.map((l: { groupId?: string }) => l.groupId);
+  expect(groups()).toEqual([groupId, groupId]);
+
+  await ops.groupLayers({ slug, panelId, layerIds: [layerIds[0]], ungroup: true });
+  expect(groups()).toEqual([undefined, undefined]);
+
+  await expect(ops.groupLayers({ slug, panelId, layerIds: [layerIds[0]] })).rejects.toThrow('minimal 2 layer');
+  await expect(ops.groupLayers({ slug, panelId, layerIds: ['nope'] })).rejects.toThrow('Layer tidak ditemukan');
+});
+
+test('check_storyboard: asset hilang = error, teks kecil / di luar frame / semua bg polos = warning', async () => {
+  const slug = await fresh();
+  const o = await ops.getProject({ slug });
+  const panelId = o.pages[0].scenes[0].panels[0].id;
+  await ops.updateScene({ slug, sceneId: o.pages[0].scenes[0].id, subtitle: 'kenapa kipas berdebu' });
+  await ops.addLayers({
+    slug,
+    panelId,
+    layers: [
+      { type: 'text', text: 'kecil', fontSize: 20 },
+      { type: 'text', text: 'kalimat yang jauh lebih panjang dari dua puluh empat karakter' },
+      { type: 'emoji', char: '🔥', x: 2000, y: 100 },
+    ],
+  });
+  const r = await ops.checkStoryboard({ slug });
+  const msgs = r.issues.map((x) => x.message);
+  expect(r.ok).toBe(true);
+  expect(msgs.some((m) => m.includes('terlalu kecil'))).toBe(true);
+  expect(msgs.some((m) => m.includes('tanpa width'))).toBe(true);
+  expect(msgs.some((m) => m.includes('di luar frame'))).toBe(true);
+
+  // the only frame still sits on the default white panel colour
+  await ops.addPage({ slug, scenes: 2 });
+  expect((await ops.checkStoryboard({ slug })).issues.some((x) => x.message.includes('background warna polos'))).toBe(true);
+
+  // a layer pointing at a file that was never uploaded is a hard error
+  const p = JSON.parse(raw(slug));
+  p.pages[0].scenes[0].panels[0].layers.push({ id: 'ghost', type: 'image', ref: 'project:hilang.png', x: 540, y: 960, width: 10, height: 10, rotation: 0, opacity: 1, flipX: false, flipY: false });
+  writeFileSync(file(slug), JSON.stringify(p));
+  const bad = await ops.checkStoryboard({ slug });
+  expect(bad.ok).toBe(false);
+  expect(bad.issues.some((x) => x.level === 'error' && x.message.includes('Asset hilang'))).toBe(true);
+});
+
+test('list_fonts hanya memuat font bawaan aplikasi', async () => {
+  const r = await ops.listFonts();
+  expect(r.default).toBe('Bangers');
+  expect(r.fonts).toContain('Luckiest Guy');
+  expect(r.fonts).not.toContain('Comic Sans MS');
 });

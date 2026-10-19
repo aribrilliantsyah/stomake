@@ -175,6 +175,28 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
             </label>
             <Num label="Ukuran" value={layer.fontSize} onChange={(fontSize) => set({ fontSize: Math.max(8, fontSize) }, 'fs')} />
           </div>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={layer.width !== undefined}
+              onChange={(e) => set({ width: e.target.checked ? 800 : undefined, align: e.target.checked ? (layer.align ?? 'center') : undefined })}
+            />
+            Teks multi-baris (lipat otomatis)
+          </label>
+          {layer.width !== undefined && (
+            <div className="grid3">
+              <Num label="Lebar" value={layer.width} onChange={(width) => set({ width: Math.max(40, width) }, 'tw')} />
+              <label className="fld">
+                <span>Rata</span>
+                <select value={layer.align ?? 'center'} onChange={(e) => set({ align: e.target.value as 'left' | 'center' | 'right' })}>
+                  <option value="left">Kiri</option>
+                  <option value="center">Tengah</option>
+                  <option value="right">Kanan</option>
+                </select>
+              </label>
+              <Num label="Jarak baris" step={0.05} value={layer.lineHeight ?? 1} onChange={(v) => set({ lineHeight: Math.min(4, Math.max(0.5, v)) }, 'lh')} />
+            </div>
+          )}
           <div className="fld">
             <span>Warna teks</span>
             <ColorField label="Warna teks" value={layer.fill} onChange={(fill) => set({ fill }, 'fill')} />

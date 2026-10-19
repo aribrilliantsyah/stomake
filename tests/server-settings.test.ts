@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, expect, test } from 'vitest';
 import { createApp } from '../src/server/app';
+import { TOOLS } from '../src/server/mcp/server';
 
 let home: string;
 let app: ReturnType<typeof createApp>;
@@ -27,7 +28,7 @@ test('default: MCP mati, port 5179, semua tool aktif, log lengkap; folder dari S
     lock: { idleSeconds: 10, ackSeconds: 3 },
     log: { enabled: true, payloads: true, maxEntries: 2000 },
   });
-  expect(s.mcp.toolList).toHaveLength(20);
+  expect(s.mcp.toolList).toHaveLength(TOOLS.length);
   expect(s.storage).toMatchObject({ dataRoot: home, fixedByEnv: true });
 });
 

@@ -126,8 +126,9 @@ export function PanelContent({ panel, split, slug, interactive, selectedLayerIds
   const sel = panel.layers.filter((l) => selectedLayerIds.includes(l.id));
   const multi = sel.length > 1;
   const one = sel.length === 1 ? sel[0] : undefined;
-  const freeAspect = !multi && (one?.type === 'arrow' || one?.type === 'shape');
-  const sideAnchors = !multi && (one?.type === 'image' || one?.type === 'arrow' || one?.type === 'shape');
+  const wrapText = !multi && one?.type === 'text' && one.width !== undefined;
+  const freeAspect = !multi && (one?.type === 'arrow' || one?.type === 'shape' || wrapText);
+  const sideAnchors = !multi && (one?.type === 'image' || one?.type === 'arrow' || one?.type === 'shape' || wrapText);
 
   return (
     <Group>

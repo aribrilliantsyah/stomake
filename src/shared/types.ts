@@ -69,6 +69,8 @@ export interface ImageLayer extends LayerBase {
 
 export type FontName = string;
 
+export type TextAlign = 'left' | 'center' | 'right';
+
 export interface TextLayer extends LayerBase {
   type: 'text';
   text: string;
@@ -77,6 +79,12 @@ export interface TextLayer extends LayerBase {
   fill: string;
   stroke: string | null;
   strokeWidth: number;
+  /** wrap box width in panel units; absent = one line that grows with the text */
+  width?: number;
+  /** alignment of wrapped lines; absent = center */
+  align?: TextAlign;
+  /** line spacing as a multiple of fontSize; absent = 1 */
+  lineHeight?: number;
 }
 
 export interface ArrowLayer extends LayerBase {

@@ -43,8 +43,9 @@ async function call<T = Record<string, unknown>>(c: Client, name: string, args: 
 }
 
 const TOOLS = [
-  'add_layer', 'add_page', 'add_scene', 'add_svg_asset', 'create_project', 'export_pdf', 'finish_editing', 'get_project', 'get_storyline', 'list_assets', 'list_projects',
-  'remove_layer', 'remove_page', 'remove_scene', 'reorder_layer', 'set_background', 'set_cover', 'set_storyline', 'update_layer', 'update_scene',
+  'add_layer', 'add_layers', 'add_page', 'add_pattern_asset', 'add_scene', 'add_svg_asset', 'check_storyboard', 'create_project', 'export_pdf', 'finish_editing',
+  'get_project', 'get_storyline', 'group_layers', 'list_assets', 'list_fonts', 'list_projects', 'remove_layer', 'remove_page', 'remove_scene', 'reorder_layer',
+  'set_background', 'set_cover', 'set_storyline', 'update_layer', 'update_scene',
 ];
 
 test('MCP mati → 404 dengan pesan', async () => {
@@ -54,7 +55,7 @@ test('MCP mati → 404 dengan pesan', async () => {
   await expect(client()).rejects.toThrow();
 });
 
-test('MCP nyala → 20 tool', async () => {
+test('MCP nyala → semua tool terdaftar', async () => {
   await enable(true);
   const c = await client();
   const names = (await c.listTools()).tools.map((t) => t.name).sort();

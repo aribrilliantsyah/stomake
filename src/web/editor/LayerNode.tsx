@@ -67,9 +67,10 @@ export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, 
       body = <ImageBody layer={layer} slug={slug} />;
       break;
     case 'text': {
+      const align = layer.align ?? 'center';
       body = (
         <Text
-          key={`${layer.font}|${layer.fontSize}|${layer.text}`}
+          key={`${layer.font}|${layer.fontSize}|${layer.text}|${layer.width ?? 0}|${align}|${layer.lineHeight ?? 1}`}
           text={layer.text}
           fontFamily={fontStack(layer.font)}
           fontSize={layer.fontSize}
@@ -77,7 +78,10 @@ export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, 
           stroke={layer.stroke ?? undefined}
           strokeWidth={layer.stroke ? layer.strokeWidth : 0}
           fillAfterStrokeEnabled
-          align="center"
+          align={align}
+          width={layer.width}
+          wrap={layer.width ? 'word' : 'none'}
+          lineHeight={layer.lineHeight ?? 1}
           ref={(n) => {
             if (n) n.offset({ x: n.width() / 2, y: n.height() / 2 });
           }}
@@ -155,7 +159,12 @@ export function LayerNode({ layer, slug, interactive, onSelect, onSelectSingle, 
             onChange?.(layer.id, { ...base, width: Math.max(4, Math.round(layer.width * sx)), height: Math.max(4, Math.round(layer.height * sy)) });
             break;
           case 'text':
-            onChange?.(layer.id, { ...base, fontSize: Math.max(8, Math.round(layer.fontSize * sy)) });
+            // a wrap box widens with the horizontal handle; a free line only scales its size
+            onChange?.(layer.id, {
+              ...base,
+              fontSize: Math.max(8, Math.round(layer.fontSize * sy)),
+              ...(layer.width ? { width: Math.max(40, Math.round(layer.width * sx)) } : null),
+            });
             break;
           case 'emoji':
             onChange?.(layer.id, { ...base, size: Math.max(8, Math.round(layer.size * sy)) });

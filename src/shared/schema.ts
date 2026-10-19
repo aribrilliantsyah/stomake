@@ -39,6 +39,9 @@ const layer = z.discriminatedUnion('type', [
     fill: z.string(),
     stroke: z.string().nullable(),
     strokeWidth: z.number().min(0),
+    width: z.number().positive().optional(),
+    align: z.enum(['left', 'center', 'right']).optional(),
+    lineHeight: z.number().min(0.5).max(4).optional(),
   }),
   z.object({
     ...base,

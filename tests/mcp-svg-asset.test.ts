@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { imageSize } from 'image-size';
 import { afterAll, afterEach, beforeEach, expect, test } from 'vitest';
 import { closeBrowser } from '../src/server/export';
+import { svgToPng } from '../src/server/svgAsset';
 import { agentLock, resetLive, subscribe, type LiveEvent } from '../src/server/live';
 import { ops, ToolError } from '../src/server/mcp/ops';
 
@@ -64,13 +65,13 @@ test('SVG tidak pernah mengakses jaringan (gambar, script, iframe di dalam SVG d
   }).listen(0);
   const port = (srv.address() as AddressInfo).port;
   const u = `http://127.0.0.1:${port}`;
-  const { slug } = await ops.createProject({ name: 'Es' });
   const evil = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
     <script>fetch('${u}/s')</script><image href="${u}/i.png" width="100" height="100"/>
     <foreignObject width="100" height="100"><iframe xmlns="http://www.w3.org/1999/xhtml" src="${u}/f"/></foreignObject>
     <rect width="50" height="50" fill="green"/></svg>`;
+  // the renderer itself, not addSvgAsset: that tool rejects <foreignObject> before this point
   // resolves only after the render context is closed: nothing can still be in flight
-  await ops.addSvgAsset({ slug, name: 'aman', svg: evil });
+  await svgToPng(evil);
   srv.close();
   expect(hits).toBe(0);
 });
@@ -90,4 +91,33 @@ test('input buruk → pesan jelas, tidak ada file tersimpan', async () => {
     await expect(p).rejects.toThrow(msg);
   }
   expect(existsSync(assetsDir(slug)) ? readdirSync(assetsDir(slug)) : []).toEqual([]);
+});
+
+test('SVG dengan teks ditolak: teks harus jadi layer text, bukan gambar', async () => {
+  const { slug } = await ops.createProject({ name: 'Es' });
+  for (const svg of [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="10" y="50">JUDUL</text></svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><foreignObject width="100" height="100"><p xmlns="http://www.w3.org/1999/xhtml">JUDUL</p></foreignObject></svg>`,
+  ]) {
+    await expect(ops.addSvgAsset({ slug, name: 'judul', svg })).rejects.toThrow('add_layer');
+  }
+  expect(existsSync(assetsDir(slug)) ? readdirSync(assetsDir(slug)) : []).toEqual([]);
+});
+
+test('add_pattern_asset: background bermotif jadi PNG ukuran panel dan langsung bisa dipakai set_background', async () => {
+  const { slug } = await ops.createProject({ name: 'Es' });
+  const r = await ops.addPatternAsset({ slug, name: 'bg grid', kind: 'grid', color: '#F3EDE4', ink: '#1F1E1B', cell: 120, vignette: true });
+  expect(r).toMatchObject({ assetRef: 'project:bg grid.png', width: 1080, height: 1920 });
+  expect(imageSize(readFileSync(join(assetsDir(slug), 'bg grid.png')))).toMatchObject({ width: 1080, height: 1920 });
+
+  const panelId = (await ops.getProject({ slug })).pages[0].scenes[0].panels[0].id;
+  await ops.setBackground({ slug, target: { panelId }, assetRef: r.assetRef });
+  const bg = (await ops.getProject({ slug })).pages[0].scenes[0].panels[0].background;
+  expect(bg).toEqual({ kind: 'asset', ref: 'project:bg grid.png', fit: 'cover' });
+});
+
+test('add_pattern_asset: panel split memakai tinggi 960 dan gradien dua warna', async () => {
+  const { slug } = await ops.createProject({ name: 'Es' });
+  const r = await ops.addPatternAsset({ slug, name: 'bg rays', kind: 'rays', color: '#FFD966', color2: '#E8663C', height: 960, inkOpacity: 0.3 });
+  expect([r.width, r.height]).toEqual([1080, 960]);
 });

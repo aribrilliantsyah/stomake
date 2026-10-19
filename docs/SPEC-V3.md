@@ -53,7 +53,7 @@ Semua id adalah id yang dikembalikan `get_project`. Satuan posisi/ukuran = panel
 | `export_pdf` | `{ slug }` | `{ path, url, missingAssets, missingFonts }` |
 | `finish_editing` | `{ slug }` | `{ ok }`: melepas kunci agent (§4) |
 
-Total 20 tool.
+Total 20 tool. (V5 menambah `list_fonts`, `check_storyboard`, `add_layers`, `group_layers`, dan `add_pattern_asset` menjadi 25; lihat `SPEC-V5-AUTHORING.md`.)
 
 Default posisi = tengah panel. Default ukuran image = 60% lebar panel (sama dengan paste). Default teks/shape/emoji sama dengan tombol toolbar.
 

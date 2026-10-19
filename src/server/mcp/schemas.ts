@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SHAPE_KINDS } from '../../shared/types';
+import { PATTERN_KINDS } from '../patterns';
 
 const slug = z.string().min(1).describe('slug project (dari list_projects / create_project)');
 const id = z.string().min(1);
@@ -17,12 +18,15 @@ const common = {
 const imageSpec = z.object({ type: z.literal('image'), assetRef, width: z.number().positive().optional().describe('default 60% lebar panel'), flipX: z.boolean().optional(), flipY: z.boolean().optional(), ...common });
 const textSpec = z.object({
   type: z.literal('text'),
-  text: z.string().min(1),
-  font: z.string().optional().describe('nama font, default Bangers'),
+  text: z.string().min(1).describe('isi teks; \\n memaksa pindah baris'),
+  font: z.string().optional().describe('nama font dari list_fonts, default Bangers'),
   fontSize: z.number().positive().optional(),
   fill: color.optional(),
   stroke: color.nullable().optional(),
   strokeWidth: z.number().min(0).optional(),
+  width: z.number().positive().optional().describe('lebar kotak lipat teks (panel 1080); isi ini untuk kalimat panjang agar otomatis turun baris'),
+  align: z.enum(['left', 'center', 'right']).optional().describe('perataan baris, default center; hanya berlaku bila width diisi'),
+  lineHeight: z.number().min(0.5).max(4).optional().describe('jarak antar baris × fontSize, default 1'),
   ...common,
 });
 const shapeSpec = z.object({
@@ -44,7 +48,7 @@ export type LayerSpec = z.infer<typeof layerSpec>;
 export const layerPatch = z
   .object({
     ...common,
-    width: z.number().positive().optional(),
+    width: z.number().positive().nullable().optional().describe('null pada layer text = matikan kotak lipat (kembali satu baris)'),
     height: z.number().min(0).optional(),
     text: z.string().optional(),
     font: z.string().optional(),
@@ -52,6 +56,8 @@ export const layerPatch = z
     fill: color.nullable().optional(),
     stroke: color.nullable().optional(),
     strokeWidth: z.number().min(0).optional(),
+    align: z.enum(['left', 'center', 'right']).optional(),
+    lineHeight: z.number().min(0.5).max(4).optional(),
     dash: z.boolean().optional(),
     char: z.string().optional(),
     size: z.number().positive().optional(),
@@ -70,11 +76,26 @@ export const schemas = {
   get_storyline: z.object({ slug }),
   set_storyline: z.object({ slug, text: z.string() }),
   list_assets: z.object({ slug }),
+  list_fonts: z.object({}),
   add_svg_asset: z.object({
     slug,
     name: z.string().trim().min(1).max(120).describe('nama file, mis. "gelas air" (.png ditambahkan otomatis)'),
-    svg: z.string().min(1).describe('kode SVG lengkap dengan <svg ...>; pakai viewBox. Tanpa gambar/font eksternal'),
+    svg: z.string().min(1).describe('kode SVG lengkap dengan <svg ...>; pakai viewBox. Tanpa gambar/font eksternal. JANGAN menulis judul/subtitle di dalam SVG — pakai layer text supaya bisa diedit'),
     width: z.number().int().min(16).max(2048).optional().describe('lebar PNG dalam px; default atribut width SVG atau 1024'),
+  }),
+  add_pattern_asset: z.object({
+    slug,
+    name: z.string().trim().min(1).max(120).describe('nama file, mis. "bg grid lab"'),
+    kind: z.enum(PATTERN_KINDS as unknown as [string, ...string[]]).describe('grid (kotak), graph (kertas milimeter), dots (titik), diagonal (garis miring), rays (sunburst), checker (papan catur), waves (gelombang)'),
+    color: color.optional().describe('warna dasar, default #F3EDE4'),
+    color2: color.optional().describe('bila diisi, dasar jadi gradien vertikal color → color2'),
+    ink: color.optional().describe('warna motif, default #1F1E1B'),
+    cell: z.number().int().min(8).max(600).optional().describe('jarak motif px, default 90'),
+    thickness: z.number().min(0.5).max(40).optional().describe('tebal garis motif px, default 3'),
+    inkOpacity: z.number().min(0.02).max(1).optional().describe('transparansi motif 0.02–1, default 0.18'),
+    vignette: z.boolean().optional().describe('gelapkan sudut agar subjek di tengah lebih menonjol'),
+    width: z.number().int().min(64).max(2048).optional().describe('lebar px, default 1080'),
+    height: z.number().int().min(64).max(2048).optional().describe('tinggi px, default 1920 (960 untuk panel split)'),
   }),
   add_page: z.object({ slug, afterPageId: id.optional().describe('default: setelah page terakhir'), scenes: z.number().int().min(1).max(3).optional() }),
   add_scene: z.object({ slug, pageId: id, afterSceneId: id.optional() }),
@@ -91,9 +112,21 @@ export const schemas = {
     reset: z.boolean().optional().describe('hanya untuk {pageId}: kembali ikut default'),
   }),
   add_layer: z.object({ slug, panelId: id, layer: layerSpec }),
+  add_layers: z.object({
+    slug,
+    panelId: id,
+    layers: z.array(layerSpec).min(1).max(30).describe('urutan belakang → depan; satu panggilan = satu langkah undo'),
+  }),
   update_layer: z.object({ slug, panelId: id, layerId: id, patch: layerPatch }),
   remove_layer: z.object({ slug, panelId: id, layerId: id }),
   reorder_layer: z.object({ slug, panelId: id, layerId: id, to: z.enum(['up', 'down', 'top', 'bottom']) }),
+  group_layers: z.object({
+    slug,
+    panelId: id,
+    layerIds: z.array(id).min(1).describe('minimal 2 layer untuk grup; untuk ungroup cukup 1 anggota'),
+    ungroup: z.boolean().optional().describe('true = lepas grup yang memuat layer ini'),
+  }),
+  check_storyboard: z.object({ slug }),
   export_pdf: z.object({ slug }),
   finish_editing: z.object({ slug }),
 };

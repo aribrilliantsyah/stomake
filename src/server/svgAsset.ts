@@ -20,6 +20,14 @@ function rootSize(svg: string): { width: number | null; ratio: number | null } {
 }
 
 /**
+ * The sandbox renders SVG without the app's fonts, so baked-in text comes out in a fallback face
+ * and can never be edited, re-coloured or searched. Text belongs in a `text` layer.
+ */
+export function findTextElement(svg: string): string | null {
+  return svg.match(/<\s*(text|tspan|textPath|foreignObject)\b/i)?.[1] ?? null;
+}
+
+/**
  * Renders SVG source to a transparent PNG with the shared Chromium.
  * The SVG is loaded as an <img> data URL: browsers never run scripts or fetch external
  * resources for image documents; all network access is blocked as well.

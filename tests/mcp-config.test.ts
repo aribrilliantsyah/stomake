@@ -11,6 +11,7 @@ import { createApp } from '../src/server/app';
 import { agentLock, resetLive, setLiveTimings } from '../src/server/live';
 import { startMcp } from '../src/server/mcp/control';
 import { mcpListener, type McpListener } from '../src/server/mcp/route';
+import { TOOLS } from '../src/server/mcp/server';
 
 let home: string;
 let app: Hono;
@@ -60,7 +61,7 @@ test('listener di port dari setelan; ganti port tanpa restart, port lama ditutup
   await startMcp(mcp);
   expect(await settings()).toMatchObject({ listening: true, port: a, url: `http://127.0.0.1:${a}/mcp` });
   let c = await connect(a);
-  expect((await c.listTools()).tools.length).toBe(20);
+  expect((await c.listTools()).tools.length).toBe(TOOLS.length);
   await c.close();
 
   const b = await freePort();
@@ -98,7 +99,7 @@ test('tool yang dimatikan tidak muncul di tools/list dan panggilannya tercatat s
   await startMcp(mcp);
   const c = await connect(p);
   const names = (await c.listTools()).tools.map((t) => t.name);
-  expect(names).toHaveLength(18);
+  expect(names).toHaveLength(TOOLS.length - 2);
   expect(names).not.toContain('export_pdf');
   const r = (await c.callTool({ name: 'export_pdf', arguments: { slug: 'x' } })) as { isError?: boolean };
   expect(r.isError).toBe(true);

@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Playwright-1.x-45BA4B?logo=playwright&logoColor=white" alt="Playwright">
-  <img src="https://img.shields.io/badge/MCP-20_tools-AE4F2C" alt="Model Context Protocol">
+  <img src="https://img.shields.io/badge/MCP-25_tools-AE4F2C" alt="Model Context Protocol">
 </p>
 
 </div>
@@ -62,12 +62,12 @@ Daftar project dengan pencarian, filter Aktif/Arsip, urutan, tampilan grid atau 
 - **Frame 9:16 vertikal**: untuk TikTok, Reels, dan Shorts. Tiap scene punya catatan efek di atas, frame di tengah, dan subtitle di bawah. Frame bisa dibagi atas-bawah untuk kondisi awal → akhir.
 - **Storyline di samping**: tempel naskah atau import `.docx`, lengkap dengan hitungan kata, lalu salin ke subtitle scene.
 - **Asset per project dan global**: upload dengan drag file atau tombol, tarik thumbnail ke frame, atau tempel screenshot dari clipboard.
-- **Layer**: gambar (PNG/JPG/GIF/WebP), teks (15 font bawaan + font laptop), 12 shape (kotak, elips, garis, panah, target, silang, bintang, balon kata, panah putar), dan emoji. Geser, ubah ukuran, putar, flip, opacity, grup, serta urutkan dengan drag di daftar layer.
+- **Layer**: gambar (PNG/JPG/GIF/WebP), teks (15 font bawaan + font laptop, satu baris atau kotak lipat multi-baris dengan rata kiri/tengah/kanan dan jarak baris), 12 shape (kotak, elips, garis, panah, target, silang, bintang, balon kata, panah putar), dan emoji. Geser, ubah ukuran, putar, flip, opacity, grup, serta urutkan dengan drag di daftar layer.
 - **Folder penyimpanan bebas**: pilih sendiri lokasinya, misalnya `Documents`. Folder project yang di-copy ke sana langsung terbaca.
 - **Export / Import `.zip`**: pindahkan project antar laptop atau OS, termasuk gambar yang dipakai.
 - **Autosave, undo/redo, zoom 25–400%**.
 - **Export PDF**: dirender Chromium, teks tetap bisa dipilih dan dicari.
-- **MCP untuk AI agent**: 20 tool agar Claude Code, Cursor, atau Hermes bisa menyusun storyboard, termasuk menggambar ilustrasi sendiri dengan SVG yang langsung jadi asset. Editor terkunci dan menampilkan perubahan secara live selama agent bekerja.
+- **MCP untuk AI agent**: 25 tool agar Claude Code, Cursor, atau Hermes bisa menyusun storyboard — teks sebagai layer asli, background bermotif yang dibuat sendiri, ilustrasi SVG, dan pemeriksaan kualitas sebelum selesai. Editor terkunci dan menampilkan perubahan secara live selama agent bekerja.
 
 ---
 
@@ -223,20 +223,33 @@ Variabel `STORYBOARD_MCP_PORT` mengunci port dari luar aplikasi.
 - **Export** mengunduh hasil filter sebagai `.jsonl`; **Hapus log** mengosongkan semuanya.
 - Log disimpan di `<folder penyimpanan>/logs/mcp.jsonl`. Teks panjang (mis. kode SVG) dipotong 2000 karakter.
 
-### 20 Tools yang Tersedia untuk AI:
-- **Proyek**: `list_projects`, `create_project`, `get_project`, `get_storyline`, `set_storyline`
-- **Asset**: `list_assets`, `add_svg_asset`
+### 25 Tools yang Tersedia untuk AI:
+- **Membaca**: `list_projects`, `get_project`, `get_storyline`, `list_assets`, `list_fonts`, `check_storyboard`
+- **Proyek & naskah**: `create_project`, `set_storyline`
 - **Halaman & Scene**: `add_page`, `remove_page`, `add_scene`, `remove_scene`, `update_scene`, `set_cover`, `set_background`
-- **Manipulasi Layer**: `add_layer`, `update_layer`, `remove_layer`, `reorder_layer`
+- **Layer**: `add_layer`, `add_layers`, `update_layer`, `remove_layer`, `reorder_layer`, `group_layers`
+- **Membuat gambar**: `add_svg_asset`, `add_pattern_asset`
 - **Output & Sesi**: `export_pdf`, `finish_editing`
+
+### Aturan isi storyboard yang dipakai agent
+
+Server mengirim aturan ini ke agent saat tersambung, jadi tidak perlu diulang di setiap perintah:
+
+1. **Teks = layer teks, bukan gambar.** Judul, label, dan angka harus `add_layer`/`add_layers` bertipe `text` agar tetap bisa diedit, diganti font, dan dicari di PDF. Menulis teks di dalam `add_svg_asset` ditolak server (`<text>`, `<tspan>`, `<textPath>`, `<foreignObject>`).
+2. **Kalimat panjang pakai kotak lipat.** Layer teks menerima `width` (lebar lipat), `align` (kiri/tengah/kanan), dan `lineHeight`, jadi narasi panjang turun baris sendiri, bukan satu baris yang keluar frame.
+3. **Font hanya dari `list_fonts`** — 15 font bawaan yang benar-benar ikut saat export PDF.
+4. **Background tidak boleh polos.** `add_pattern_asset` membuat latar bermotif (`grid`, `graph`, `dots`, `diagonal`, `rays`, `checker`, `waves`) dengan warna, gradien dua warna, kerapatan, ketebalan, transparansi motif, dan vignette opsional.
+5. **Frame harus informatif**: subjek digabung penanda makna (panah, target, silang, balon kata, badge angka, emoji reaksi), 2–5 layer per frame, disusun sekali jalan lewat `add_layers`.
+6. **Catatan efek dan subtitle wajib diisi** lewat `update_scene`, diambil dari storyline.
+7. **`check_storyboard` sebelum selesai**: melaporkan asset/background hilang, layer di luar frame, teks terlalu kecil untuk PDF, kalimat panjang tanpa `width`, frame kosong, subtitle kosong, dan background polos di semua frame.
 
 ### Agent menggambar ilustrasi sendiri
 
-Dengan `add_svg_asset`, agent menulis kode SVG (gelas, es batu, gunung es, latar kotak-kotak, diagram), lalu server mengubahnya jadi PNG transparan dan menyimpannya di tab **Asset** project. Gambar langsung muncul di editor yang sedang terbuka, dan `assetRef` hasilnya bisa dipakai di `add_layer` atau `set_background`. Cocok untuk ilustrasi flat, ikon, dan diagram; untuk foto atau karakter realistis tetap pakai gambar asli.
+Dengan `add_svg_asset`, agent menulis kode SVG (gelas, es batu, gunung es, diagram), lalu server mengubahnya jadi PNG transparan dan menyimpannya di tab **Asset** project. Gambar langsung muncul di editor yang sedang terbuka, dan `assetRef` hasilnya bisa dipakai di `add_layer` atau `set_background`. Cocok untuk ilustrasi flat, ikon, dan diagram; untuk foto atau karakter realistis tetap pakai gambar asli.
 
 Contoh perintah ke agent:
 
-> Buat project "Kenapa Es Batu Mengapung?", gambar sendiri gelas berisi air, es batu, dan gunung es dengan SVG, lalu susun 3 scene yang menjelaskannya.
+> Buat project "Kenapa Es Batu Mengapung?", gambar sendiri gelas berisi air, es batu, dan gunung es dengan SVG, pakai latar kertas milimeter, lalu susun 3 scene yang menjelaskannya.
 
 Proses render berjalan di Chromium tanpa JavaScript dan tanpa akses jaringan: script, gambar dari URL, dan font eksternal di dalam SVG diabaikan. Batasnya SVG maks 1 MB dan PNG maks 2048 px.
 
