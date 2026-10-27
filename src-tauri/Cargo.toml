@@ -1,6 +1,6 @@
 [package]
 name = "stomake"
-version = "0.0.1"
+version = "0.0.2"
 description = "Stomake desktop"
 edition = "2021"
 

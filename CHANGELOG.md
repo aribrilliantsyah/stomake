@@ -6,6 +6,8 @@ Each section below becomes the description of the matching GitHub Release, where
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-10-27
+
 ### Fixed
 - Updated checkout to v5 and setup-node to v6 for Node.js 24-compatible action runtimes and newer cache dependencies.
 - Removed the Windows unused-window warning while preserving Linux GTK file-drop initialization.
