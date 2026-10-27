@@ -6,6 +6,8 @@ Each section below becomes the description of the matching GitHub Release, where
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-10-27
+
 ### Added
 - First desktop release of Stomake: Windows installer (`.exe` / `.msi`) and Linux `.AppImage`, built automatically by GitHub Actions for every version tag.
 - PowerPoint-style pages with 1–3 vertical 9:16 scenes each, an optional "VISUAL ASLI" cover, effect notes above and subtitles below every frame, and split top/bottom frames.
