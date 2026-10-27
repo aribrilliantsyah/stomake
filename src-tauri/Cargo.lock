@@ -3404,7 +3404,7 @@ checksum = "ff7589a1859b09232522bb9edf076ca7fcf14ded96685d3fa629db73023ffbb7"
 
 [[package]]
 name = "stomake"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "gtk",
  "libc",
