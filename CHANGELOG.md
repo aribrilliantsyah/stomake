@@ -6,6 +6,9 @@ Each section below becomes the description of the matching GitHub Release, where
 
 ## [Unreleased]
 
+### Fixed
+- Updated pnpm/action-setup to v5 (Node.js 24 runtime) to remove the remaining Node.js 20 deprecation warning from Windows and Linux build jobs.
+
 ## [0.0.2] - 2026-10-27
 
 ### Fixed
