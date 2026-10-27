@@ -110,15 +110,16 @@ pub fn run() {
                 return Err("Server tidak merespons dalam 30 detik".into());
             }
             let url = Url::parse(&format!("http://127.0.0.1:{port}/"))?;
-            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+            let window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
                 .title("Stomake")
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(1024.0, 640.0)
                 // Preserve HTML5 internal drags; Linux handles only external URI drops below.
-                .disable_drag_drop_handler()
-                .build()?;
+                .disable_drag_drop_handler();
             #[cfg(target_os = "linux")]
-            linux_drop::install(&window)?;
+            linux_drop::install(&window_builder.build()?)?;
+            #[cfg(not(target_os = "linux"))]
+            window_builder.build()?;
             Ok(())
         })
         .build(tauri::generate_context!())
