@@ -19,7 +19,7 @@ test('Pengaturan: switch MCP, URL, tema gelap tersimpan, toggle tema', async ({ 
   await expect(sw).toHaveAttribute('aria-checked', 'true');
   expect((await page.request.fetch(MCP, { method: 'POST', data: init.body, headers: init.headers })).status()).toBe(200);
   await expect(dialog.locator('.mcp-url')).toHaveText(MCP);
-  await expect(dialog.locator('.mcp-config')).toContainText('"storyboard-maker"');
+  await expect(dialog.locator('.mcp-config')).toContainText('"stomake"');
 
   await dialog.getByRole('radio', { name: 'Gelap' }).check();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

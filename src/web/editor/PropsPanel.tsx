@@ -1,11 +1,11 @@
-import { GripVertical, ChevronRight, Group, Ungroup, ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, SendToBack, Trash2 } from 'lucide-react';
+import { GripVertical, ChevronRight, Group, Ungroup, ImagePlus, Loader2, BringToFront, ChevronDown, ChevronUp, FlipHorizontal2, FlipVertical2, Link2, Link2Off, SendToBack, Trash2 } from 'lucide-react';
 import { replaceRef, removeLayer, reorderLayer, setLayerOpacity, setPageBackground, setSplit, updateCover, updateLayer, updatePanel, updateScene } from '../../shared/model';
 import type { Background, Layer, Scene } from '../../shared/types';
 import { AssetPicker } from './AssetPicker';
 import { FontPicker } from './FontPicker';
 import { api, type AssetLists } from '../api';
 import { toast } from '../state/uiStore';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDragReset } from './useDragReset';
 import { SHAPES } from './ShapeMenu';
 import { groupLayers, moveLayersTo, removeLayers, reorderLayers, setLayersOpacity, ungroupLayers } from '../../shared/multi';
@@ -99,6 +99,53 @@ function SaveClip({ layer, panelId }: { layer: Extract<Layer, { type: 'image' }>
   );
 }
 
+type ImageLayer = Extract<Layer, { type: 'image' }>;
+
+/** Width/height inputs with an aspect-ratio lock (on by default). */
+function ImageSize({ layer, set }: { layer: ImageLayer; set: (patch: Partial<Layer>, key?: string) => void }) {
+  const [locked, setLocked] = useState(true);
+  // Ratio is captured from the layer and kept while typing, so tiny intermediate values (clamped/rounded) don't drift it.
+  // Any size change not written here (canvas resize, undo, other layer) re-captures it.
+  const ratio = useRef({ id: layer.id, w: layer.width, h: layer.height, r: layer.width / layer.height });
+  const cur = ratio.current;
+  if (cur.id !== layer.id || cur.w !== layer.width || cur.h !== layer.height) {
+    ratio.current = { id: layer.id, w: layer.width, h: layer.height, r: layer.width / layer.height };
+  }
+  const resize = (width: number, height: number, key: string) => {
+    ratio.current = { ...ratio.current, w: width, h: height };
+    set({ width, height }, key);
+  };
+  return (
+    <div className="grid-ratio">
+      <Num
+        label="Lebar"
+        value={layer.width}
+        onChange={(v) => {
+          const width = Math.max(4, v);
+          resize(width, locked ? Math.max(4, Math.round(width / ratio.current.r)) : layer.height, 'w');
+        }}
+      />
+      <button
+        className={`ib${locked ? ' on' : ''}`}
+        onClick={() => setLocked(!locked)}
+        title={locked ? 'Rasio terkunci: tinggi ikut lebar' : 'Rasio bebas'}
+        aria-label="Kunci rasio aspek"
+        aria-pressed={locked}
+      >
+        {locked ? <Link2 size={14} aria-hidden /> : <Link2Off size={14} aria-hidden />}
+      </button>
+      <Num
+        label="Tinggi"
+        value={layer.height}
+        onChange={(v) => {
+          const height = Math.max(4, v);
+          resize(locked ? Math.max(4, Math.round(height * ratio.current.r)) : layer.width, height, 'h');
+        }}
+      />
+    </div>
+  );
+}
+
 let onAssetsChanged: (() => void) | null = null;
 export function setPropsAssetsChanged(fn: (() => void) | null) {
   onAssetsChanged = fn;
@@ -141,10 +188,7 @@ function LayerProps({ layer, panelId }: { layer: Layer; panelId: string }) {
       </div>
       {layer.type === 'image' && (
         <>
-          <div className="grid2">
-            <Num label="Lebar" value={layer.width} onChange={(width) => set({ width: Math.max(4, width) }, 'w')} />
-            <Num label="Tinggi" value={layer.height} onChange={(height) => set({ height: Math.max(4, height) }, 'h')} />
-          </div>
+          <ImageSize layer={layer} set={set} />
           <div className="grid2">
             <button onClick={() => set({ flipX: !layer.flipX }, 'fx')} className={layer.flipX ? 'on' : ''}>
               <FlipHorizontal2 size={14} aria-hidden /> Balik horizontal

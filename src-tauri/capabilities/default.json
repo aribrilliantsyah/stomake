@@ -1,13 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The app window loads the bundled local server; only it may use the native dialogs/opener.",
+  "description": "The main localhost app window may use native dialogs/opener and read clipboard images/text.",
   "windows": ["main"],
   "remote": { "urls": ["http://127.0.0.1:*/*", "http://localhost:*/*"] },
   "permissions": [
     "core:default",
+    "allow-read-local-images",
     "dialog:allow-open",
     "dialog:allow-save",
+    "clipboard-manager:allow-read-image",
+    "clipboard-manager:allow-read-text",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "http://127.0.0.1:*/*" }, { "url": "http://localhost:*/*" }]

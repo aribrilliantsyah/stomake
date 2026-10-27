@@ -17,7 +17,7 @@ function freeName(taken: Zippable, name: string): string {
 }
 
 /** marks a storyboard project archive; bumped if the layout inside the zip changes */
-const FORMAT = 'storyboard-maker/project@1';
+const FORMAT = 'stomake/project@1';
 const MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
 
 export class ZipError extends Error {}
@@ -81,7 +81,7 @@ export async function importProjectZip(bytes: Uint8Array): Promise<string> {
   try {
     project = parseProject(JSON.parse(strFromU8(entries[jsonPath])));
   } catch {
-    throw new ZipError('project.json di dalam zip rusak atau bukan project Storyboard Maker');
+    throw new ZipError('project.json di dalam zip rusak atau bukan project Stomake');
   }
 
   const inFolder = (folder: string) =>

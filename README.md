@@ -1,9 +1,13 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/storyboard-maker-lockup-dark.svg">
-  <img src="docs/images/storyboard-maker-lockup.svg" alt="Storyboard Maker" width="480">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/stomake-lockup-dark.svg">
+  <img src="docs/images/stomake-lockup.svg" alt="Stomake" width="480">
 </picture>
+
+<p align="center">
+  <strong>Bahasa Indonesia</strong> · <a href="README.en.md">English</a>
+</p>
 
 <p align="center">
   <strong>Bikin storyboard video vertikal 9:16 dari naskah, lalu export PDF siap kirim ke video editor. Jalan lokal di laptop, sebagai aplikasi desktop atau di browser.</strong>
@@ -16,9 +20,26 @@
   <img src="https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Playwright-1.x-45BA4B?logo=playwright&logoColor=white" alt="Playwright">
   <img src="https://img.shields.io/badge/MCP-25_tools-AE4F2C" alt="Model Context Protocol">
+  <a href="https://github.com/aribrilliantsyah/stomek/releases/latest"><img src="https://img.shields.io/github/v/release/aribrilliantsyah/stomek?label=download" alt="Rilis terbaru"></a>
 </p>
 
 </div>
+
+---
+
+## ⬇️ Download
+
+Installer siap pakai ada di halaman **[Releases](https://github.com/aribrilliantsyah/stomek/releases/latest)**, lengkap dengan changelog tiap versi.
+
+| OS | File |
+|---|---|
+| Windows 10/11 | `Stomake_<versi>_x64-setup.exe` (atau `.msi`) |
+| Linux x64 | `Stomake_<versi>_amd64.AppImage` |
+
+- **Windows**: jalankan installer. Installer belum ditandatangani, jadi bila SmartScreen muncul pilih *More info → Run anyway*.
+- **Linux**: `chmod +x Stomake_*.AppImage`, lalu jalankan file tersebut. Tidak perlu sudo.
+
+Node, server, dan Playwright sudah ikut di dalam aplikasi. Export PDF memakai Chrome/Edge yang sudah ada di laptop; bila tidak ada, Chromium headless diunduh sekali saat export pertama.
 
 ---
 
@@ -57,12 +78,12 @@ Daftar project dengan pencarian, filter Aktif/Arsip, urutan, tampilan grid atau 
 
 ## ✨ Fitur Utama
 
-- **Aplikasi desktop (Tauri)**: jendela native untuk Windows, macOS, dan Linux, tanpa perlu memasang Node. Versi browser tetap tersedia lewat `pnpm start`.
+- **Aplikasi desktop (Tauri)**: jendela native untuk Windows dan Linux (macOS bisa dibuild manual), tanpa perlu memasang Node. Versi browser tetap tersedia lewat `pnpm start`.
 - **Slide gaya PowerPoint**: tiap page berisi 1–3 scene, ditambah Cover *"VISUAL ASLI"* opsional. Nomor scene berlanjut antar page; tidak ada pemindahan scene otomatis.
 - **Frame 9:16 vertikal**: untuk TikTok, Reels, dan Shorts. Tiap scene punya catatan efek di atas, frame di tengah, dan subtitle di bawah. Frame bisa dibagi atas-bawah untuk kondisi awal → akhir.
 - **Storyline di samping**: tempel naskah atau import `.docx`, lengkap dengan hitungan kata, lalu salin ke subtitle scene.
 - **Asset per project dan global**: upload dengan drag file atau tombol, tarik thumbnail ke frame, atau tempel screenshot dari clipboard.
-- **Layer**: gambar (PNG/JPG/GIF/WebP), teks (15 font bawaan + font laptop, satu baris atau kotak lipat multi-baris dengan rata kiri/tengah/kanan dan jarak baris), 12 shape (kotak, elips, garis, panah, target, silang, bintang, balon kata, panah putar), dan emoji. Geser, ubah ukuran, putar, flip, opacity, grup, serta urutkan dengan drag di daftar layer.
+- **Layer**: gambar (PNG/JPG/GIF/WebP), teks (15 font bawaan + font laptop, satu baris atau kotak lipat multi-baris dengan rata kiri/tengah/kanan dan jarak baris), 12 shape (kotak, elips, garis, panah, target, silang, bintang, balon kata, panah putar), dan emoji. Geser, ubah ukuran, putar, flip, opacity, grup, serta urutkan dengan drag di daftar layer. Lebar/Tinggi gambar punya tombol kunci rasio (aktif bawaan): ubah satu, yang lain menyesuaikan.
 - **Folder penyimpanan bebas**: pilih sendiri lokasinya, misalnya `Documents`. Folder project yang di-copy ke sana langsung terbaca.
 - **Export / Import `.zip`**: pindahkan project antar laptop atau OS, termasuk gambar yang dipakai.
 - **Autosave, undo/redo, zoom 25–400%**.
@@ -82,8 +103,8 @@ Daftar project dengan pencarian, filter Aktif/Arsip, urutan, tampilan grid atau 
 
 ```bash
 # Clone repository
-git clone https://github.com/aribrilliantsyah/storyboard-maker.git
-cd storyboard-maker
+git clone https://github.com/aribrilliantsyah/stomek.git
+cd stomek
 
 # Install dependensi
 pnpm install
@@ -96,7 +117,7 @@ Buka **`http://127.0.0.1:5178`** di browser.
 
 ### Aplikasi Desktop (Tauri)
 
-Aplikasi desktop membungkus web app yang sama dalam jendela native (Windows, macOS, Linux). Installer membawa Node dan Playwright sendiri, jadi pengguna tidak perlu memasang apa pun. Export PDF memakai Chrome/Edge yang sudah ada di laptop; bila tidak ada, Chromium headless diunduh sekali saat export pertama.
+Aplikasi desktop membungkus web app yang sama dalam jendela native. Installer membawa Node, server, dan Playwright sendiri, jadi pengguna tidak perlu memasang apa pun.
 
 Prasyarat build: [Rust](https://rustup.rs) dan [prasyarat Tauri](https://v2.tauri.app/start/prerequisites/) untuk OS tersebut (Linux: `webkit2gtk-4.1`).
 
@@ -105,30 +126,19 @@ pnpm desktop:dev     # jendela desktop dengan build lokal
 pnpm desktop:build   # installer di src-tauri/target/release/bundle/
 ```
 
-Installer dibuat per OS: jalankan `pnpm desktop:build` di Windows untuk `.msi`/`.exe`, di macOS untuk `.dmg`, di Linux untuk `.deb`/`.rpm`/`.AppImage`. Binary Node yang ikut dibundel diambil dari Node yang menjalankan build.
+Installer dibuat per OS, tidak bisa cross-build: jalankan `pnpm desktop:build` di Windows untuk `.exe`/`.msi`, di Linux untuk `.deb`/`.rpm`/`.AppImage`, di macOS untuk `.dmg`. Binary Node yang ikut dibundel diambil dari Node yang menjalankan build. Rilis resmi dibuat otomatis oleh GitHub Actions (lihat bagian **Rilis versi baru** di bawah).
 
-#### Pasang di launcher Linux tanpa sudo
+Drag file gambar dari file manager ke tab **Asset** untuk upload ke Project atau Global. Untuk screenshot/gambar dari aplikasi lain, pilih scene lalu tekan **Ctrl+V** (**Cmd+V** di macOS); gambar disimpan sebagai clip scene, bukan langsung ke library Asset. Paste teks di input/textarea tetap memakai clipboard sistem.
 
-Untuk distro tanpa `dpkg` (Arch, CachyOS, Fedora), isi `.deb` bisa dipasang per user di `~/.local`:
+Engine webview berbeda per OS: Linux memakai WebKitGTK, Windows WebView2, dan macOS WKWebView. Di Linux, file drop dari luar aplikasi ditangani lewat GTK; drag thumbnail/layer/slide di dalam editor tetap memakai HTML5. Clipboard gambar memakai fallback native ketika webview tidak menyediakan file pada event paste.
 
-```bash
-pnpm exec tauri build --bundles deb
-mkdir -p /tmp/sbm && cd /tmp/sbm
-bsdtar -xf "$OLDPWD/src-tauri/target/release/bundle/deb/Storyboard Maker_0.1.0_amd64.deb" && bsdtar -xf data.tar.*
-cp -a "usr/lib/Storyboard Maker" ~/.local/lib/
-install -m755 usr/bin/storyboard-maker ~/.local/bin/
-cp -a usr/share/icons/hicolor/. ~/.local/share/icons/hicolor/
-sed "s|^Exec=.*|Exec=$HOME/.local/bin/storyboard-maker|" "usr/share/applications/Storyboard Maker.desktop" > ~/.local/share/applications/storyboard-maker.desktop
-update-desktop-database ~/.local/share/applications
-```
-
-Aplikasi lalu muncul di menu aplikasi sebagai **Storyboard Maker**. Untuk menghapus, hapus keempat lokasi di atas.
+Setelah mengubah integrasi native atau dependensinya, jalankan ulang `pnpm desktop:dev` atau rebuild dengan `pnpm desktop:build`; aplikasi yang sudah terpasang tidak otomatis memakai kode terbaru.
 
 ---
 
 ## 📂 Struktur Penyimpanan Data
 
-Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. Default `~/Storyboard` (Windows: `C:\Users\<nama>\Storyboard`). Ganti lewat ⚙ **Pengaturan → Folder penyimpanan → Ganti folder…** (misalnya ke `Documents` atau folder yang disinkron cloud). Pilihan disimpan per OS di folder konfigurasi aplikasi (`%APPDATA%\storyboard-maker`, `~/Library/Application Support/storyboard-maker`, atau `~/.config/storyboard-maker`). Data di folder lama tidak dipindah. Variabel environment `STORYBOARD_HOME`, bila diisi, selalu menang atas pilihan ini.
+Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. Default `~/Storyboard` (Windows: `C:\Users\<nama>\Storyboard`). Ganti lewat ⚙ **Pengaturan → Folder penyimpanan → Ganti folder…** (misalnya ke `Documents` atau folder yang disinkron cloud). Pilihan disimpan per OS di folder konfigurasi aplikasi (`%APPDATA%\stomake`, `~/Library/Application Support/stomake`, atau `~/.config/stomake`); pilihan dari versi lama (folder `storyboard-maker`) tetap terbaca. Data di folder lama tidak dipindah. Variabel environment `STORYBOARD_HOME`, bila diisi, selalu menang atas pilihan ini.
 
 ```text
 ~/Storyboard/
@@ -176,7 +186,7 @@ Seluruh data proyek dan aset disimpan secara lokal di **folder penyimpanan**. De
 
 ## 🤖 Integrasi AI Agent (MCP Server)
 
-Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk integrasi langsung dengan AI coding agent.
+Stomake dilengkapi server **Model Context Protocol (MCP)** bawaan untuk integrasi langsung dengan AI coding agent.
 
 ### Mengaktifkan MCP
 1. Buka ⚙ **Pengaturan** di kanan atas aplikasi.
@@ -186,7 +196,7 @@ Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk
 ```json
 {
   "mcpServers": {
-    "storyboard-maker": {
+    "stomake": {
       "type": "http",
       "url": "http://127.0.0.1:5179/mcp"
     }
@@ -196,7 +206,7 @@ Storyboard Maker dilengkapi server **Model Context Protocol (MCP)** bawaan untuk
 
 *Contoh Claude Code:*
 ```bash
-claude mcp add --transport http storyboard-maker http://127.0.0.1:5179/mcp
+claude mcp add --transport http stomake http://127.0.0.1:5179/mcp
 ```
 
 > MCP punya port sendiri (default **5179**), terpisah dari aplikasi (5178). Agent yang dulu didaftarkan ke `:5178/mcp` perlu diganti ke URL di Pengaturan.
@@ -272,6 +282,28 @@ pnpm e2e
 # Validasi tipe TypeScript
 pnpm typecheck
 ```
+
+---
+
+## 🏷️ Rilis versi baru
+
+Versi aplikasi diambil dari `package.json` (desktop membacanya lewat `tauri.conf.json`). Catatan perubahan ditulis di [`CHANGELOG.md`](CHANGELOG.md) dan menjadi deskripsi halaman download.
+
+1. Tulis perubahan di bawah `## [Unreleased]` di `CHANGELOG.md`, lalu commit.
+2. Jalankan salah satu:
+
+   ```bash
+   pnpm release patch --push   # 0.1.0 → 0.1.1
+   pnpm release minor --push   # 0.1.0 → 0.2.0
+   pnpm release 1.0.0 --push   # versi tertentu
+   ```
+
+   Script menaikkan versi di `package.json` dan `src-tauri/Cargo.toml`, memindahkan isi *Unreleased* ke `## [x.y.z] - tanggal`, commit `release: vX.Y.Z`, membuat tag `vX.Y.Z`, lalu push. Tanpa `--push`, push sendiri dengan `git push --follow-tags`.
+3. Tag `v*.*.*` menjalankan workflow [`.github/workflows/release.yml`](.github/workflows/release.yml): build installer Windows (`.exe` + `.msi`) dan Linux (`.AppImage`) secara paralel, lalu menerbitkan GitHub Release berisi tabel download dan changelog versi tersebut. Bila salah satu build gagal, rilis tetap berstatus draft.
+
+Workflow menolak tag yang tidak sama dengan versi di `package.json`, dan rilis gagal bila bagian changelog versi itu kosong.
+
+Panduan lengkap (persiapan repo, memantau build, mengulang rilis yang gagal): [`docs/GITHUB.md`](docs/GITHUB.md).
 
 ---
 

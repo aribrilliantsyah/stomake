@@ -1,4 +1,5 @@
 import type { AssetInfo } from '../../shared/types';
+import { isDesktop, localImageUris } from '../desktop';
 
 export const ASSET_MIME = 'application/x-storyboard-asset';
 
@@ -37,7 +38,15 @@ export function draggedAsset(dt: DataTransfer | null): AssetInfo | null {
 
 /** an OS file drag (upload), not one of our tiles */
 export function isFileDrag(dt: DataTransfer | null): boolean {
-  return !current && !!dt?.types.includes('Files');
+  return !isAssetDrag(dt) && !!dt && (!!dt.files?.length || dt.types.includes('Files') || (isDesktop && dt.types.includes('text/uri-list')));
+}
+
+/** Read DataTransfer during the event: WebKit clears it before an awaited native call returns. */
+export function captureAssetDrop(dt: DataTransfer): { files: File[]; uris: string[] } {
+  if (isAssetDrag(dt)) return { files: [], uris: [] };
+  const files = Array.from(dt.files);
+  if (files.length) return { files, uris: [] };
+  return { files: [], uris: isDesktop ? localImageUris(dt.getData('text/uri-list')) : [] };
 }
 
 if (typeof window !== 'undefined') {

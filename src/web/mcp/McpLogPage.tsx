@@ -133,7 +133,7 @@ export function McpLogPage() {
         </button>
         <Logo size={18} />
         <h1>Log MCP</h1>
-        <span className="muted logs-sub">{enabled === false ? 'MCP sedang mati' : 'Panggilan agent ke Storyboard Maker'}</span>
+        <span className="muted logs-sub">{enabled === false ? 'MCP sedang mati' : 'Panggilan agent ke Stomake'}</span>
         <span className="grow" />
         <button className={live ? 'on' : ''} onClick={() => setLive(!live)} aria-pressed={live} title={live ? 'Hentikan pembaruan langsung' : 'Perbarui langsung'}>
           {live ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />} Live

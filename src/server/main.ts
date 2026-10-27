@@ -18,7 +18,7 @@ const mcp = mcpListener(() => webUrl, () => `http://127.0.0.1:${port}`);
 const app = createApp({ webUrl, staticDir, port, mcp });
 
 const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port }, () => {
-  console.log(`storyboard-maker  http://127.0.0.1:${port}${staticDir ? '' : '  (api; web di http://localhost:5173)'}`);
+  console.log(`stomake  http://127.0.0.1:${port}${staticDir ? '' : '  (api; web di http://localhost:5173)'}`);
   console.log(`data: ${dataRoot()}`);
   void startMcp(mcp).then(() => {
     const st = mcp.status();

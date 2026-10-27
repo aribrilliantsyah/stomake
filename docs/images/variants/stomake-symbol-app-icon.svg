@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <title>Storyboard Maker Logo</title>
-  <path fill="#AE4F2C" fill-rule="evenodd" d="
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Stomake</title><rect width="256" height="256" rx="57.6" fill="#17181A"/><g transform="translate(19.97 18.28) scale(0.844)" fill="#D97757">
+  
+  <path fill="#D97757" fill-rule="evenodd" d="
     M 68 36
     C 76 36 86 46 102 56
     C 112 61 120 62 128 62
@@ -68,4 +68,4 @@
     A 5 5 0 0 1 161 184
     Z
   "/>
-</svg>
+</g></svg>

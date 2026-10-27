@@ -1,19 +1,20 @@
 {
-  "name": "storyboard-maker",
+  "name": "stomake",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local storyboard maker: 9:16 scenes, multi-page, PDF export",
+  "description": "Stomake: local 9:16 storyboard maker, multi-page, PDF export",
   "scripts": {
     "dev": "concurrently -k -n server,web \"tsx watch src/server/main.ts\" \"vite\"",
     "build": "vite build",
-    "start": "pnpm build && NODE_ENV=production tsx src/server/main.ts",
+    "start": "pnpm build && tsx src/server/main.ts --serve-dist",
     "test": "vitest run",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "desktop:stage": "node scripts/stage-desktop.mjs",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:build": "tauri build",
+    "release": "node scripts/release.mjs"
   },
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
@@ -35,6 +36,7 @@
     "@hono/node-server": "^2.1.4",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-clipboard-manager": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.8.3",
     "@tauri-apps/plugin-opener": "^2.7.2",
     "fflate": "^0.8.3",

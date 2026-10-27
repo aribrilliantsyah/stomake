@@ -2,6 +2,10 @@
 //! then shows it in the app window. The web app is the same as in the browser; Tauri adds native
 //! folder/file dialogs and opening PDFs in the OS viewer.
 
+#[cfg(target_os = "linux")]
+mod linux_drop;
+mod transfer;
+
 use std::io::{BufRead, BufReader};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -93,6 +97,8 @@ fn wait_until_listening(port: u16, timeout: Duration) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![transfer::read_local_images])
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -104,17 +110,19 @@ pub fn run() {
                 return Err("Server tidak merespons dalam 30 detik".into());
             }
             let url = Url::parse(&format!("http://127.0.0.1:{port}/"))?;
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
-                .title("Storyboard Maker")
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+                .title("Stomake")
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(1024.0, 640.0)
-                // native file-drop interception swallows HTML5 drag & drop (layers, slides, asset tiles)
+                // Preserve HTML5 internal drags; Linux handles only external URI drops below.
                 .disable_drag_drop_handler()
                 .build()?;
+            #[cfg(target_os = "linux")]
+            linux_drop::install(&window)?;
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building Storyboard Maker");
+        .expect("error while building Stomake");
 
     app.run(|handle, event| {
         if let RunEvent::Exit = event {

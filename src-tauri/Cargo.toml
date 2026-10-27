@@ -1,11 +1,11 @@
 [package]
-name = "storyboard-maker"
+name = "stomake"
 version = "0.1.0"
-description = "Storyboard Maker desktop"
+description = "Stomake desktop"
 edition = "2021"
 
 [lib]
-name = "storyboard_maker_lib"
+name = "stomake_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -15,10 +15,13 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
+serde = { version = "1", features = ["derive"] }
 parking_lot = "0.12"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+gtk = "0.18"
 
 [profile.release]
 codegen-units = 1

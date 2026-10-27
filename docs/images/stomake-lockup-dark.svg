@@ -1,6 +1,7 @@
-<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Storyboard Maker</title>
-  
-  <path fill="#000000" fill-rule="evenodd" d="
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 120" width="680" height="120">
+  <title>Stomake</title>
+  <g transform="translate(16, 8) scale(0.375)">
+    <path fill="#D97757" fill-rule="evenodd" d="
     M 68 36
     C 76 36 86 46 102 56
     C 112 61 120 62 128 62
@@ -68,4 +69,7 @@
     A 5 5 0 0 1 161 184
     Z
   "/>
+  </g>
+  <text x="130" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif" font-weight="800" font-size="40" fill="#F4F4F5" letter-spacing="-0.5">Sto<tspan fill="#D97757">make</tspan></text>
+  <text x="132" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif" font-weight="500" font-size="15" fill="#D4D4D8" letter-spacing="0.2">Storyboard Video 9:16 · Pre-Produksi</text>
 </svg>

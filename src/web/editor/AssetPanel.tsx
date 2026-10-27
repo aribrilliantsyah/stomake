@@ -1,13 +1,15 @@
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { Folder, Globe, Image as ImageIcon, Loader2, MoreHorizontal, Trash2, Upload, Wallpaper } from 'lucide-react';
 import { ConfirmDialog } from '../ui/Dialog';
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from '../ui/Popover';
 import { markClipboard } from './clipboard';
-import { ASSET_MIME, endAssetDrag, isFileDrag, startAssetDrag } from './assetDrag';
+import { ASSET_MIME, captureAssetDrop, endAssetDrag, isAssetDrag, isFileDrag, startAssetDrag } from './assetDrag';
 export { ASSET_MIME };
 import { setPageBackground, updatePanel } from '../../shared/model';
 import type { AssetInfo } from '../../shared/types';
 import { api, type AssetLists } from '../api';
+import { isDesktop, readLocalImages } from '../desktop';
 import { useEditor } from '../state/editorStore';
 import { toast } from '../state/uiStore';
 
@@ -19,6 +21,16 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [over, setOver] = useState(false);
+  const panelElement = useRef<HTMLDivElement>(null);
+  const uploadContext = useRef({ slug, active: true });
+  if (uploadContext.current.slug !== slug) uploadContext.current = { slug, active: true };
+  useEffect(() => {
+    const context = uploadContext.current;
+    context.active = true;
+    setBusy(false);
+    setErr(null);
+    return () => { context.active = false; };
+  }, [slug]);
   // dragenter/leave fire for every child; count them so the drop zone doesn't flicker or stick
   const depth = useRef(0);
   // watchdog: dragover fires every ~50 ms while a file hovers; if it stops (Esc, drop elsewhere,
@@ -123,23 +135,54 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
     };
   }, [picked, assets]);
 
-  async function upload(files: File[]) {
-    const ok = files.filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f.name));
-    if (ok.length < files.length) toast('warn', `${files.length - ok.length} file dilewati (hanya png/jpg/gif/webp)`);
-    if (!ok.length) return;
+  async function upload(files: File[], uris: string[] = []) {
+    const context = uploadContext.current;
     setBusy(true);
     setErr(null);
     try {
+      const received = files.length ? files : await readLocalImages(uris);
+      if (!context.active || uploadContext.current !== context) return;
+      const ok = received.filter((f) => /\.(png|jpe?g|gif|webp)$/i.test(f.name));
+      if (ok.length < received.length) toast('warn', `${received.length - ok.length} file dilewati (hanya png/jpg/gif/webp)`);
+      if (!ok.length) return;
       const done = await api.uploadAssets(scope, ok, slug);
+      if (!context.active || uploadContext.current !== context) return;
       onUploaded();
       toast('ok', `${done.length} asset di-upload`);
     } catch (e) {
-      setErr((e as Error).message);
-      toast('err', `Upload gagal: ${(e as Error).message}`);
+      if (!context.active || uploadContext.current !== context) return;
+      const message = e instanceof Error ? e.message : String(e);
+      setErr(message);
+      toast('err', `Upload gagal: ${message}`);
     } finally {
-      setBusy(false);
+      if (context.active && uploadContext.current === context) setBusy(false);
     }
   }
+
+  const nativeUpload = useRef(upload);
+  nativeUpload.current = upload;
+  useEffect(() => {
+    if (!isDesktop || !/Linux/i.test(navigator.platform)) return;
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWebview().listen<{ uris: string[]; position: { x: number; y: number } }>('storyboard://file-drop', ({ payload }) => {
+      if (!active) return;
+      const panel = panelElement.current;
+      if (!panel || panel.closest('[hidden]') || isAssetDrag(null)) { hideZone(); return; }
+      const rect = panel.getBoundingClientRect();
+      // The external-only GTK bridge emits widget-local coordinates in logical CSS pixels.
+      const { x, y } = payload.position;
+      if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) { hideZone(); return; }
+      hideZone();
+      void nativeUpload.current([], payload.uris);
+    }).then((stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    }).catch((error) => {
+      if (active) toast('err', `Upload gagal: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    return () => { active = false; unlisten?.(); };
+  }, []);
 
   function setPanelBg(a: AssetInfo) {
     const panelId = s.activePanelId;
@@ -160,6 +203,7 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
 
   return (
     <div
+      ref={panelElement}
       className={`asset-panel${over ? ' drop-over' : ''}`}
       onDragEnter={(e) => {
         if (!isFileDrag(e.dataTransfer)) return;
@@ -182,9 +226,11 @@ export function AssetPanel({ slug, assets, onUploaded }: { slug: string; assets:
       }}
       onDrop={(e) => {
         hideZone();
-        if (!isFileDrag(e.dataTransfer) || !e.dataTransfer.files.length) return;
+        if (!isFileDrag(e.dataTransfer)) return;
+        const captured = captureAssetDrop(e.dataTransfer);
+        if (!captured.files.length && !captured.uris.length) return;
         e.preventDefault();
-        upload(Array.from(e.dataTransfer.files));
+        void upload(captured.files, captured.uris);
       }}
     >
       {over && (

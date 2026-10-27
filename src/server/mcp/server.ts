@@ -115,7 +115,7 @@ ATURAN ISI
  * Each call is written to the MCP log with input, result and duration.
  */
 export function buildMcpServer(opts: { allowed: (name: string) => boolean; client: string | null }): McpServer {
-  const server = new McpServer({ name: 'storyboard-maker', version: VERSION }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'stomake', version: VERSION }, { instructions: INSTRUCTIONS });
   for (const { name, description } of TOOLS) {
     if (!opts.allowed(name)) continue;
     server.registerTool(name, { description, inputSchema: schemas[name].shape }, (async (input: never) => {

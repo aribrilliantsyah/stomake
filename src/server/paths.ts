@@ -9,18 +9,30 @@ export function defaultDataRoot(): string {
   return join(homedir(), 'Storyboard');
 }
 
+function osConfigDir(name: string): string {
+  if (process.platform === 'win32') return join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), name);
+  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', name);
+  return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), name);
+}
+
 /**
  * Per-OS app config folder. Holds only the pointer to the data folder: settings.json lives inside
  * the data folder, so it can't say where that folder is.
  */
 export function configDir(): string {
-  if (process.env.STORYBOARD_CONFIG_DIR) return process.env.STORYBOARD_CONFIG_DIR;
-  if (process.platform === 'win32') return join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'storyboard-maker');
-  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'storyboard-maker');
-  return join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'storyboard-maker');
+  return process.env.STORYBOARD_CONFIG_DIR ?? osConfigDir('stomake');
 }
 
 const locationFile = () => join(configDir(), 'location.json');
+
+function readPointer(file: string): string | null {
+  try {
+    const v = JSON.parse(readFileSync(file, 'utf8')) as { dataRoot?: unknown };
+    return typeof v.dataRoot === 'string' && isAbsolute(v.dataRoot) ? v.dataRoot : null;
+  } catch {
+    return null; // missing or corrupt → next candidate
+  }
+}
 
 /** chosen folder, cached per pointer file (tests swap STORYBOARD_CONFIG_DIR) */
 let chosen: { file: string; root: string | null } | null = null;
@@ -28,13 +40,8 @@ let chosen: { file: string; root: string | null } | null = null;
 function chosenRoot(): string | null {
   const file = locationFile();
   if (chosen?.file === file) return chosen.root;
-  let root: string | null = null;
-  try {
-    const v = JSON.parse(readFileSync(file, 'utf8')) as { dataRoot?: unknown };
-    if (typeof v.dataRoot === 'string' && isAbsolute(v.dataRoot)) root = v.dataRoot;
-  } catch {
-    /* missing or corrupt → default folder */
-  }
+  // falls back to the pointer written before the app was renamed to Stomake
+  const root = readPointer(file) ?? (process.env.STORYBOARD_CONFIG_DIR ? null : readPointer(join(osConfigDir('storyboard-maker'), 'location.json')));
   chosen = { file, root };
   return root;
 }

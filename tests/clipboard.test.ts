@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, test, vi } from 'vitest';
 import { addLayer, createProject, defaultEmoji, pasteFileName, pasteLayer, withPageSizes } from '../src/shared/model';
+import type * as Desktop from '../src/web/desktop';
+import { useUi } from '../src/web/state/uiStore';
+import { installClipboard } from '../src/web/editor/clipboard';
 
 const uploadAssets = vi.fn();
+const native = vi.hoisted(() => ({ desktop: false, readText: vi.fn(), readImage: vi.fn(), readLocalImages: vi.fn() }));
+vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({ readText: native.readText, readImage: native.readImage }));
+vi.mock('../src/web/desktop', async (original) => ({
+  ...await original<typeof Desktop>(),
+  get isDesktop() { return native.desktop; },
+  readLocalImages: native.readLocalImages,
+}));
 const uploadClips = vi.fn();
 vi.mock('../src/web/api', () => ({
   api: {
@@ -49,9 +59,14 @@ function clipEvent(type: string, target: EventTarget = document.body, files: Fil
 
 beforeEach(() => {
   sys = {};
+  native.desktop = false;
+  native.readText.mockReset();
+  native.readImage.mockReset();
+  native.readLocalImages.mockReset();
   uploadAssets.mockReset();
   uploadClips.mockReset();
   useEditor.setState({ copiedAsset: null });
+  useUi.setState({ toasts: [] });
 });
 
 test('pasteLayer ke panel lain: posisi sama, id baru', () => {
@@ -187,4 +202,218 @@ test('setelah menyalin sesuatu di luar aplikasi (marker hilang), Ctrl+V menempel
   await handlePaste(clipEvent('paste', document.body, [shot]));
   expect(uploadClips).toHaveBeenCalledTimes(1);
   expect(layersOf(0).at(-1)).toMatchObject({ ref: 'clip:p.png' });
+});
+
+test('external text never pastes the stale in-app copy', async () => {
+  setup();
+  handleCopy(clipEvent('copy'));
+  sys = { 'text/plain': 'copied outside the app' };
+  const event = clipEvent('paste');
+  await handlePaste(event);
+  expect(event.defaultPrevented).toBe(false);
+  expect(layersOf(0)).toHaveLength(1);
+});
+
+test('desktop empty paste reads native marker before an older OS image', async () => {
+  setup();
+  native.desktop = true;
+  handleCopy(clipEvent('copy'));
+  const marker = sys['text/plain'];
+  sys = {};
+  native.readText.mockResolvedValue(marker);
+  await handlePaste(clipEvent('paste'));
+  expect(layersOf(0)).toHaveLength(2);
+  expect(layersOf(0)[1]).toMatchObject({ char: '🔥' });
+  expect(native.readImage).not.toHaveBeenCalled();
+});
+
+test('desktop empty event with external text or no image does not revive a stale copy', async () => {
+  setup();
+  native.desktop = true;
+  handleCopy(clipEvent('copy'));
+  sys = {};
+  native.readText.mockResolvedValue('external text');
+  native.readImage.mockRejectedValue('The clipboard contents were not available in the requested format or the clipboard is empty.');
+  await handlePaste(clipEvent('paste'));
+  expect(layersOf(0)).toHaveLength(1);
+  native.readText.mockResolvedValue('');
+  native.readImage.mockResolvedValue(null);
+  await handlePaste(clipEvent('paste'));
+  expect(layersOf(0)).toHaveLength(1);
+  expect(useUi.getState().toasts).toEqual([]);
+});
+
+test('desktop native image replaces old layer copy even when optional text negotiation fails', async () => {
+  setup();
+  native.desktop = true;
+  handleCopy(clipEvent('copy'));
+  sys = {};
+  native.readText.mockRejectedValue('Unknown error while interacting with clipboard: incorrect type received from clipboard');
+  const pixels = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255]);
+  const close = vi.fn().mockResolvedValue(undefined);
+  native.readImage.mockResolvedValue({ rgba: async () => pixels, size: async () => ({ width: 2, height: 1 }), close });
+  let encoded: { data: Uint8ClampedArray; width: number; height: number } | undefined;
+  const context = { createImageData: (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4), width, height }), putImageData: (image: typeof encoded) => { encoded = image; } };
+  const getContext = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+  const toBlob = vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (this: HTMLCanvasElement, callback) {
+    expect(this.width).toBe(2);
+    expect(this.height).toBe(1);
+    callback(new Blob(['encoded-png'], { type: 'image/png' }));
+  });
+  uploadClips.mockResolvedValue([{ ref: 'clip:native.png', name: 'native.png', width: 2, height: 1, url: '' }]);
+  try {
+    await handlePaste(clipEvent('paste'));
+    expect(encoded?.data).toEqual(new Uint8ClampedArray(pixels));
+    expect(uploadClips.mock.calls[0][1][0]).toMatchObject({ type: 'image/png', size: 11 });
+    expect(layersOf(0)).toHaveLength(2);
+    expect(layersOf(0)[1]).toMatchObject({ type: 'image', ref: 'clip:native.png' });
+    expect(close).toHaveBeenCalledOnce();
+    expect(useUi.getState().toasts).toEqual([]);
+  } finally {
+    getContext.mockRestore();
+    toBlob.mockRestore();
+  }
+});
+
+test('image upload finishing after project or panel switch never adds a layer there', async () => {
+  const { b } = setup();
+  const pending = Promise.withResolvers<{ ref: string; name: string; width: number; height: number; url: string }[]>();
+  uploadClips.mockReturnValue(pending.promise);
+  const paste = handlePaste(clipEvent('paste', document.body, [new File(['image'], 'image.png', { type: 'image/png' })]));
+  useEditor.setState({ activePanelId: b });
+  pending.resolve([{ ref: 'clip:late.png', name: 'late.png', width: 10, height: 10, url: '' }]);
+  await paste;
+  expect(layersOf(0)).toHaveLength(1);
+  expect(layersOf(1)).toHaveLength(0);
+});
+
+test('desktop copied local file URI uses narrow image command instead of stale layers', async () => {
+  setup();
+  native.desktop = true;
+  handleCopy(clipEvent('copy'));
+  sys = {};
+  native.readText.mockResolvedValue('# clipboard file\nfile:///tmp/copied.png\nhttps://example.com/remote.png');
+  native.readLocalImages.mockResolvedValue([new File(['png'], 'copied.png', { type: 'image/png' })]);
+  uploadClips.mockResolvedValue([{ ref: 'clip:copied.png', name: 'copied.png', width: 1, height: 1, url: '' }]);
+  await handlePaste(clipEvent('paste'));
+  expect(native.readLocalImages).toHaveBeenCalledWith(['file:///tmp/copied.png']);
+  expect(native.readImage).not.toHaveBeenCalled();
+  expect(layersOf(0)[1]).toMatchObject({ type: 'image', ref: 'clip:copied.png' });
+});
+
+test('desktop clipboard permission errors are shown instead of hidden as an empty clipboard', async () => {
+  setup();
+  native.desktop = true;
+  native.readText.mockResolvedValue('');
+  native.readImage.mockRejectedValue('clipboard-manager.read_image not allowed');
+  await handlePaste(clipEvent('paste'));
+  expect(layersOf(0)).toHaveLength(1);
+  expect(useUi.getState().toasts).toEqual([expect.objectContaining({ kind: 'err', text: expect.stringContaining('not allowed') })]);
+});
+
+test('desktop textarea and input paste never read the native clipboard', async () => {
+  setup();
+  native.desktop = true;
+  for (const tag of ['input', 'textarea']) {
+    const event = clipEvent('paste', document.createElement(tag));
+    await handlePaste(event);
+    expect(event.defaultPrevented).toBe(false);
+  }
+  expect(native.readText).not.toHaveBeenCalled();
+  expect(native.readImage).not.toHaveBeenCalled();
+});
+
+test('native clipboard read finishing after project switch cannot paste into either project', async () => {
+  setup();
+  native.desktop = true;
+  handleCopy(clipEvent('copy'));
+  const marker = sys['text/plain'];
+  sys = {};
+  const pending = Promise.withResolvers<string>();
+  native.readText.mockReturnValue(pending.promise);
+  const paste = handlePaste(clipEvent('paste'));
+  const project = withPageSizes(createProject('Other', 'later'), [1]);
+  useEditor.setState({ slug: 'other', project, activePanelId: project.pages[0].scenes[0].panels[0].id });
+  pending.resolve(marker);
+  await paste;
+  expect(layersOf(0)).toHaveLength(0);
+  expect(uploadClips).not.toHaveBeenCalled();
+  expect(native.readImage).not.toHaveBeenCalled();
+});
+
+test('native image with no pixels is an empty clipboard, not an upload failure', async () => {
+  setup();
+  native.desktop = true;
+  native.readText.mockResolvedValue('');
+  native.readImage.mockResolvedValue({ size: async () => ({ width: 0, height: 0 }), rgba: async () => new Uint8Array(), close: async () => undefined });
+  await handlePaste(clipEvent('paste'));
+  expect(layersOf(0)).toHaveLength(1);
+  expect(uploadClips).not.toHaveBeenCalled();
+  expect(useUi.getState().toasts).toEqual([]);
+});
+
+test('desktop Ctrl/Cmd+V pastes into the scene without requiring a WebKit paste event', async () => {
+  setup();
+  native.desktop = true;
+  handleCopy(clipEvent('copy'));
+  native.readText.mockResolvedValue(sys['text/plain']);
+  const clipboardEvent = globalThis.ClipboardEvent;
+  if (!clipboardEvent) vi.stubGlobal('ClipboardEvent', Event);
+  const uninstall = installClipboard('a', () => undefined);
+  try {
+    for (const modifier of [{ ctrlKey: true }, { metaKey: true }]) {
+      const event = new KeyboardEvent('keydown', { key: 'v', ...modifier, bubbles: true, cancelable: true });
+      document.body.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      await Promise.resolve();
+    }
+    expect(layersOf(0)).toHaveLength(3);
+    expect(layersOf(0)[1]).toMatchObject({ char: '🔥' });
+    expect(native.readImage).not.toHaveBeenCalled();
+    uninstall();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    expect(layersOf(0)).toHaveLength(3);
+  } finally {
+    uninstall();
+    if (!clipboardEvent) vi.unstubAllGlobals();
+  }
+});
+
+test('desktop paste shortcut preserves native inputs and browser paste remains event-driven', () => {
+  setup();
+  const uninstall = installClipboard('a', () => undefined);
+  try {
+    native.desktop = true;
+    for (const tag of ['input', 'textarea']) {
+      const input = document.createElement(tag);
+      document.body.appendChild(input);
+      const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true });
+      input.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      input.remove();
+    }
+    for (const modifier of [{ altKey: true }, { shiftKey: true }]) {
+      const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, ...modifier, bubbles: true, cancelable: true });
+      document.body.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    native.desktop = false;
+    const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true });
+    document.body.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(native.readText).not.toHaveBeenCalled();
+  } finally {
+    uninstall();
+  }
+});
+
+test('optional marker read failure remains visible if native clipboard has no image', async () => {
+  setup();
+  native.desktop = true;
+  native.readText.mockRejectedValue('clipboard-manager.read_text not allowed');
+  native.readImage.mockResolvedValue(null);
+  await handlePaste(clipEvent('paste'));
+  expect(layersOf(0)).toHaveLength(1);
+  expect(useUi.getState().toasts).toEqual([expect.objectContaining({ kind: 'err', text: expect.stringContaining('read_text not allowed') })]);
 });

@@ -7,7 +7,7 @@ import { navigate } from '../router';
 import { useUi } from '../state/uiStore';
 
 export function mcpConfigJson(url: string): string {
-  return JSON.stringify({ mcpServers: { 'storyboard-maker': { type: 'http', url } } }, null, 2);
+  return JSON.stringify({ mcpServers: { 'stomake': { type: 'http', url } } }, null, 2);
 }
 
 export function CopyButton({ text, label }: { text: string; label: string }) {

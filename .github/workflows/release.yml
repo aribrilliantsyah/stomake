@@ -1,0 +1,106 @@
+# Builds the Stomake desktop installers for every pushed version tag (vX.Y.Z, made by `pnpm release`)
+# and publishes them on a GitHub Release whose description is that version's CHANGELOG.md section.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    name: Draft release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag must match package.json version
+        run: |
+          pkg="v$(node -p "require('./package.json').version")"
+          [ "$pkg" = "$GITHUB_REF_NAME" ] || { echo "::error::tag $GITHUB_REF_NAME != package.json $pkg"; exit 1; }
+      - name: Release notes from CHANGELOG.md
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          {
+            echo "## Download"
+            echo
+            echo "| OS | File |"
+            echo "|---|---|"
+            echo "| Windows 10/11 (installer) | [Stomake_${v}_x64-setup.exe](${base}/Stomake_${v}_x64-setup.exe) |"
+            echo "| Windows 10/11 (MSI) | [Stomake_${v}_x64_en-US.msi](${base}/Stomake_${v}_x64_en-US.msi) |"
+            echo "| Linux x64 (AppImage) | [Stomake_${v}_amd64.AppImage](${base}/Stomake_${v}_amd64.AppImage) |"
+            echo
+            echo "Linux: \`chmod +x Stomake_${v}_amd64.AppImage\` lalu jalankan. Windows: installer belum ditandatangani, pilih *More info → Run anyway* bila SmartScreen muncul."
+            echo
+            echo "## Changelog"
+            echo
+            node scripts/release.mjs notes "$v"
+          } > notes.md
+          cat notes.md
+      - name: Create draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api -X POST "repos/${GITHUB_REPOSITORY}/releases" \
+            -f tag_name="$GITHUB_REF_NAME" -f name="Stomake $GITHUB_REF_NAME" \
+            -F body=@notes.md -F draft=true --jq .id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            bundles: nsis,msi
+          - name: Linux AppImage
+            # oldest supported Ubuntu: the AppImage links against its glibc, so it runs on newer distros too
+            os: ubuntu-22.04
+            bundles: appimage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # this Node binary is copied into the installer (scripts/stage-desktop.mjs)
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: pnpm install --frozen-lockfile
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.draft.outputs.release_id }}
+          args: --bundles ${{ matrix.bundles }}
+
+  publish:
+    name: Publish release
+    needs: [draft, build]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${{ needs.draft.outputs.release_id }}" -F draft=false -f make_latest=true

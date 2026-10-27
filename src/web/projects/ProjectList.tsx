@@ -227,7 +227,7 @@ export function ProjectList() {
       <header className="home-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Logo />
-          <h1>Storyboard Maker</h1>
+          <h1>Stomake</h1>
         </div>
         <div className="home-search">
           <Search size={14} aria-hidden />

@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { openPath, openUrl as openExternal } from '@tauri-apps/plugin-opener';
 import { api } from './api';
@@ -47,4 +48,32 @@ export async function openUrl(path: string): Promise<void> {
 /** Shows a local folder in the OS file manager (desktop only). */
 export async function revealFolder(dir: string): Promise<void> {
   if (isDesktop) await openPath(dir);
+}
+
+/** Only local image files from an OS text/uri-list, never web or remote file URLs. */
+export function localImageUris(text: string): string[] {
+  const uris: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const value = line.trim();
+    if (!value || value.startsWith('#') || !/^file:\/\//i.test(value)) continue;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'file:' || (url.hostname && url.hostname !== 'localhost') || url.search || url.hash) continue;
+      if (!/\.(png|jpe?g|gif|webp)$/i.test(decodeURIComponent(url.pathname))) continue;
+      url.hostname = '';
+      uris.push(url.href);
+    } catch {
+      // A malformed URI is not a local image drag.
+    }
+  }
+  return uris;
+}
+
+/** Narrow native command; browser uploads must keep using the actual File objects. */
+export async function readLocalImages(uris: string[]): Promise<File[]> {
+  if (!isDesktop) return [];
+  const local = localImageUris(uris.join('\n'));
+  if (!local.length) return [];
+  const images = await invoke<{ name: string; mime: string; bytes: number[] }[]>('read_local_images', { uris: local });
+  return images.map((image) => new File([new Uint8Array(image.bytes)], image.name, { type: image.mime }));
 }

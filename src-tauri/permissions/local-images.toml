@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-read-local-images"
+description = "Read local image files supplied by an OS drop or clipboard URI."
+commands.allow = ["read_local_images"]

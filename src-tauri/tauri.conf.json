@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Storyboard Maker",
-  "version": "0.1.0",
-  "identifier": "com.storyboardmaker.desktop",
+  "productName": "Stomake",
+  "version": "../package.json",
+  "identifier": "com.stomake.desktop",
   "build": {
     "beforeBuildCommand": "pnpm desktop:stage",
     "beforeDevCommand": "pnpm desktop:stage"
